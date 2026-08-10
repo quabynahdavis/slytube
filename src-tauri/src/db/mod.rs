@@ -5,8 +5,26 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::{migrate::MigrateDatabase, Sqlite, SqlitePool};
 use tauri::{AppHandle, Manager};
 
+pub mod commands;
+pub mod history;
 pub mod models;
+pub mod playlists;
+pub mod profiles;
+pub mod search_history;
 pub mod settings;
+pub mod subscription_cache;
+pub mod tab_sessions;
+pub mod watch_stats;
+
+// Re-export repositories for convenience
+pub use history::HistoryRepository;
+pub use playlists::PlaylistsRepository;
+pub use profiles::ProfilesRepository;
+pub use search_history::SearchHistoryRepository;
+pub use settings::SettingsRepository;
+pub use subscription_cache::SubscriptionCacheRepository;
+pub use tab_sessions::TabSessionsRepository;
+pub use watch_stats::WatchStatsRepository;
 
 /// Database pool wrapper for managing SQLite connections.
 #[derive(Debug, Clone)]
@@ -23,6 +41,11 @@ impl DbPool {
     /// Get the pool as a mutable reference.
     pub fn inner_mut(&mut self) -> &mut SqlitePool {
         &mut self.pool
+    }
+
+    /// Clone the underlying sqlx pool.
+    pub fn cloned(&self) -> SqlitePool {
+        self.pool.clone()
     }
 }
 

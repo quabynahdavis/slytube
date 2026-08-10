@@ -61,6 +61,51 @@ pub fn run() {
             yt_dlp::yt_dlp_cancel,
             yt_dlp::yt_dlp_list,
             potoken::generate_po_token,
+            // Settings
+            db::commands::db_settings_find_all,
+            db::commands::db_settings_find_one,
+            db::commands::db_settings_upsert,
+            // Profiles
+            db::commands::db_profiles_find_all,
+            db::commands::db_profiles_find_one,
+            db::commands::db_profiles_create,
+            db::commands::db_profiles_update,
+            db::commands::db_profiles_delete,
+            // Profile subscriptions
+            db::commands::db_profiles_get_subscriptions,
+            db::commands::db_profiles_add_subscription,
+            db::commands::db_profiles_remove_subscription,
+            // Playlists
+            db::commands::db_playlists_find_all,
+            db::commands::db_playlists_find_one,
+            db::commands::db_playlists_create,
+            db::commands::db_playlists_update,
+            db::commands::db_playlists_delete,
+            // Playlist videos
+            db::commands::db_playlists_get_videos,
+            db::commands::db_playlists_add_video,
+            db::commands::db_playlists_remove_video,
+            // History
+            db::commands::db_history_find_all,
+            db::commands::db_history_find_one,
+            db::commands::db_history_upsert,
+            db::commands::db_history_delete,
+            db::commands::db_history_clear,
+            // Watch stats
+            db::commands::db_watch_stats_add,
+            db::commands::db_watch_stats_get_total,
+            // Search history
+            db::commands::db_search_history_find_all,
+            db::commands::db_search_history_add,
+            db::commands::db_search_history_clear,
+            // Subscription cache
+            db::commands::db_subscription_cache_find_one,
+            db::commands::db_subscription_cache_upsert,
+            db::commands::db_subscription_cache_get_all,
+            // Tab sessions
+            db::commands::db_tab_sessions_save,
+            db::commands::db_tab_sessions_get_latest,
+            db::commands::db_tab_sessions_clear,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
