@@ -1,0 +1,4 @@
+# Ignore all sidecar binaries - they are downloaded per-platform at setup time.
+*
+!.gitignore
+!README.md
