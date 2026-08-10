@@ -9,3 +9,4 @@ This directory contains all project documentation organized by domain. Each subd
 - [frontend/](frontend/) - Frontend components and user interface
 - [phases/](phases/) - Project phase documentation and milestones
 - [decisions/](decisions/) - Architectural and technical decision records (ADR 001-006)
+- [testing.md](testing.md) - Testing strategy: unit, component, E2E, and manual testing

@@ -10,6 +10,14 @@
 
 ---
 
+## Status
+
+**Status:** In Progress 🔄
+**Started:** 2026-08-10
+**Notes:** Test suite development underway. Vitest unit tests for stores/composables in progress, Playwright E2E scenarios being authored, migration verification harness being built, performance profiling pending.
+
+---
+
 ## 1. Goals
 
 1. Establish a durable automated test suite: unit (Vitest + `cargo test`), component, and E2E (Playwright + WebDriver).

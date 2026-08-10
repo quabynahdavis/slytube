@@ -10,6 +10,14 @@
 
 ---
 
+## Status
+
+**Status:** Complete ✅
+**Completed:** 2026-08-10
+**Notes:** All deliverables met. Rust crypto stack (Argon2id, X25519, HKDF, AES-256-GCM), snapshot protocol v2 with delta/chunking, legacy v1 decryption with auto re-key, 4 privacy modes implemented.
+
+---
+
 ## 1. Goals
 
 1. Replace Node's `crypto` module with a native Rust crypto stack — Argon2id, X25519, HKDF, AES-256-GCM — with constant-time primitives and zeroized key material.

@@ -10,6 +10,14 @@
 
 ---
 
+## Status
+
+**Status:** Complete ✅
+**Completed:** 2026-08-10
+**Notes:** All deliverables met. Global shortcuts with conflict detection, system tray with dynamic state, native menus per platform, `opentubex://` protocol handler with strict validation, file associations, signed auto-updater.
+
+---
+
 ## 1. Goals
 
 1. Make SlyTube behave like a **native desktop application** on Windows, macOS, and Linux — not a web page in a frame.

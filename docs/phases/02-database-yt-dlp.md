@@ -10,6 +10,14 @@
 
 ---
 
+## Status
+
+**Status:** Complete ✅
+**Completed:** 2026-08-10
+**Notes:** All deliverables met. sqlx/SQLite with WAL mode, 6 migration files, repository layer (8 modules), NeDB importer with rollback, YtDlpService with concurrent downloads, progress event stream operational.
+
+---
+
 ## 1. Goals
 
 1. Stand up the persistence layer: `sqlx` + SQLite with compile-time-verified queries and versioned migrations.

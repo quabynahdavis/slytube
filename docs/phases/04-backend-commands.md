@@ -10,6 +10,14 @@
 
 ---
 
+## Status
+
+**Status:** Complete ✅
+**Completed:** 2026-08-10
+**Notes:** All deliverables met. ~78 Tauri commands implemented across 9 domains, TypeScript bindings generated via specta, network/proxy layer with HTTP/SOCKS5/Tor support, window/tray primitives complete.
+
+---
+
 ## 1. Goals
 
 1. Implement the **complete Tauri command surface** — every IPC handler from Electron's `src/main/index.js` (4558 LOC) has a typed Rust equivalent.
