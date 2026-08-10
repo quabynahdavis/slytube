@@ -10,6 +10,7 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "OpenTubeX",
@@ -23,17 +24,17 @@
     ],
     "security": {
       "csp": {
-        "default-src": "'self'",
-        "script-src": "'self'",
-        "style-src": "'self' 'unsafe-inline'",
-        "font-src": "'self' data:",
-        "img-src": "'self' asset: http://asset.localhost blob: data: https:",
-        "media-src": "'self' asset: http://asset.localhost blob: data: https:",
-        "connect-src": "'self' ipc: http://ipc.localhost blob: data: https: wss:",
-        "frame-src": "'self' https://www.youtube.com https://www.youtube-nocookie.com",
-        "object-src": "'none'",
-        "base-uri": "'self'",
-        "form-action": "'self'"
+        "default-src": ["'self'"],
+        "script-src": ["'self'"],
+        "style-src": ["'self'", "'unsafe-inline'"],
+        "font-src": ["'self'", "data:"],
+        "img-src": ["'self'", "asset:", "http://asset.localhost", "blob:", "data:", "https:"],
+        "media-src": ["'self'", "asset:", "http://asset.localhost", "blob:", "data:", "https:"],
+        "connect-src": ["'self'", "ipc:", "http://ipc.localhost", "blob:", "data:", "https:", "wss:"],
+        "frame-src": ["'self'", "https://www.youtube.com", "https://www.youtube-nocookie.com"],
+        "object-src": ["'none'"],
+        "base-uri": ["'self'"],
+        "form-action": ["'self'"]
       }
     },
     "trayIcon": {
@@ -46,6 +47,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "category": "Video",
+    "shortDescription": "Private YouTube client",
+    "longDescription": "OpenTubeX is a private YouTube client",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

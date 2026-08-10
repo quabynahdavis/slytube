@@ -1,14 +1,21 @@
 #[allow(dead_code)]
 mod db;
 mod potoken;
+mod system;
 mod yt_dlp;
 
-use tauri::Manager;
+use tauri::{AppHandle, Manager};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
+}
+
+/// Handle deep link URLs (opentubex://).
+#[tauri::command]
+fn system_deep_link(url: String, app: AppHandle) {
+    system::handle_deep_link(&app, url);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -51,16 +58,35 @@ pub fn run() {
                 Ok(())
             })?;
 
+            // Initialize system module (tray, shortcuts)
+            if let Err(e) = system::init(app.handle()) {
+                tracing::error!("Failed to initialize system module: {}", e);
+            }
+
             Ok(())
+        })
+        .on_window_event(|_window, _event| {
+            // Handle window events if needed
         })
         .invoke_handler(tauri::generate_handler![
             greet,
+            system_deep_link,
             yt_dlp::yt_dlp_get_info,
             yt_dlp::yt_dlp_get_playback_info,
             yt_dlp::yt_dlp_download,
             yt_dlp::yt_dlp_cancel,
             yt_dlp::yt_dlp_list,
             potoken::generate_po_token,
+            // System commands
+            system::commands::system_show_main_window,
+            system::commands::system_hide_main_window,
+            system::commands::system_toggle_window,
+            system::commands::system_get_version,
+            system::commands::system_check_for_updates,
+            system::commands::system_open_external,
+            system::commands::system_center_window,
+            system::commands::system_set_fullscreen,
+            system::commands::system_get_window_size,
             // Settings
             db::commands::db_settings_find_all,
             db::commands::db_settings_find_one,
