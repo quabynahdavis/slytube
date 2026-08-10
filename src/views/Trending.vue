@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useSettingsStore } from '@/stores/settings'
-
-const settingsStore = useSettingsStore()
+import { cn } from '@/lib/utils'
 
 const isLoading = ref(true)
 const selectedCategory = ref('all')

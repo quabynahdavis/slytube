@@ -2,10 +2,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { cn } from '@/lib/utils'
-import { usePlaylistsStore } from '@/stores/playlists'
 
 const route = useRoute()
-const playlistsStore = usePlaylistsStore()
 
 const playlistId = computed(() => route.params.id as string || '')
 const isLoading = ref(true)

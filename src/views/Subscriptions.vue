@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { cn } from '@/lib/utils'
 import { useSubscriptionsStore } from '@/stores/subscriptions'
-import { useProfilesStore } from '@/stores/profiles'
 
 const subscriptionsStore = useSubscriptionsStore()
-const profilesStore = useProfilesStore()
 
 const isLoading = ref(true)
 const activeTab = ref('videos')

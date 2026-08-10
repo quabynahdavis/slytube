@@ -2,10 +2,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { cn } from '@/lib/utils'
-import { useProfilesStore } from '@/stores/profiles'
 
 const route = useRoute()
-const profilesStore = useProfilesStore()
 
 const channelId = computed(() => route.params.id as string || '')
 const isLoading = ref(true)

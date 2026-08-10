@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/stores/settings'
 import { useSubscriptionsStore } from '@/stores/subscriptions'
 
+const route = useRoute()
 const settingsStore = useSettingsStore()
 const subscriptionsStore = useSubscriptionsStore()
 
@@ -50,7 +52,7 @@ const isExpanded = computed(() => settingsStore.expandSideBar)
             :to="item.route"
             :class="cn(
               'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground',
-              $route.path === item.route && 'bg-accent text-accent-foreground'
+              route.path === item.route && 'bg-accent text-accent-foreground'
             )"
             :title="item.name"
           >
@@ -85,7 +87,7 @@ const isExpanded = computed(() => settingsStore.expandSideBar)
             :to="item.route"
             :class="cn(
               'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground',
-              $route.path === item.route && 'bg-accent text-accent-foreground'
+              route.path === item.route && 'bg-accent text-accent-foreground'
             )"
             :title="item.name"
           >
@@ -108,7 +110,7 @@ const isExpanded = computed(() => settingsStore.expandSideBar)
             :to="item.route"
             :class="cn(
               'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground',
-              $route.path === item.route && 'bg-accent text-accent-foreground'
+              route.path === item.route && 'bg-accent text-accent-foreground'
             )"
             :title="item.name"
           >

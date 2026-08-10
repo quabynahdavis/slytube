@@ -1,12 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
-import { cn } from '@/lib/utils'
-
-const route = useRoute()
+import { ref, onMounted } from 'vue'
 
 const isLoading = ref(true)
-const postId = computed(() => route.params.id as string || '')
 
 const post = ref({
   author: '',

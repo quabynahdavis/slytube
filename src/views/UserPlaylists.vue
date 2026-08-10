@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { cn } from '@/lib/utils'
 import { usePlaylistsStore } from '@/stores/playlists'
 
 const playlistsStore = usePlaylistsStore()

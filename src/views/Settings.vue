@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/stores/settings'
-import { useProfilesStore } from '@/stores/profiles'
 
 const settingsStore = useSettingsStore()
-const profilesStore = useProfilesStore()
 
 const activeTab = ref('general')
 const isLoading = ref(false)

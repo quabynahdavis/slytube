@@ -2,13 +2,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { cn } from '@/lib/utils'
-import { usePlayerStore } from '@/stores/player'
-import { useHistoryStore } from '@/stores/history'
 import { useWatchQueueStore } from '@/stores/watch-queue'
 
 const route = useRoute()
-const playerStore = usePlayerStore()
-const historyStore = useHistoryStore()
 const watchQueueStore = useWatchQueueStore()
 
 const videoId = computed(() => route.query.v as string || route.params.id as string || '')
@@ -39,7 +35,6 @@ const relatedVideos = ref<Array<{
   videoThumbnails: Array<{ url: string; width: number; height: number }>
 }>>([])
 
-const comments = ref<unknown[]>([])
 const downloadFormat = ref('video:best')
 const downloadQuality = ref('720')
 

@@ -1,8 +1,5 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useSettingsStore } from '@/stores/settings'
-
-const settingsStore = useSettingsStore()
 
 const isLoading = ref(true)
 const sortBy = ref('views')

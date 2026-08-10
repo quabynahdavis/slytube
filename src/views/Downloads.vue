@@ -2,10 +2,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { cn } from '@/lib/utils'
 import { useDownloadsStore } from '@/stores/downloads'
-import { useSettingsStore } from '@/stores/settings'
 
 const downloadsStore = useDownloadsStore()
-const settingsStore = useSettingsStore()
 
 const isLoading = ref(true)
 const activeTab = ref<'active' | 'completed'>('active')

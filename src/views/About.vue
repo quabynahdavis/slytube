@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { cn } from '@/lib/utils'
 
 const appVersion = ref('0.1.0')
 const appEnvironment = ref('Development')

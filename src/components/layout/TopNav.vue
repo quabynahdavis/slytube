@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/stores/settings'
 import { useSearchHistoryStore } from '@/stores/search-history'
 
