@@ -1,0 +1,12 @@
+# Changelog
+
+| Date | Version | Description | Author |
+|------|---------|-------------|--------|
+| 2026-08-09 | 1.0.0 | Initial creation | Migration Team |
+| 2026-08-10 | 1.1.0 | Rewrote `01-database-schema.md` around the NeDB → SQLite migration: append-only datafile reader, phased idempotent import, `migration_state` tracking, and the eight production tables (settings, profiles, playlists, history, watch_stats, search_history, subscription_cache, tab_sessions) with indexes, foreign keys, triggers and sqlx pool/offline setup | Migration Team |
+| 2026-08-10 | 1.1.0 | Rewrote `02-tauri-commands.md` to the actual module layout: `db/settings`, `db/profiles`, `db/playlists`, `db/history`, `db/watch_stats`, `db/search_history`, `db/subscription_cache`, `db/tab_sessions`, plus `sync`, `network`, `window` and `shortcuts`; added the error model, camelCase serialisation contract and capability notes | Migration Team |
+| 2026-08-10 | 1.2.0 | Added `03-yt-dlp-sidecar.md` — per-platform sidecar bundling, hardened base argv, the six sidecar commands, throttled progress events, download record persistence with crash recovery, `DENIED_CUSTOM_ARGS`/`ALLOWED_CUSTOM_ARGS` validation, and format/codec selection | Migration Team |
+| 2026-08-10 | 1.2.0 | Added `04-potoken-generation.md` — hidden off-screen `WebviewWindow` generator, isolated `potoken://` protocol, `botGuardScript.js` contract, `generate_po_token` with coalescing and caching, per-attempt session cleanup, and proxy propagation | Migration Team |
+| 2026-08-10 | 1.2.0 | Added `05-sync-encryption.md` — aes-gcm/x25519-dalek/hkdf/pbkdf2 stack, Argon2id root derivation with per-collection HKDF subkeys, X25519 device pairing, AAD-bound snapshot envelopes, the seven synced collections, v1 legacy decryption path, and standard/enhanced privacy modes | Migration Team |
+| 2026-08-10 | 1.2.0 | Added `06-network-proxy.md` — reqwest client registry, per-request proxy resolution with playback-consistency invalidation, the `net_fetch` renderer wrapper with target-specific headers and host allow-lists, the `slyimg://` Rust image cache (chosen over ServiceWorker), and CORS/CSP handling | Migration Team |
+| 2026-08-10 | 1.2.0 | Expanded `OVERVIEW.md` with the backend module map, annotated file index, suggested reading order, and an explicit note that all six documents are pre-implementation design specifications | Migration Team |
