@@ -7,11 +7,19 @@ const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [vue(), tailwindcss()],
+  plugins: [vue({
+    template: {
+      compilerOptions: {
+        isCustomElement: (tag) => tag.startsWith('icon-'),
+      },
+    },
+  }), tailwindcss()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-    },},
+    },
+    extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json', '.vue'],
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
