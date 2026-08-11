@@ -12,3 +12,4 @@
 | 2026-08-10 | 2.5.0 | Phase 6 (Frontend migration) complete: Vuex→Pinia, shadcn-vue components, 16 views, API integration | Migration Team |
 | 2026-08-10 | 2.6.0 | Phase 7 (System integration) complete: shortcuts, tray, menus, protocol handler, file associations, updater | Migration Team |
 | 2026-08-10 | 2.7.0 | Phase 8 (Testing & Polish) in progress: Vitest, Playwright, migration verification, profiling, platform testing | Migration Team || 2026-08-10 | 3.0.0 | Phase 1-7 implementation complete, all builds pass | Migration Team |
+| 2026-08-10 | 3.1.0 | App wired up: router, layout, views connected | Migration Team |
