@@ -1,3 +1,5 @@
+import { fetch as tauriFetch } from '@tauri-apps/plugin-http'
+
 export interface InvidiousInstance {
   url: string
   name: string
@@ -27,8 +29,9 @@ export function getCurrentInstanceUrl(): string {
 
 export async function loadInstances(): Promise<void> {
   try {
-    const response = await fetch('https://api.invidious.io/instances.json', {
-      signal: AbortSignal.timeout(10000),
+    const response = await tauriFetch('https://api.invidious.io/instances.json', {
+      method: 'GET',
+      connectTimeout: 10000,
     })
     if (response.ok) {
       const data: any[] = await response.json()
@@ -62,8 +65,9 @@ export async function loadInstances(): Promise<void> {
 
 export async function testInstance(url: string): Promise<boolean> {
   try {
-    const response = await fetch(`${url}/api/v1/stats`, {
-      signal: AbortSignal.timeout(5000),
+    const response = await tauriFetch(`${url}/api/v1/stats`, {
+      method: 'GET',
+      connectTimeout: 5000,
     })
     return response.ok
   } catch {
@@ -75,18 +79,19 @@ async function invidiousFetch<T>(path: string): Promise<T> {
   for (const instance of instancesList.length > 0 ? instancesList : FALLBACK_INSTANCES) {
     try {
       const fullUrl = `${instance.url}${path}`
-      const response = await fetch(fullUrl, {
-        signal: AbortSignal.timeout(15000),
+      const response = await tauriFetch(fullUrl, {
+        method: 'GET',
         headers: {
           Accept: 'application/json',
         },
+        connectTimeout: 15000,
       })
 
       if (response.ok) {
         if (instance.url !== currentInstance.url) {
           currentInstance = instance
         }
-        return await response.json()
+        return await response.json() as T
       }
     } catch {
       continue
@@ -178,7 +183,10 @@ export async function invidiousGetDashManifest(videoId: string, local = true): P
   for (const instance of instancesList.length > 0 ? instancesList : FALLBACK_INSTANCES) {
     try {
       const fullUrl = `${instance.url}${path}`
-      const response = await fetch(fullUrl, { signal: AbortSignal.timeout(15000) })
+      const response = await tauriFetch(fullUrl, {
+        method: 'GET',
+        connectTimeout: 15000,
+      })
       if (response.ok) {
         return await response.text()
       }
