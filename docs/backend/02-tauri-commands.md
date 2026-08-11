@@ -923,15 +923,17 @@ The hidden PoToken window (see [04-potoken-generation.md](04-potoken-generation.
 
 | Module | Commands |
 |---|---|
-| `db/settings` | `find`, `find_one`, `upsert`, `update_bounds` |
-| `db/profiles` | `find`, `create`, `upsert`, `delete`, `delete_all`, `persist_sync` |
-| `db/playlists` | `find`, `create`, `upsert`, `delete`, `delete_all`, `upsert_video_by_playlist_name`, `upsert_videos_by_playlist_id`, `delete_video_id_by_playlist_id`, `delete_video_ids_by_playlist_id`, `delete_all_videos_by_playlist_id`, `reorder_videos`, `persist_sync` |
-| `db/history` | `find`, `upsert`, `update_watch_progress`, `overwrite`, `delete`, `delete_all`, `delete_older_than`, `apply_sync` |
-| `db/watch_stats` | `find`, `add_watch_time`, `delete_all`, `persist_sync` |
-| `db/search_history` | `find`, `upsert`, `delete`, `delete_all` |
-| `db/subscription_cache` | `find`, `find_one`, `upsert`, `delete`, `delete_all`, `persist_sync` |
-| `db/tab_sessions` | `save`, `load`, `clear` |
-| `sync` | `start`, `status`, `cancel`, `get_snapshot` |
-| `network` | `test_proxy`, `resolve_favicon` |
-| `window` | `create`, `close`, `minimize`, `tray` |
-| `shortcuts` | `register`, `unregister` |
+| `db/settings` | `find_all`, `find_one`, `upsert` |
+| `db/profiles` | `find_all`, `find_one`, `create`, `update`, `delete`, `get_subscriptions`, `add_subscription`, `remove_subscription` |
+| `db/playlists` | `find_all`, `find_one`, `create`, `update`, `delete`, `get_videos`, `add_video`, `remove_video` |
+| `db/history` | `find_all`, `find_one`, `upsert`, `delete`, `clear` |
+| `db/watch_stats` | `add`, `get_total` |
+| `db/search_history` | `find_all`, `add`, `clear` |
+| `db/subscription_cache` | `find_one`, `upsert`, `get_all` |
+| `db/tab_sessions` | `save`, `get_latest`, `clear` |
+| `sync` | `test_connection`, `get_state`, `save_state`, `start`, `cancel` |
+| `yt/invidious` | `get_video`, `search`, `get_trending`, `get_channel`, `get_playlist`, `get_comments`, `get_instances`, `test_instance`, `get_dash_manifest`, `get_dash_url`, `get_format_streams`, `get_popular`, `get_channel_videos`, `resolve_url`, `get_channel_tabs`, `get_channel_shorts`, `get_channel_live`, `get_channel_playlists`, `get_channel_releases`, `get_channel_podcasts`, `get_channel_courses`, `search_channel`, `get_comment_replies`, `get_search_suggestions`, `search_with_filters`, `get_community_posts`, `get_community_post`, `get_community_post_comments`, `get_community_post_comment_replies`, `get_hashtag` |
+| `yt/youtube` | `get_video_info`, `search_videos`, `get_trending`, `get_channel_info`, `get_channel_videos`, `get_comments`, `get_search_suggestions`, `get_playlist_info`, `get_community_posts`, `get_hashtag` |
+| `downloads` | `get_info`, `get_playback_info`, `download`, `cancel`, `list` |
+| `potoken` | `generate_po_token` |
+| `system` | `show_main_window`, `hide_main_window`, `toggle_window`, `get_version`, `check_for_updates`, `open_external`, `center_window`, `set_fullscreen`, `get_window_size` |

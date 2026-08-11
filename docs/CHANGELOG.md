@@ -26,3 +26,13 @@
 | 2026-08-11 | 6.5.0 | Rust HTTP client for YouTube/Invidious (CORS-free) | Migration Team |
 | 2026-08-11 | 6.6.0 | Fix settings child route rendering | Migration Team |
 | 2026-08-11 | 6.7.0 | Fix trending: use Invidious as primary source | Migration Team |
+| 2026-08-11 | 6.8.0 | Settings: 2-level hub & spoke UI with search, quick access | Migration Team |
+| 2026-08-11 | 6.9.0 | Settings: SQLite persistence for all settings | Migration Team |
+| 2026-08-11 | 6.10.0 | Tauri config: rebrand from OpenTubeX to Slytube | Migration Team |
+| 2026-08-11 | 6.11.0 | Capabilities: main.json and potoken.json security scopes | Migration Team |
+| 2026-08-11 | 7.0.0 | API: port all 28 OpenTubeX Invidious endpoints to Rust | Migration Team |
+| 2026-08-11 | 7.1.0 | API: port all 10 OpenTubeX InnerTube endpoints to Rust | Migration Team |
+| 2026-08-11 | 7.2.0 | API: multi-instance fallback for Invidious | Migration Team |
+| 2026-08-11 | 7.3.0 | Playback: multi-layered DASH/format fallback chain | Migration Team |
+| 2026-08-11 | 8.0.0 | Sync: wire frontend store to Rust sync commands | Migration Team |
+| 2026-08-11 | 8.1.0 | Tests: Vitest + 35 unit tests for settings, sync, search | Migration Team |
