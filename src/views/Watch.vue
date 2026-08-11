@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { PhHouse, PhCaretRight } from '@phosphor-icons/vue'
 import { getVideo, getVideoPlaybackInfo } from '../api'
 import { useSponsorBlock } from '../composables/useData'
 import { getInvidiousManifestUrl } from '../api/manifest'
@@ -12,6 +13,7 @@ import EmptyState from '../components/ui/EmptyState.vue'
 import ShakaPlayer from '../components/player/ShakaPlayer.vue'
 
 const route = useRoute()
+const router = useRouter()
 const videoId = computed(() => route.query.v as string || route.params.id as string || '')
 const video = ref<Video | null>(null)
 const loading = ref(true)
@@ -95,6 +97,50 @@ const isSubscribed = computed(() =>
 const isSubscribePending = computed(() =>
   video.value ? subscriptionsStore.isPending(video.value.authorId) : false
 )
+
+/**
+ * Derives a category label from the referrer route.
+ * Maps known route names to display labels, defaults to "Videos".
+ */
+const breadcrumbCategory = computed(() => {
+  const ref = route.query.ref as string | undefined
+  if (!ref) return 'Videos'
+  const map: Record<string, string> = {
+    trending: 'Trending',
+    subscriptions: 'Subscriptions',
+    history: 'History',
+    search: 'Search Results',
+    channel: 'Channel',
+    hashtag: 'Hashtag',
+    popular: 'Popular',
+    playlists: 'Playlists',
+    playlist: 'Playlist',
+  }
+  return map[ref] || 'Videos'
+})
+
+/** Route to navigate to when clicking the category breadcrumb. */
+const breadcrumbCategoryRoute = computed(() => {
+  const ref = route.query.ref as string | undefined
+  if (!ref) return null
+  // Map ref names that have corresponding routes
+  const routeMap: Record<string, string> = {
+    trending: '/trending',
+    subscriptions: '/subscriptions',
+    history: '/history',
+    search: '/search',
+    popular: '/popular',
+    playlists: '/playlists',
+  }
+  return routeMap[ref] || null
+})
+
+/** Truncated video title for breadcrumb display (max 50 chars). */
+const breadcrumbTitle = computed(() => {
+  if (!video.value) return ''
+  const title = video.value.title
+  return title.length > 50 ? title.slice(0, 47) + '...' : title
+})
 
 // Like count display (optimistic or actual)
 const displayLikeCount = computed(() => {
@@ -255,6 +301,28 @@ onMounted(() => {
             </a>
           </div>
         </div>
+
+        <!-- Breadcrumb Navigation -->
+        <nav class="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <button
+            class="flex items-center gap-1 hover:text-foreground transition-colors"
+            @click="router.push('/')"
+          >
+            <PhHouse :size="14" weight="regular" />
+            <span>Home</span>
+          </button>
+          <PhCaretRight :size="12" class="shrink-0" />
+          <button
+            v-if="breadcrumbCategoryRoute"
+            class="hover:text-foreground transition-colors"
+            @click="router.push(breadcrumbCategoryRoute)"
+          >
+            {{ breadcrumbCategory }}
+          </button>
+          <span v-else class="text-muted-foreground">{{ breadcrumbCategory }}</span>
+          <PhCaretRight :size="12" class="shrink-0" />
+          <span class="text-foreground truncate">{{ breadcrumbTitle }}</span>
+        </nav>
 
         <!-- Video Info -->
         <div>
