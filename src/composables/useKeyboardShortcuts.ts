@@ -68,6 +68,9 @@ export function useKeyboardShortcuts() {
     } else if ((e.ctrlKey || e.metaKey) && key === 'l') {
       e.preventDefault()
       shortcuts['mod+l']?.()
+    } else if ((e.ctrlKey || e.metaKey) && key === 'k') {
+      e.preventDefault()
+      shortcuts['mod+k']?.()
     }
   }
 

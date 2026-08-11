@@ -8,6 +8,7 @@ import SideNav from './SideNav.vue'
 import TopNav from './TopNav.vue'
 import ToastContainer from '@/components/ToastContainer.vue'
 import ErrorBoundary from '@/components/error/ErrorBoundary.vue'
+import CommandPalette from '@/components/CommandPalette.vue'
 
 const settingsStore = useSettingsStore()
 const route = useRoute()
@@ -18,6 +19,7 @@ const hideSideBarOnWatch = computed(() => settingsStore.hideSideBarOnWatchPages 
 
 const topNavRef = ref<InstanceType<typeof TopNav> | null>(null)
 const mainRef = ref<HTMLElement | null>(null)
+const commandPaletteOpen = ref(false)
 
 // Register keyboard shortcuts
 register('/', () => {
@@ -45,6 +47,10 @@ register('k', () => {
 register('escape', () => {
   // Close any open dialogs by dispatching a global event
   window.dispatchEvent(new CustomEvent('close-dialogs'))
+})
+
+register('mod+k', () => {
+  commandPaletteOpen.value = !commandPaletteOpen.value
 })
 </script>
 
@@ -74,6 +80,9 @@ register('escape', () => {
 
     <!-- Toast Notifications -->
     <ToastContainer />
+
+    <!-- Command Palette -->
+    <CommandPalette v-model:open="commandPaletteOpen" />
   </div>
 </template>
 
