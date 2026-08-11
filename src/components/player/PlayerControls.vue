@@ -185,15 +185,20 @@ function getQualityLabel(q: Quality): string {
           </div>
         </div>
         
-        <!-- PiP (placeholder) -->
-        <button
-          class="p-1.5 hover:bg-white/10 rounded-full transition-colors"
-          title="Picture in Picture"
-        >
-          <svg class="size-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4h16v16H4V4zm8 9h6v4h-6v-4z" />
-          </svg>
-        </button>
+        <!-- PiP (Coming Soon) -->
+        <div class="relative group" title="Picture in Picture — Coming Soon">
+          <button
+            class="p-1.5 rounded-full transition-colors opacity-40 cursor-not-allowed"
+            disabled
+          >
+            <svg class="size-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4h16v16H4V4zm8 9h6v4h-6v-4z" />
+            </svg>
+          </button>
+          <span class="absolute -top-7 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-yellow-500/90 text-[9px] font-semibold text-black rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+            Soon
+          </span>
+        </div>
         
         <!-- Fullscreen -->
         <button
