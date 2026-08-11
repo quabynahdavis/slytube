@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
+import { useRoute } from 'vue-router'
 import { useTheme } from '@/composables/useTheme'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import SideNav from './SideNav.vue'
@@ -9,10 +10,11 @@ import ToastContainer from '@/components/ToastContainer.vue'
 import ErrorBoundary from '@/components/error/ErrorBoundary.vue'
 
 const settingsStore = useSettingsStore()
+const route = useRoute()
 const { theme, setTheme } = useTheme()
 const { register } = useKeyboardShortcuts()
 
-const hideSideBarOnWatch = computed(() => settingsStore.hideSideBarOnWatchPages)
+const hideSideBarOnWatch = computed(() => settingsStore.hideSideBarOnWatchPages && route.path === '/watch')
 
 const topNavRef = ref<InstanceType<typeof TopNav> | null>(null)
 const mainRef = ref<HTMLElement | null>(null)

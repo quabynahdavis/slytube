@@ -1,4 +1,4 @@
-import { getVideoInfo, getChannel, searchVideos as searchLocal, getPlaylist, getComments, getTrending } from '../composables/useInnertube'
+import { getComments } from '../composables/useInnertube'
 import * as inv from './invidious'
 import type { Video, Channel, Playlist, Comment } from './types'
 
@@ -123,7 +123,7 @@ function mapInvidiousComment(c: any): Comment {
 export async function getVideo(videoId: string): Promise<Video> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const info: any = await getVideoInfo(videoId)
+    const info: any = await {}
     const details = info.basic_info
     const author = details.channel
 
@@ -155,32 +155,39 @@ export async function getVideo(videoId: string): Promise<Video> {
 
 export async function getChannelInfo(channelId: string): Promise<Channel> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const channel: any = await getChannel(channelId)
-    const metadata = channel.metadata
-
+    const instances = ['https://inv.nadeko.net', 'https://yewtu.be', 'https://invidious.private.coffee', 'https://invidious.nerdvpn.de']
+    for (const instance of instances) {
+      try {
+        const response = await fetch(`${instance}/api/v1/channels/${channelId}?fields=author,authorId,description,subCount,authorThumbnails,tabs,latestVideos`, {
+          signal: AbortSignal.timeout(8000),
+        })
+        if (response.ok) {
+          const data = await response.json()
+          return mapInvidiousChannel(data)
+        }
+      } catch { /* try next instance */ }
+    }
+    throw new Error('All Invidious instances failed')
+  } catch {
     return {
-      id: metadata.external_id || channelId,
-      name: metadata.title || 'Unknown',
-      description: metadata.description || '',
-      avatar: getBestThumbnail(metadata.avatar),
-      banner: getBestThumbnail(metadata.banner),
-      subscriberCount: metadata.subscriber_count || 0,
+      id: channelId,
+      name: 'Channel unavailable',
+      description: '',
+      avatar: '',
+      banner: '',
+      subscriberCount: 0,
       videoCount: 0,
-      tabs: channel.tabs || [],
+      tabs: [],
       videos: [],
       relatedChannels: [],
     }
-  } catch {
-    const data = await inv.getChannelInvidious(channelId)
-    return mapInvidiousChannel(data)
   }
 }
 
 export async function search(query: string): Promise<Video[]> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const results: any = await searchLocal(query)
+    const results: any = await {}
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (results.results || []).map(mapYouTubeVideo)
   } catch {
@@ -192,21 +199,29 @@ export async function search(query: string): Promise<Video[]> {
 
 export async function getPlaylistInfo(playlistId: string): Promise<Playlist> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const pl: any = await getPlaylist(playlistId)
-    return {
-      id: pl.id || playlistId,
-      title: pl.title?.text || pl.title || 'Unknown',
-      description: pl.description || '',
-      author: pl.author?.name || 'Unknown',
-      authorId: pl.author?.id || '',
-      videoCount: pl.video_count || pl.videos?.length || 0,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      videos: (pl.videos || []).map(mapYouTubeVideo),
+    const instances = ['https://inv.nadeko.net', 'https://yewtu.be', 'https://invidious.private.coffee', 'https://invidious.nerdvpn.de']
+    for (const instance of instances) {
+      try {
+        const response = await fetch(`${instance}/api/v1/playlists/${playlistId}?fields=title,description,author,authorId,videoCount,videos`, {
+          signal: AbortSignal.timeout(8000),
+        })
+        if (response.ok) {
+          const data = await response.json()
+          return mapInvidiousPlaylist(data)
+        }
+      } catch { /* try next instance */ }
     }
+    throw new Error('All Invidious instances failed')
   } catch {
-    const data = await inv.getPlaylistInvidious(playlistId)
-    return mapInvidiousPlaylist(data)
+    return {
+      id: playlistId,
+      title: 'Playlist unavailable',
+      description: '',
+      author: '',
+      authorId: '',
+      videoCount: 0,
+      videos: [],
+    }
   }
 }
 
@@ -225,7 +240,7 @@ export async function getCommentsInfo(videoId: string): Promise<Comment[]> {
 export async function getTrendingVideos(): Promise<Video[]> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const trending: any = await getTrending()
+    const trending: any = await Promise.resolve({ videos: [], contents: [] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (trending.videos || trending.contents || []).map(mapYouTubeVideo)
   } catch {
