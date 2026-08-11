@@ -119,13 +119,18 @@ onMounted(() => {
     <SkeletonGrid v-if="loading" :count="12" />
     <ErrorState v-else-if="error" :message="error" retryable @retry="doSearch" />
     <EmptyState v-else-if="query && results.length === 0" title="No results found">
-      Try different keywords or check your spelling.
+      Try different keywords, check your spelling, or use fewer filters.
     </EmptyState>
     <EmptyState v-else-if="!query" title="Search YouTube" icon="search">
-      Enter a search query above to find videos.
+      Enter keywords above to find videos, channels, and playlists.
     </EmptyState>
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      <VideoCard v-for="video in results" :key="video.id" :video="video" />
+      <VideoCard
+        v-for="(video, index) in results"
+        :key="video.id"
+        :video="video"
+        v-staggered-anim="index"
+      />
     </div>
   </div>
 </template>

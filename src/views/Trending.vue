@@ -61,11 +61,16 @@ onMounted(loadTrending)
     <ErrorState v-else-if="error" :message="error" retryable @retry="loadTrending" />
 
     <EmptyState v-else-if="filteredVideos.length === 0" title="No trending videos">
-      Check back later for trending content.
+      Trending videos aren't available right now. Check back later or explore Popular videos.
     </EmptyState>
 
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      <VideoCard v-for="video in filteredVideos" :key="video.id" :video="video" />
+      <VideoCard
+        v-for="(video, index) in filteredVideos"
+        :key="video.id"
+        :video="video"
+        v-staggered-anim="index"
+      />
     </div>
   </div>
 </template>

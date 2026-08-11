@@ -132,35 +132,40 @@ onMounted(loadFeed)
 
     <!-- Videos Grid -->
     <template v-else-if="activeTab === 'videos'">
-      <EmptyState v-if="subscriptions.length === 0" title="No subscriptions" action="Browse Channels" @action="$router.push('/trending')">
-        Subscribe to channels to see their latest videos here.
+      <EmptyState v-if="subscriptions.length === 0" title="No subscriptions yet" action="Browse Channels" @action="$router.push('/trending')">
+        Find channels you love and subscribe to see their latest videos here.
       </EmptyState>
-      <EmptyState v-else-if="feedVideos.length === 0" title="No videos from subscriptions">
-        Your subscribed channels haven't uploaded any videos yet.
+      <EmptyState v-else-if="feedVideos.length === 0" title="No videos from your subscriptions">
+        Your subscribed channels haven't posted yet. Check back later or explore more channels.
       </EmptyState>
       <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        <VideoCard v-for="video in feedVideos" :key="video.id" :video="video" />
+        <VideoCard
+          v-for="(video, index) in feedVideos"
+          :key="video.id"
+          :video="video"
+          v-staggered-anim="index"
+        />
       </div>
     </template>
 
     <!-- Shorts Grid -->
     <div v-else-if="activeTab === 'shorts'">
-      <EmptyState v-if="!isLoading" title="No shorts from subscriptions">
-        Shorts from your subscribed channels will appear here.
+      <EmptyState v-if="!isLoading" title="No shorts from your subscriptions">
+        Shorts from channels you subscribe to will show up here.
       </EmptyState>
     </div>
 
     <!-- Live Tab -->
     <div v-else-if="activeTab === 'live'">
-      <EmptyState v-if="!isLoading" title="No live streams">
-        Live streams from your subscribed channels will appear here.
+      <EmptyState v-if="!isLoading" title="No live streams right now">
+        Live streams from your subscribed channels will appear here when they go live.
       </EmptyState>
     </div>
 
     <!-- Posts Tab -->
     <div v-else-if="activeTab === 'posts'">
       <EmptyState v-if="!isLoading" title="No community posts">
-        Community posts from your subscribed channels will appear here.
+        Community updates from your subscribed channels will appear here.
       </EmptyState>
     </div>
   </div>

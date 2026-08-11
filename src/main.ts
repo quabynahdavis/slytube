@@ -5,6 +5,7 @@ import App from './App.vue'
 import './style.css'
 import i18n from './i18n'
 import { loadInstances } from './api/invidious'
+import { scrollAnimationPlugin } from './composables/useScrollAnimation'
 
 loadInstances()
 
@@ -12,4 +13,5 @@ const app = createApp(App)
 app.use(pinia)
 app.use(router)
 app.use(i18n)
+app.use(scrollAnimationPlugin)
 app.mount('#app')
