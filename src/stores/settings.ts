@@ -255,7 +255,7 @@ export interface SettingsState {
   enableEmailNotifications: boolean
 }
 
-const DEFAULT_SETTINGS: SettingsState = {
+export const DEFAULT_SETTINGS: SettingsState = {
   pinnedQuickAccess: ['baseTheme', 'enableNotifications', 'rememberHistory', 'autoplayVideos'],
   alwaysShowScrollbars: false,
   autoOpenChapters: false,
@@ -528,6 +528,18 @@ export const useSettingsStore = defineStore('settings', {
       return JSON.parse(state.forbiddenTitles).map((title: string) => title.toLowerCase())
     },
 
+    isSettingChanged: (state) => (key: keyof SettingsState) => {
+      return state[key] !== DEFAULT_SETTINGS[key]
+    },
+
+    changedSettingsCount: (state) => {
+      let count = 0
+      for (const key of Object.keys(DEFAULT_SETTINGS) as Array<keyof SettingsState>) {
+        if (state[key] !== DEFAULT_SETTINGS[key]) count++
+      }
+      return count
+    },
+
     getTransferableSettings: (state) => {
       const NON_TRANSFERABLE_SETTINGS = new Set([
         'useProxy', 'proxyProtocol', 'proxyHostname', 'proxyPort', 'proxyUsername', 'proxyPassword',
@@ -587,7 +599,9 @@ export const useSettingsStore = defineStore('settings', {
         await invoke('db_settings_upsert', { id: String(key), value: serialized })
       } catch {
         // Database unavailable, change is in-memory only
+        return false
       }
+      return true
     },
 
     async importSettings(settings: Partial<SettingsState>) {
@@ -606,9 +620,43 @@ export const useSettingsStore = defineStore('settings', {
       return this.getTransferableSettings
     },
 
-    resetSettingToDefault(settingKey: keyof SettingsState) {
+    async resetSettingToDefault(settingKey: keyof SettingsState) {
       if (settingKey in DEFAULT_SETTINGS) {
-        ;(this as any)[settingKey] = DEFAULT_SETTINGS[settingKey]
+        const defaultValue = DEFAULT_SETTINGS[settingKey]
+        ;(this as any)[settingKey] = defaultValue
+        try {
+          const serialized = typeof defaultValue === 'object' ? JSON.stringify(defaultValue) : String(defaultValue)
+          await invoke('db_settings_upsert', { id: String(settingKey), value: serialized })
+        } catch {
+          // Database unavailable
+        }
+      }
+    },
+
+    async resetCategoryToDefaults(categoryKeys: (keyof SettingsState)[]) {
+      for (const key of categoryKeys) {
+        if (key in DEFAULT_SETTINGS) {
+          const defaultValue = DEFAULT_SETTINGS[key]
+          ;(this as any)[key] = defaultValue
+          try {
+            const serialized = typeof defaultValue === 'object' ? JSON.stringify(defaultValue) : String(defaultValue)
+            await invoke('db_settings_upsert', { id: String(key), value: serialized })
+          } catch {
+            // Database unavailable
+          }
+        }
+      }
+    },
+
+    async clearAllData() {
+      for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
+        ;(this as any)[key] = value
+        try {
+          const serialized = typeof value === 'object' ? JSON.stringify(value) : String(value)
+          await invoke('db_settings_upsert', { id: String(key), value: serialized })
+        } catch {
+          // Database unavailable
+        }
       }
     },
 

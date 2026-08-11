@@ -67,7 +67,34 @@
       "goTo": "Go to {category}",
       "goToSync": "Go to Account & Security → Sync Server",
       "pinHint": "Pin frequently used settings for quick access",
-      "backToSettings": "Back to Settings"
+      "backToSettings": "Back to Settings",
+      "cancel": "Cancel",
+      "reset": "Reset",
+      "resetCategory": "Reset Category",
+      "resetCategoryTitle": "Reset Category to Defaults?",
+      "resetCategoryDesc": "All settings in this category will be reset to their default values."
+    },
+    "importExport": {
+      "import": "Import",
+      "export": "Export",
+      "deleteAll": "Delete All Data",
+      "importTitle": "Import Settings",
+      "importDesc": "Import settings from a JSON file",
+      "chooseFile": "Choose File",
+      "importPreview": "Import Preview",
+      "importChanges": "{count} settings will be changed",
+      "importWarning": "This will overwrite your current settings. This action cannot be undone.",
+      "apply": "Apply Changes",
+      "exportSuccess": "Settings exported successfully",
+      "importSuccess": "Settings imported successfully",
+      "invalidFile": "Invalid settings file",
+      "dataDeleted": "All data has been deleted",
+      "deleteTitle": "Delete All Data?",
+      "deleteDesc": "This will permanently delete all your settings and reset them to defaults. This action cannot be undone.",
+      "confirmDelete": "Delete All"
+    },
+    "categories": {
+      "title": "Categories"
     },
     "theme": {
       "title": "Theme & Appearance",

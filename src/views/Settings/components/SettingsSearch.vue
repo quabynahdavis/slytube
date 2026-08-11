@@ -31,10 +31,29 @@ function handleBlur() {
   }, 200)
 }
 
-function navigateToResult(result: typeof searchResults.value[0]) {
+async function navigateToResult(result: typeof searchResults.value[0]) {
   showDropdown.value = false
   setSearchQuery('')
-  router.push(result.category.route)
+
+  if (result.category.route === '/settings') {
+    const el = document.getElementById(`setting-${result.item.key}`)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el.classList.add('ring-2', 'ring-primary', 'ring-offset-2')
+      setTimeout(() => el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2'), 2000)
+    }
+    return
+  }
+
+  await router.push(`${result.category.route}#setting-${result.item.key}`)
+
+  await new Promise(resolve => setTimeout(resolve, 100))
+  const el = document.getElementById(`setting-${result.item.key}`)
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.classList.add('ring-2', 'ring-primary', 'ring-offset-2')
+    setTimeout(() => el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2'), 2000)
+  }
 }
 
 function handleKeydown(e: KeyboardEvent) {
