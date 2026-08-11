@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { invoke } from '@tauri-apps/api/core'
 
 export interface SponsorBlockCategory {
   color: string
@@ -553,18 +554,52 @@ export const useSettingsStore = defineStore('settings', {
   },
 
   actions: {
-    loadSettings() {
-      // Load settings from database or localStorage
-      // Placeholder for DB integration
+    async loadSettings() {
+      try {
+        const settings = await invoke<{ id: string; value: string }[]>('db_settings_find_all')
+        for (const setting of settings) {
+          if (setting.id in DEFAULT_SETTINGS) {
+            const defaultValue = DEFAULT_SETTINGS[setting.id as keyof SettingsState]
+            let parsed: unknown
+            try {
+              parsed = JSON.parse(setting.value)
+            } catch {
+              parsed = setting.value
+            }
+            if (typeof defaultValue === 'boolean') {
+              ;(this as any)[setting.id] = parsed === true || parsed === 'true'
+            } else if (typeof defaultValue === 'number') {
+              ;(this as any)[setting.id] = Number(parsed) || defaultValue
+            } else {
+              ;(this as any)[setting.id] = parsed
+            }
+          }
+        }
+      } catch {
+        // Database unavailable, use defaults
+      }
     },
 
-    updateSetting<K extends keyof SettingsState>(key: K, value: SettingsState[K]) {
+    async updateSetting<K extends keyof SettingsState>(key: K, value: SettingsState[K]) {
       ;(this as any)[key] = value
-      // Placeholder for DB persistence
+      try {
+        const serialized = typeof value === 'object' ? JSON.stringify(value) : String(value)
+        await invoke('db_settings_upsert', { id: String(key), value: serialized })
+      } catch {
+        // Database unavailable, change is in-memory only
+      }
     },
 
-    importSettings(settings: Partial<SettingsState>) {
+    async importSettings(settings: Partial<SettingsState>) {
       Object.assign(this, settings)
+      for (const [key, value] of Object.entries(settings)) {
+        try {
+          const serialized = typeof value === 'object' ? JSON.stringify(value) : String(value)
+          await invoke('db_settings_upsert', { id: String(key), value: serialized })
+        } catch {
+          // Database unavailable
+        }
+      }
     },
 
     exportSettings() {
