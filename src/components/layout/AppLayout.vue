@@ -49,16 +49,16 @@ register('escape', () => {
 </script>
 
 <template>
-  <div class="flex h-screen overflow-hidden bg-background">
-    <!-- Side Navigation -->
-    <SideNav
-      v-if="!hideSideBarOnWatch"
-    />
+  <div class="flex flex-col h-screen overflow-hidden bg-background">
+    <!-- Top Navigation (full width, always) -->
+    <TopNav ref="topNavRef" />
 
-    <!-- Main Content Area -->
-    <div class="flex flex-1 flex-col overflow-hidden">
-      <!-- Top Navigation -->
-      <TopNav ref="topNavRef" />
+    <!-- Below Header: Sidebar + Content -->
+    <div class="flex flex-1 overflow-hidden">
+      <!-- Side Navigation -->
+      <SideNav
+        v-if="!hideSideBarOnWatch"
+      />
 
       <!-- Page Content -->
       <main ref="mainRef" class="flex-1 overflow-y-auto">
