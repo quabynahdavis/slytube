@@ -230,6 +230,258 @@ pub async fn invidious_get_channel_videos(
     }).await
 }
 
+#[tauri::command]
+pub async fn invidious_resolve_url(
+    http_client: State<'_, SharedHttpClient>,
+    url: String,
+) -> Result<serde_json::Value, String> {
+    try_instances(&http_client, |instance| {
+        build_api_url(instance, "resolveurl", "", &[
+            ("url", &url),
+        ])
+    }).await
+}
+
+#[tauri::command]
+pub async fn invidious_get_channel_tabs(
+    http_client: State<'_, SharedHttpClient>,
+    channel_id: String,
+) -> Result<serde_json::Value, String> {
+    try_instances(&http_client, |instance| {
+        build_api_url(instance, "channels", &channel_id, &[
+            ("tabs", ""),
+        ])
+    }).await
+}
+
+#[tauri::command]
+pub async fn invidious_get_channel_shorts(
+    http_client: State<'_, SharedHttpClient>,
+    channel_id: String,
+) -> Result<serde_json::Value, String> {
+    try_instances(&http_client, |instance| {
+        build_api_url(instance, "channels", &channel_id, &[
+            ("shorts", ""),
+        ])
+    }).await
+}
+
+#[tauri::command]
+pub async fn invidious_get_channel_live(
+    http_client: State<'_, SharedHttpClient>,
+    channel_id: String,
+) -> Result<serde_json::Value, String> {
+    try_instances(&http_client, |instance| {
+        build_api_url(instance, "channels", &channel_id, &[
+            ("live", ""),
+        ])
+    }).await
+}
+
+#[tauri::command]
+pub async fn invidious_get_channel_playlists(
+    http_client: State<'_, SharedHttpClient>,
+    channel_id: String,
+) -> Result<serde_json::Value, String> {
+    try_instances(&http_client, |instance| {
+        build_api_url(instance, "channels", &channel_id, &[
+            ("playlists", ""),
+        ])
+    }).await
+}
+
+#[tauri::command]
+pub async fn invidious_get_channel_releases(
+    http_client: State<'_, SharedHttpClient>,
+    channel_id: String,
+) -> Result<serde_json::Value, String> {
+    try_instances(&http_client, |instance| {
+        build_api_url(instance, "channels", &channel_id, &[
+            ("releases", ""),
+        ])
+    }).await
+}
+
+#[tauri::command]
+pub async fn invidious_get_channel_podcasts(
+    http_client: State<'_, SharedHttpClient>,
+    channel_id: String,
+) -> Result<serde_json::Value, String> {
+    try_instances(&http_client, |instance| {
+        build_api_url(instance, "channels", &channel_id, &[
+            ("podcasts", ""),
+        ])
+    }).await
+}
+
+#[tauri::command]
+pub async fn invidious_get_channel_courses(
+    http_client: State<'_, SharedHttpClient>,
+    channel_id: String,
+) -> Result<serde_json::Value, String> {
+    try_instances(&http_client, |instance| {
+        build_api_url(instance, "channels", &channel_id, &[
+            ("courses", ""),
+        ])
+    }).await
+}
+
+#[tauri::command]
+pub async fn invidious_search_channel(
+    http_client: State<'_, SharedHttpClient>,
+    channel_id: String,
+    query: String,
+) -> Result<serde_json::Value, String> {
+    try_instances(&http_client, |instance| {
+        build_api_url(instance, "channels", &channel_id, &[
+            ("search", ""),
+            ("q", &query),
+        ])
+    }).await
+}
+
+#[tauri::command]
+pub async fn invidious_get_comment_replies(
+    http_client: State<'_, SharedHttpClient>,
+    video_id: String,
+    comment_id: String,
+) -> Result<serde_json::Value, String> {
+    try_instances(&http_client, |instance| {
+        build_api_url(instance, "comments", &video_id, &[
+            ("replyToken", &comment_id),
+        ])
+    }).await
+}
+
+#[tauri::command]
+pub async fn invidious_get_search_suggestions(
+    http_client: State<'_, SharedHttpClient>,
+    query: String,
+) -> Result<serde_json::Value, String> {
+    try_instances(&http_client, |instance| {
+        build_api_url(instance, "search", "suggestions", &[
+            ("q", &query),
+        ])
+    }).await
+}
+
+#[tauri::command]
+pub async fn invidious_search_with_filters(
+    http_client: State<'_, SharedHttpClient>,
+    query: String,
+    search_params: Option<serde_json::Value>,
+) -> Result<serde_json::Value, String> {
+    let mut owned_params: Vec<(String, String)> = vec![
+        ("q".to_string(), query),
+        ("page".to_string(), "1".to_string()),
+    ];
+
+    // Extract optional filter parameters
+    if let Some(sp) = search_params {
+        if let Some(duration) = sp.get("duration").and_then(|v| v.as_str()) {
+            if !duration.is_empty() {
+                owned_params.push(("duration".to_string(), duration.to_string()));
+            }
+        }
+        if let Some(sort) = sp.get("sort").and_then(|v| v.as_str()) {
+            if !sort.is_empty() {
+                owned_params.push(("sort".to_string(), sort.to_string()));
+            }
+        }
+        if let Some(date) = sp.get("date").and_then(|v| v.as_str()) {
+            if !date.is_empty() {
+                owned_params.push(("date".to_string(), date.to_string()));
+            }
+        }
+        if let Some(typ) = sp.get("type").and_then(|v| v.as_str()) {
+            if !typ.is_empty() {
+                owned_params.push(("type".to_string(), typ.to_string()));
+            }
+        }
+        if let Some(features) = sp.get("features").and_then(|v| v.as_array()) {
+            for feature in features {
+                if let Some(f) = feature.as_str() {
+                    owned_params.push(("features".to_string(), f.to_string()));
+                }
+            }
+        }
+    }
+
+    // Convert to string references for build_api_url
+    let static_params: Vec<(&str, &str)> = owned_params.iter()
+        .map(|(k, v)| (k.as_str(), v.as_str()))
+        .collect();
+
+    try_instances(&http_client, |instance| {
+        build_api_url(instance, "search", "", &static_params)
+    }).await
+}
+
+#[tauri::command]
+pub async fn invidious_get_community_posts(
+    http_client: State<'_, SharedHttpClient>,
+    channel_id: String,
+) -> Result<serde_json::Value, String> {
+    try_instances(&http_client, |instance| {
+        build_api_url(instance, "channels", &channel_id, &[
+            ("community", ""),
+        ])
+    }).await
+}
+
+#[tauri::command]
+pub async fn invidious_get_community_post(
+    http_client: State<'_, SharedHttpClient>,
+    channel_id: String,
+    post_id: String,
+) -> Result<serde_json::Value, String> {
+    try_instances(&http_client, |instance| {
+        build_api_url(instance, "channels", &channel_id, &[
+            ("community", &post_id),
+        ])
+    }).await
+}
+
+#[tauri::command]
+pub async fn invidious_get_community_post_comments(
+    http_client: State<'_, SharedHttpClient>,
+    channel_id: String,
+    post_id: String,
+) -> Result<serde_json::Value, String> {
+    try_instances(&http_client, |instance| {
+        build_api_url(instance, "channels", &channel_id, &[
+            ("community", &format!("{}?comments=1", post_id)),
+        ])
+    }).await
+}
+
+#[tauri::command]
+pub async fn invidious_get_community_post_comment_replies(
+    http_client: State<'_, SharedHttpClient>,
+    channel_id: String,
+    post_id: String,
+    comment_id: String,
+) -> Result<serde_json::Value, String> {
+    try_instances(&http_client, |instance| {
+        build_api_url(instance, "channels", &channel_id, &[
+            ("community", &format!("{}?comment={}", post_id, comment_id)),
+        ])
+    }).await
+}
+
+#[tauri::command]
+pub async fn invidious_get_hashtag(
+    http_client: State<'_, SharedHttpClient>,
+    hashtag: String,
+) -> Result<serde_json::Value, String> {
+    let clean_tag = hashtag.trim_start_matches('#').to_string();
+    try_instances(&http_client, |instance| {
+        build_api_url(instance, "hashtag", &clean_tag, &[
+            ("page", "1"),
+        ])
+    }).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

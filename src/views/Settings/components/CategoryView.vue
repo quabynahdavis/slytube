@@ -4,12 +4,12 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { settingsConfig, type SettingsCategory } from '../config'
 import type { SettingsState } from '@/stores/settings'
-import SettingsHeader from './components/SettingsHeader.vue'
-import SettingsSection from './components/SettingsSection.vue'
-import SettingsToggle from './components/SettingsToggle.vue'
-import SettingsSelect from './components/SettingsSelect.vue'
-import SettingsAccordion from './components/SettingsAccordion.vue'
-import SettingsLink from './components/SettingsLink.vue'
+import SettingsHeader from './SettingsHeader.vue'
+import SettingsSection from './SettingsSection.vue'
+import SettingsToggle from './SettingsToggle.vue'
+import SettingsSelect from './SettingsSelect.vue'
+import SettingsAccordion from './SettingsAccordion.vue'
+import SettingsLink from './SettingsLink.vue'
 
 const { t } = useI18n()
 const router = useRouter()
