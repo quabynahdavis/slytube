@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { usePlayer } from '../../composables/usePlayer'
+import { useKeyboardShortcuts } from '../../composables/useKeyboardShortcuts'
 import PlayerControls from './PlayerControls.vue'
 import PlayerSeekbar from './PlayerSeekbar.vue'
 
@@ -36,8 +37,11 @@ const {
   setVolume, toggleMute, setQuality, setRate, toggleFullscreen
 } = usePlayer()
 
+const { register, unregister } = useKeyboardShortcuts()
+
 const containerRef = ref<HTMLElement | null>(null)
 const showControls = ref(true)
+const isVideoLoaded = ref(false)
 let controlsTimeout: ReturnType<typeof setTimeout> | null = null
 
 function resetControlsTimeout() {
@@ -63,24 +67,51 @@ function onPlayerDoubleClick() {
   toggleFullscreen()
 }
 
+function registerShortcuts() {
+  register('space', () => { if (isVideoLoaded.value) togglePlay() })
+  register('left', () => { if (isVideoLoaded.value) seekRelative(-5) })
+  register('right', () => { if (isVideoLoaded.value) seekRelative(5) })
+  register('up', () => { if (isVideoLoaded.value) setVolume(volume.value + 0.1) })
+  register('down', () => { if (isVideoLoaded.value) setVolume(volume.value - 0.1) })
+  register('f', () => { if (isVideoLoaded.value) toggleFullscreen() })
+  register('m', () => { if (isVideoLoaded.value) toggleMute() })
+}
+
+function unregisterShortcuts() {
+  unregister('space')
+  unregister('left')
+  unregister('right')
+  unregister('up')
+  unregister('down')
+  unregister('f')
+  unregister('m')
+}
+
 async function handleInit() {
   if (!videoRef.value) return
+  isVideoLoaded.value = false
   const supported = await init(videoRef.value)
   if (supported && props.manifestUrl) {
-     await loadManifest(props.manifestUrl, props.poToken, props.videoId)
+    await loadManifest(props.manifestUrl, props.poToken, props.videoId)
+    isVideoLoaded.value = !error.value
     emit('ready')
   }
 }
 
-onMounted(handleInit)
+onMounted(() => {
+  handleInit()
+  registerShortcuts()
+})
 
 watch(error, (newError) => {
   if (newError) {
+    isVideoLoaded.value = false
     emit('error', newError)
   }
 })
 
 onUnmounted(() => {
+  unregisterShortcuts()
   if (controlsTimeout) clearTimeout(controlsTimeout)
 })
 </script>
