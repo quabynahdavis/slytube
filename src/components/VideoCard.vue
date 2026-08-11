@@ -1,9 +1,43 @@
 <script setup lang="ts">
+import { PhClock, PhListPlus } from '@phosphor-icons/vue'
 import type { Video } from '../api/types'
+import { useWatchQueueStore } from '../stores/watch-queue'
+import { useToast } from '../composables/useToast'
 
-defineProps<{
+const props = defineProps<{
   video: Video
 }>()
+
+const watchQueueStore = useWatchQueueStore()
+const toast = useToast()
+
+function addToWatchLater() {
+  watchQueueStore.addVideoToWatchQueue({
+    videoId: props.video.id,
+    title: props.video.title,
+    author: props.video.author,
+    authorId: props.video.authorId,
+    lengthSeconds: props.video.lengthSeconds,
+    videoThumbnails: props.video.thumbnail
+      ? [{ url: props.video.thumbnail, width: 320, height: 180 }]
+      : [],
+  })
+  toast.success(`Added to queue: ${props.video.title}`)
+}
+
+function addToQueue() {
+  watchQueueStore.addVideoToWatchQueue({
+    videoId: props.video.id,
+    title: props.video.title,
+    author: props.video.author,
+    authorId: props.video.authorId,
+    lengthSeconds: props.video.lengthSeconds,
+    videoThumbnails: props.video.thumbnail
+      ? [{ url: props.video.thumbnail, width: 320, height: 180 }]
+      : [],
+  }, true)
+  toast.success(`Playing next: ${props.video.title}`)
+}
 
 function formatViews(count: number): string {
   if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M views`
@@ -21,6 +55,11 @@ function formatDuration(seconds: number): string {
 
 function timeAgo(published: string): string {
   if (!published) return ''
+  // Invidious returns pre-formatted text like "2 days ago", display as-is
+  if (published.includes('ago') || published.includes('yesterday')) {
+    return published
+  }
+  // Fallback: try to parse as ISO date
   const now = Date.now()
   const then = new Date(published).getTime()
   if (isNaN(then)) return published
@@ -62,6 +101,23 @@ function timeAgo(published: string): string {
       <!-- Upcoming Badge -->
       <div v-if="video.isUpcoming" class="absolute bottom-2 right-2 bg-orange-500 text-white text-xs px-2 py-0.5 rounded font-medium">
         UPCOMING
+      </div>
+      <!-- Hover Actions Overlay -->
+      <div class="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+        <button
+          @click.prevent="addToWatchLater"
+          title="Watch Later"
+          class="size-7 flex items-center justify-center rounded bg-black/80 hover:bg-black text-white transition-colors"
+        >
+          <PhClock :size="14" weight="bold" />
+        </button>
+        <button
+          @click.prevent="addToQueue"
+          title="Add to Queue"
+          class="size-7 flex items-center justify-center rounded bg-black/80 hover:bg-black text-white transition-colors"
+        >
+          <PhListPlus :size="14" weight="bold" />
+        </button>
       </div>
     </div>
     <div class="flex gap-3">
