@@ -10,15 +10,14 @@ export function getLocalManifestUrl(dashManifestUrl: string, poToken?: string): 
 
 export function getInvidiousManifestUrl(videoId: string): string {
   const instance = getCurrentInstance()
-  return `${instance}/api/manifest/dash/id/${videoId}?local=true`
+  return `${instance.url}/api/manifest/dash/id/${videoId}?local=true`
 }
 
 export function getInvidiousDashManifest(videoId: string, format: 'dash' | 'blob' = 'dash'): string {
   const instance = getCurrentInstance()
-  return `${instance}/api/manifest/dash/id/${videoId}?format=${format}`
+  return `${instance.url}/api/manifest/dash/id/${videoId}?format=${format}`
 }
 
-// For legacy format streams (direct URLs)
 export function getLegacyStreamUrl(format: any, poToken?: string): string {
   let url = format.url || format.mp4_url || format.audio_url || ''
   if (poToken && url) {

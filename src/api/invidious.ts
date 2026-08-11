@@ -6,81 +6,193 @@ export interface InvidiousInstance {
   api: boolean
 }
 
-const FALLBACK_INSTANCES = [
-  'https://invidious.nerdvpn.de',
-  'https://inv.nadeko.net',
-  'https://invidious.jing.rocks',
-  'https://invidious.nerdvpn.de',
-  'https://yewtu.be',
-  'https://invidious.fdn.fr',
-  'https://invidious.private.coffee',
-  'https://iv.delnet.org',
+const FALLBACK_INSTANCES: InvidiousInstance[] = [
+  { url: 'https://inv.nadeko.net', name: 'Nadeko', health: 0, cors: false, api: true },
+  { url: 'https://invidious.nerdvpn.de', name: 'NerdVPN', health: 0, cors: true, api: true },
+  { url: 'https://yewtu.be', name: 'Yewtu', health: 0, cors: false, api: true },
+  { url: 'https://invidious.private.coffee', name: 'Private Coffee', health: 0, cors: true, api: true },
+  { url: 'https://invidious.jing.rocks', name: 'Jing', health: 0, cors: true, api: true },
 ]
 
-let currentInstance = FALLBACK_INSTANCES[0]
+let currentInstance: InvidiousInstance = FALLBACK_INSTANCES[0]
+let instancesList: InvidiousInstance[] = [...FALLBACK_INSTANCES]
 
-export function getCurrentInstance(): string {
+export function getCurrentInstance(): InvidiousInstance {
   return currentInstance
 }
 
-export function setInstance(url: string) {
-  currentInstance = url
+export function getCurrentInstanceUrl(): string {
+  return currentInstance.url
+}
+
+export async function loadInstances(): Promise<void> {
+  try {
+    const response = await fetch('https://api.invidious.io/instances.json', {
+      signal: AbortSignal.timeout(10000),
+    })
+    if (response.ok) {
+      const data: any[] = await response.json()
+      const instances = data
+        .filter(([, info]: any) => info.api === true && info.cors === true && info.type === 'https')
+        .map(([url, info]: any) => ({
+          url,
+          name: info.name || url,
+          health: info.health || 0,
+          cors: info.cors,
+          api: info.api,
+        }))
+        .sort((a: InvidiousInstance, b: InvidiousInstance) => b.health - a.health)
+
+      if (instances.length > 0) {
+        instancesList = instances
+        currentInstance = instances[0]
+      }
+    }
+  } catch {
+    // Use fallback instances
+  }
+
+  for (const instance of FALLBACK_INSTANCES) {
+    if (await testInstance(instance.url)) {
+      currentInstance = instance
+      break
+    }
+  }
 }
 
 export async function testInstance(url: string): Promise<boolean> {
   try {
-    const response = await fetch(`${url}/api/v1/stats`, { signal: AbortSignal.timeout(5000) })
+    const response = await fetch(`${url}/api/v1/stats`, {
+      signal: AbortSignal.timeout(5000),
+    })
     return response.ok
   } catch {
     return false
   }
 }
 
-export async function getHealthyInstance(): Promise<string> {
-  for (const url of FALLBACK_INSTANCES) {
-    if (await testInstance(url)) {
-      currentInstance = url
-      return url
+async function invidiousFetch<T>(path: string): Promise<T> {
+  for (const instance of instancesList.length > 0 ? instancesList : FALLBACK_INSTANCES) {
+    try {
+      const fullUrl = `${instance.url}${path}`
+      const response = await fetch(fullUrl, {
+        signal: AbortSignal.timeout(15000),
+        headers: {
+          Accept: 'application/json',
+        },
+      })
+
+      if (response.ok) {
+        if (instance.url !== currentInstance.url) {
+          currentInstance = instance
+        }
+        return await response.json()
+      }
+    } catch {
+      continue
     }
   }
-  return currentInstance
+
+  throw new Error(`All Invidious instances failed for ${path}`)
 }
 
-function buildUrl(resource: string, id: string, params: Record<string, string> = {}): string {
-  const query = new URLSearchParams(params).toString()
-  return `${currentInstance}/api/v1/${resource}/${id}${query ? '?' + query : ''}`
+function buildPath(resource: string, id: string, params?: Record<string, string>): string {
+  const basePath = id ? `/api/v1/${resource}/${id}` : `/api/v1/${resource}`
+  if (!params) return basePath
+
+  const searchParams = new URLSearchParams(params)
+  const query = searchParams.toString()
+  return query ? `${basePath}?${query}` : basePath
 }
 
-export async function invidiousFetch<T>(url: string): Promise<T> {
-  const response = await fetch(url)
-  if (!response.ok) throw new Error(`Invidious error: ${response.status}`)
-  return response.json()
+export async function invidiousGetVideo(videoId: string): Promise<any> {
+  return invidiousFetch(buildPath('videos', videoId))
 }
 
-export async function getVideoInfoInvidious(videoId: string) {
-  return await invidiousFetch(buildUrl('videos', videoId))
+export async function invidiousSearch(query: string, page = 1): Promise<any> {
+  return invidiousFetch(buildPath('search', '', { q: query, page: String(page) }))
 }
 
-export async function getChannelInvidious(channelId: string) {
-  return await invidiousFetch(buildUrl('channels', channelId))
+export async function invidiousGetTrending(type = 'default'): Promise<any> {
+  return invidiousFetch(buildPath('trending', '', { type }))
 }
 
-export async function searchInvidious(query: string, page = 1) {
-  return await invidiousFetch(buildUrl('search', '', { q: query, page: String(page) }))
+export async function invidiousGetPopular(): Promise<any> {
+  return invidiousFetch(buildPath('popular', ''))
 }
 
-export async function getPlaylistInvidious(playlistId: string) {
-  return await invidiousFetch(buildUrl('playlists', playlistId))
+export async function invidiousGetChannel(channelId: string): Promise<any> {
+  return invidiousFetch(buildPath('channels', channelId))
 }
 
-export async function getCommentsInvidious(videoId: string, continuation?: string) {
+export async function invidiousGetPlaylist(playlistId: string): Promise<any> {
+  return invidiousFetch(buildPath('playlists', playlistId))
+}
+
+export async function invidiousGetComments(videoId: string, continuation?: string): Promise<any> {
   const params: Record<string, string> = {}
   if (continuation) params.continuation = continuation
-  return await invidiousFetch(buildUrl('comments', videoId, params))
+  return invidiousFetch(buildPath('comments', videoId, params))
 }
 
-export async function getTrendingInvidious(type = 'news') {
-  return await invidiousFetch(buildUrl('trending', '', { type }))
+export async function invidiousGetCommentReplies(videoId: string, replyToken: string): Promise<any> {
+  return invidiousFetch(buildPath('comments', videoId, { continuation: replyToken }))
+}
+
+export async function invidiousGetSearchSuggestions(query: string): Promise<any> {
+  return invidiousFetch(buildPath('search/suggestions', '', { q: query }))
+}
+
+export async function invidiousSearchWithFilters(
+  query: string,
+  page = 1,
+  filters?: {
+    sortBy?: string
+    date?: string
+    duration?: string
+    type?: string
+    features?: string[]
+  }
+): Promise<any> {
+  const params: Record<string, string> = { q: query, page: String(page) }
+  if (filters?.sortBy) params.sort_by = filters.sortBy
+  if (filters?.date) params.date = filters.date
+  if (filters?.duration) params.duration = filters.duration
+  if (filters?.type) params.type = filters.type
+  if (filters?.features?.length) params.features = filters.features.join(',')
+
+  return invidiousFetch(buildPath('search', '', params))
+}
+
+export async function invidiousGetHashtag(hashtag: string, page = 1): Promise<any> {
+  return invidiousFetch(buildPath('hashtag', hashtag, { page: String(page) }))
+}
+
+export async function invidiousResolveUrl(url: string): Promise<any> {
+  return invidiousFetch(buildPath('resolveurl', '', { url }))
+}
+
+export async function invidiousGetDashManifest(videoId: string, local = true): Promise<string> {
+  const path = `/api/manifest/dash/id/${videoId}?local=${local}`
+
+  for (const instance of instancesList.length > 0 ? instancesList : FALLBACK_INSTANCES) {
+    try {
+      const fullUrl = `${instance.url}${path}`
+      const response = await fetch(fullUrl, { signal: AbortSignal.timeout(15000) })
+      if (response.ok) {
+        return await response.text()
+      }
+    } catch {
+      continue
+    }
+  }
+
+  throw new Error(`Failed to fetch DASH manifest for ${videoId}`)
+}
+
+export async function invidiousGetDashUrl(videoId: string): Promise<string> {
+  const info = await invidiousGetVideo(videoId)
+  return info.dashUrl || ''
 }
 
 export function getProxyUrl(originalUrl: string): string {
@@ -88,17 +200,11 @@ export function getProxyUrl(originalUrl: string): string {
   if (!url.searchParams.has('host')) {
     url.searchParams.set('host', url.hostname)
   }
-  return originalUrl.replace(url.origin, currentInstance)
+  return originalUrl.replace(url.origin, currentInstance.url)
 }
 
 export function getThumbnailUrl(videoId: string, quality = 'maxresdefault'): string {
-  return `${currentInstance}/vi/${videoId}/${quality}.jpg`
+  return `${currentInstance.url}/vi/${videoId}/${quality}.jpg`
 }
 
-export function getDashManifestUrl(videoId: string): string {
-  return `${currentInstance}/api/manifest/dash/id/${videoId}`
-}
-
-export function getStoryboardUrl(videoId: string): string {
-  return `${currentInstance}/api/v1/storyboards/${videoId}?height=90`
-}
+export { instancesList, currentInstance }

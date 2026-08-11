@@ -3,7 +3,10 @@ import { pinia } from './stores'
 import router from './router'
 import App from './App.vue'
 import './style.css'
-import  i18n from './i18n'
+import i18n from './i18n'
+import { loadInstances } from './api/invidious'
+
+loadInstances()
 
 const app = createApp(App)
 app.use(pinia)
