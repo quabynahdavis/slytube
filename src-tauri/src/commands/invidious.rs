@@ -12,10 +12,6 @@ const FALLBACK_INSTANCES: &[&str] = &[
     "https://invidious.jing.rocks",
 ];
 
-fn get_instance_url() -> String {
-    FALLBACK_INSTANCES[0].to_string()
-}
-
 async fn try_instances<F>(http_client: &SharedHttpClient, build_url: F) -> Result<serde_json::Value, String>
 where
     F: Fn(&str) -> String,
@@ -27,13 +23,33 @@ where
         match http_client.get_json(&url).await {
             Ok(result) => return Ok(result),
             Err(e) => {
+                tracing::warn!("Instance {} failed: {}", instance, e);
                 last_error = e;
                 continue;
             }
         }
     }
 
-    Err(format!("All Invidious instances failed: {}", last_error))
+    Err(format!("All Invidious instances failed. Last error: {}", last_error))
+}
+
+fn build_api_url(instance: &str, resource: &str, id: &str, params: &[(&str, &str)]) -> String {
+    let base = if id.is_empty() {
+        format!("{}/api/v1/{}", instance, resource)
+    } else {
+        format!("{}/api/v1/{}/{}", instance, resource, id)
+    };
+
+    if params.is_empty() {
+        base
+    } else {
+        let query: String = params
+            .iter()
+            .map(|(k, v)| format!("{}={}", k, urlencoding::encode(v)))
+            .collect::<Vec<_>>()
+            .join("&");
+        format!("{}?{}", base, query)
+    }
 }
 
 #[tauri::command]
@@ -42,7 +58,7 @@ pub async fn invidious_get_video(
     video_id: String,
 ) -> Result<serde_json::Value, String> {
     try_instances(&http_client, |instance| {
-        format!("{}/api/v1/videos/{}", instance, video_id)
+        build_api_url(instance, "videos", &video_id, &[])
     }).await
 }
 
@@ -52,11 +68,10 @@ pub async fn invidious_search(
     query: String,
 ) -> Result<serde_json::Value, String> {
     try_instances(&http_client, |instance| {
-        format!(
-            "{}/api/v1/search?q={}&page=1",
-            instance,
-            urlencoding::encode(&query)
-        )
+        build_api_url(instance, "search", "", &[
+            ("q", &query),
+            ("page", "1"),
+        ])
     }).await
 }
 
@@ -65,7 +80,9 @@ pub async fn invidious_get_trending(
     http_client: State<'_, SharedHttpClient>,
 ) -> Result<serde_json::Value, String> {
     try_instances(&http_client, |instance| {
-        format!("{}/api/v1/trending?type=news", instance)
+        build_api_url(instance, "trending", "", &[
+            ("type", "news"),
+        ])
     }).await
 }
 
@@ -75,7 +92,7 @@ pub async fn invidious_get_channel(
     channel_id: String,
 ) -> Result<serde_json::Value, String> {
     try_instances(&http_client, |instance| {
-        format!("{}/api/v1/channels/{}", instance, channel_id)
+        build_api_url(instance, "channels", &channel_id, &[])
     }).await
 }
 
@@ -85,7 +102,7 @@ pub async fn invidious_get_playlist(
     playlist_id: String,
 ) -> Result<serde_json::Value, String> {
     try_instances(&http_client, |instance| {
-        format!("{}/api/v1/playlists/{}", instance, playlist_id)
+        build_api_url(instance, "playlists", &playlist_id, &[])
     }).await
 }
 
@@ -95,7 +112,7 @@ pub async fn invidious_get_comments(
     video_id: String,
 ) -> Result<serde_json::Value, String> {
     try_instances(&http_client, |instance| {
-        format!("{}/api/v1/comments/{}", instance, video_id)
+        build_api_url(instance, "comments", &video_id, &[])
     }).await
 }
 
@@ -123,10 +140,9 @@ pub async fn invidious_get_dash_manifest(
     http_client: State<'_, SharedHttpClient>,
     video_id: String,
 ) -> Result<String, String> {
-    let instances = FALLBACK_INSTANCES;
     let mut last_error = String::new();
 
-    for instance in instances {
+    for instance in FALLBACK_INSTANCES {
         let url = format!("{}/api/manifest/dash/id/{}?local=true", instance, video_id);
 
         let response = http_client
@@ -157,4 +173,61 @@ pub async fn invidious_get_dash_manifest(
     }
 
     Err(format!("All instances failed: {}", last_error))
+}
+
+#[tauri::command]
+pub async fn invidious_get_popular(
+    http_client: State<'_, SharedHttpClient>,
+) -> Result<serde_json::Value, String> {
+    try_instances(&http_client, |instance| {
+        build_api_url(instance, "popular", "", &[])
+    }).await
+}
+
+#[tauri::command]
+pub async fn invidious_get_channel_videos(
+    http_client: State<'_, SharedHttpClient>,
+    channel_id: String,
+) -> Result<serde_json::Value, String> {
+    try_instances(&http_client, |instance| {
+        build_api_url(instance, "channels", &channel_id, &[
+            ("videos", ""),
+        ])
+    }).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_build_api_url_without_params() {
+        let url = build_api_url("https://example.com", "videos", "abc123", &[]);
+        assert_eq!(url, "https://example.com/api/v1/videos/abc123");
+    }
+
+    #[test]
+    fn test_build_api_url_with_params() {
+        let url = build_api_url("https://example.com", "search", "", &[
+            ("q", "hello world"),
+            ("page", "1"),
+        ]);
+        assert_eq!(url, "https://example.com/api/v1/search?q=hello%20world&page=1");
+    }
+
+    #[test]
+    fn test_build_api_url_with_empty_id() {
+        let url = build_api_url("https://example.com", "trending", "", &[
+            ("type", "news"),
+        ]);
+        assert_eq!(url, "https://example.com/api/v1/trending?type=news");
+    }
+
+    #[test]
+    fn test_fallback_instances_not_empty() {
+        assert!(!FALLBACK_INSTANCES.is_empty());
+        for instance in FALLBACK_INSTANCES {
+            assert!(instance.starts_with("https://"));
+        }
+    }
 }

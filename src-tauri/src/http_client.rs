@@ -30,12 +30,15 @@ pub struct HttpClient {
     client: Client,
 }
 
+const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
 impl HttpClient {
     pub fn new() -> Result<Self, String> {
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
             .connect_timeout(Duration::from_secs(10))
-            .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            .user_agent(USER_AGENT)
+            .redirect(reqwest::redirect::Policy::limited(5))
             .build()
             .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
@@ -58,8 +61,9 @@ impl HttpClient {
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
             .connect_timeout(Duration::from_secs(10))
-            .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            .user_agent(USER_AGENT)
             .proxy(req_proxy)
+            .redirect(reqwest::redirect::Policy::limited(5))
             .build()
             .map_err(|e| format!("Failed to create HTTP client with proxy: {}", e))?;
 
@@ -74,8 +78,10 @@ impl HttpClient {
             .await
             .map_err(|e| format!("GET {} failed: {}", url, e))?;
 
-        if !response.status().is_success() {
-            return Err(format!("GET {} returned status {}", url, response.status()));
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(format!("GET {} returned {}: {}", url, status, body));
         }
 
         response.json::<serde_json::Value>()
@@ -104,8 +110,10 @@ impl HttpClient {
             .await
             .map_err(|e| format!("POST {} failed: {}", url, e))?;
 
-        if !response.status().is_success() {
-            return Err(format!("POST {} returned status {}", url, response.status()));
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(format!("POST {} returned {}: {}", url, status, body));
         }
 
         response.json::<serde_json::Value>()
