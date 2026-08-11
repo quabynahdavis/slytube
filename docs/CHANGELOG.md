@@ -16,3 +16,5 @@
 | 2026-08-10 | 4.0.0 | Real data: youtubei.js + Invidious + SponsorBlock integrated | Migration Team |
 | 2026-08-10 | 4.1.0 | UI components: VideoCard, EmptyState, ErrorState, Skeleton | Migration Team |
 | 2026-08-10 | 4.2.0 | Views wired: Home, Search, Watch with real API data | Migration Team |
+| 2026-08-11 | 5.0.0 | Tauri fully wired: commands, events, system tray, shortcuts | Migration Team |
+| 2026-08-11 | 5.1.0 | UI consistency: native selects replaced with shadcn-vue Select | Migration Team |
