@@ -18,3 +18,6 @@
 | 2026-08-10 | 4.2.0 | Views wired: Home, Search, Watch with real API data | Migration Team |
 | 2026-08-11 | 5.0.0 | Tauri fully wired: commands, events, system tray, shortcuts | Migration Team |
 | 2026-08-11 | 5.1.0 | UI consistency: native selects replaced with shadcn-vue Select | Migration Team |
+| 2026-08-11 | 6.0.0 | Shaka Player integration for DASH playback | Migration Team |
+| 2026-08-11 | 6.1.0 | i18n scaffolding with vue-i18n (en-US) | Migration Team |
+| 2026-08-11 | 6.2.0 | Keyboard shortcuts, settings import/export | Migration Team |
