@@ -5,6 +5,7 @@ mod db;
 #[allow(dead_code)]
 mod http_client;
 mod potoken;
+mod sync;
 mod system;
 mod yt_dlp;
 
@@ -55,6 +56,10 @@ pub fn run() {
             // Initialize PoToken state for token generation tracking
             app.manage(potoken::PoTokenState::new());
             tracing::info!("PoTokenState initialized");
+
+            // Initialize sync manager for tracking sync operations
+            app.manage(sync::commands::SyncManager::new());
+            tracing::info!("SyncManager initialized");
 
             // Initialize the database pool and manage it as state
             let app_handle = app.handle().clone();
@@ -109,6 +114,12 @@ pub fn run() {
             yt_dlp::yt_dlp_cancel,
             yt_dlp::yt_dlp_list,
             potoken::generate_po_token,
+            // Sync commands
+            sync::commands::sync_test_connection,
+            sync::commands::sync_get_state,
+            sync::commands::sync_save_state,
+            sync::commands::sync_start,
+            sync::commands::sync_cancel,
             // System commands
             system::commands::system_show_main_window,
             system::commands::system_hide_main_window,

@@ -1,4 +1,5 @@
 import { ref, onUnmounted } from 'vue'
+import { invoke } from '@tauri-apps/api/core'
 import shaka from 'shaka-player/dist/shaka-player.compiled'
 
 export function usePlayer() {
@@ -19,10 +20,8 @@ export function usePlayer() {
   async function init(videoElement: HTMLVideoElement) {
     videoRef.value = videoElement
 
-    // Install polyfills
     shaka.polyfill.installAll()
 
-    // Check browser support
     if (!shaka.Player.isBrowserSupported()) {
       error.value = 'Browser not supported for Shaka Player'
       return false
@@ -43,7 +42,6 @@ export function usePlayer() {
       updateQualities()
     })
 
-    // Track time
     const interval = setInterval(() => {
       if (videoElement) {
         currentTime.value = videoElement.currentTime
@@ -57,14 +55,35 @@ export function usePlayer() {
     return true
   }
 
-  async function loadManifest(manifestUri: string, poToken?: string) {
+  async function generatePoToken(videoId: string): Promise<string | undefined> {
+    try {
+      const context = JSON.stringify({
+        client: {
+          clientName: 'WEB',
+          clientVersion: '2.20240101.01.00',
+          hl: 'en',
+          gl: 'US',
+        },
+      })
+
+      const token = await invoke<string>('generate_po_token', {
+        videoId,
+        context,
+        proxyUrl: undefined,
+      })
+      return token
+    } catch {
+      return undefined
+    }
+  }
+
+  async function loadManifest(manifestUri: string, poToken?: string, videoId?: string) {
     if (!player.value) return
 
     isLoading.value = true
     error.value = null
 
     try {
-      // Configure for YouTube-style requests
       player.value.configure({
         streaming: {
           bufferingGoal: 10,
@@ -84,10 +103,15 @@ export function usePlayer() {
         },
       })
 
-      // Add PoToken to manifest URL if provided
       let url = manifestUri
-      if (poToken) {
-        url += (url.includes('?') ? '&' : '?') + 'pot=' + poToken
+      let token = poToken
+
+      if (!token && videoId) {
+        token = await generatePoToken(videoId)
+      }
+
+      if (token) {
+        url += (url.includes('?') ? '&' : '?') + 'pot=' + token
       }
 
       await player.value.load(url)
@@ -188,7 +212,7 @@ export function usePlayer() {
   return {
     videoRef, isPlaying, currentTime, duration, volume, isMuted,
     isFullscreen, qualities, currentQuality, playbackRate, error, isLoading,
-    init, loadManifest, play, pause, togglePlay, seek, seekRelative,
+    init, loadManifest, generatePoToken, play, pause, togglePlay, seek, seekRelative,
     setVolume, toggleMute, setQuality, setRate, toggleFullscreen, destroy
   }
 }

@@ -6,7 +6,7 @@ use hkdf::Hkdf;
 use pbkdf2::pbkdf2_hmac;
 use rand::RngCore;
 use sha2::Sha256;
-use x25519_dalek::{PublicKey, StaticSecret};
+use x25519_dalek::{PublicKey, EphemeralSecret};
 
 /// Errors that can occur during cryptographic operations.
 #[derive(Debug, thiserror::Error)]
@@ -85,8 +85,8 @@ pub fn decrypt(key: &[u8; 32], ciphertext: &[u8]) -> Result<Vec<u8>, CryptoError
 }
 
 /// Generates a new X25519 keypair for key exchange.
-pub fn generate_keypair() -> (PublicKey, StaticSecret) {
-    let secret = StaticSecret::random_from_rng(rand::thread_rng());
+pub fn generate_keypair() -> (PublicKey, EphemeralSecret) {
+    let secret = EphemeralSecret::random_from_rng(rand::thread_rng());
     let public = PublicKey::from(&secret);
     (public, secret)
 }

@@ -29,6 +29,7 @@ export interface SettingsState {
   preferredCaptionLocale: string
   defaultInterval: number
   defaultPlayback: number
+  defaultPlaybackRate: number
   defaultProfile: string
   defaultQuality: string
   defaultSkipInterval: number
@@ -277,6 +278,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   preferredCaptionLocale: '',
   defaultInterval: 5,
   defaultPlayback: 1,
+  defaultPlaybackRate: 1,
   defaultProfile: 'allChannels',
   defaultQuality: '720',
   defaultSkipInterval: 5,

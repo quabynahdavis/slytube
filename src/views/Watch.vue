@@ -79,13 +79,14 @@ onMounted(load)
       <div class="lg:col-span-2 space-y-4">
         <!-- Shaka Player -->
         <ShakaPlayer
-          v-if="manifestUrl"
-          :manifest-url="manifestUrl"
-          :title="video.title"
-          :segments="segments"
-          :chapters="video.chapters"
-          @error="playerError = $event"
-        />
+           v-if="manifestUrl"
+           :manifest-url="manifestUrl"
+           :video-id="videoId"
+           :title="video.title"
+           :segments="segments"
+           :chapters="video.chapters"
+           @error="playerError = $event"
+         />
 
         <!-- Player Error Fallback -->
         <div v-if="playerError" class="bg-destructive/10 border border-destructive/20 rounded-xl p-4">

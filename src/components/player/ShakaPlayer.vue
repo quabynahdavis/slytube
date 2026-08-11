@@ -18,6 +18,7 @@ interface Chapter {
 const props = defineProps<{
   manifestUrl?: string
   poToken?: string
+  videoId?: string
   title?: string
   segments?: Segment[]
   chapters?: Chapter[]
@@ -66,7 +67,7 @@ async function handleInit() {
   if (!videoRef.value) return
   const supported = await init(videoRef.value)
   if (supported && props.manifestUrl) {
-    await loadManifest(props.manifestUrl, props.poToken)
+     await loadManifest(props.manifestUrl, props.poToken, props.videoId)
     emit('ready')
   }
 }
