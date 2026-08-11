@@ -1,9 +1,19 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { cn } from '@/lib/utils'
-import { useProfilesStore } from '@/stores/profiles'
+import { useSubscriptions } from '../composables/useData'
+import { getChannelInfo } from '../api'
+import type { Channel } from '../api/types'
+import SkeletonGrid from '../components/ui/SkeletonGrid.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
 
-const profilesStore = useProfilesStore()
+interface Profile {
+  id: string
+  name: string
+  subscriptions: string[]
+}
+
+const { subscriptions, loadSubscriptions, subscribe, unsubscribe, isSubscribed } = useSubscriptions()
 
 const isLoading = ref(true)
 const showCreateForm = ref(false)
@@ -11,45 +21,74 @@ const editingProfileId = ref<string | null>(null)
 const newProfileName = ref('')
 const editProfileName = ref('')
 
-const profiles = computed(() => profilesStore.getProfileList)
-const activeProfile = computed(() => profilesStore.getActiveProfile)
+const profiles = ref<Profile[]>([
+  { id: 'default', name: 'Default', subscriptions: [] },
+])
 
-onMounted(async () => {
+const subscribedChannels = ref<Channel[]>([])
+
+async function loadData() {
   isLoading.value = true
   try {
-    await new Promise((r) => setTimeout(r, 400))
+    await loadSubscriptions()
+    // Fetch channel info for each subscription
+    const channelPromises = subscriptions.value.slice(0, 20).map(async (channelId) => {
+      try {
+        return await getChannelInfo(channelId)
+      } catch {
+        return null
+      }
+    })
+    const results = await Promise.allSettled(channelPromises)
+    subscribedChannels.value = results
+      .filter((r): r is PromiseFulfilledResult<Channel> => r.status === 'fulfilled' && r.value !== null)
+      .map(r => r.value)
+    // Update default profile subscriptions
+    if (profiles.value[0]) {
+      profiles.value[0].subscriptions = subscriptions.value
+    }
   } finally {
     isLoading.value = false
   }
-})
+}
+
+onMounted(loadData)
 
 function createProfile() {
   if (!newProfileName.value.trim()) return
-  profilesStore.createProfile(newProfileName.value.trim())
+  profiles.value.push({
+    id: `profile-${Date.now()}`,
+    name: newProfileName.value.trim(),
+    subscriptions: [],
+  })
   newProfileName.value = ''
   showCreateForm.value = false
 }
 
-function startEdit(profile: { _id: string; name: string }) {
-  editingProfileId.value = profile._id
+function startEdit(profile: Profile) {
+  editingProfileId.value = profile.id
   editProfileName.value = profile.name
 }
 
 function saveEdit(profileId: string) {
-  const profile = profilesStore.profileById(profileId)
+  const profile = profiles.value.find(p => p.id === profileId)
   if (profile && editProfileName.value.trim()) {
     profile.name = editProfileName.value.trim()
-    profilesStore.sortProfiles()
   }
   editingProfileId.value = null
 }
 
 function deleteProfile(id: string) {
-  profilesStore.deleteProfile(id)
+  profiles.value = profiles.value.filter(p => p.id !== id)
 }
 
-function setActiveProfile(id: string) {
-  profilesStore.setActiveProfile(id)
+function handleUnsubscribe(channelId: string) {
+  unsubscribe(channelId)
+  subscribedChannels.value = subscribedChannels.value.filter(c => c.id !== channelId)
+}
+
+function handleSubscribe(channelId: string) {
+  subscribe(channelId)
 }
 </script>
 
@@ -66,38 +105,77 @@ function setActiveProfile(id: string) {
       </button>
     </div>
 
-    <div v-if="isLoading" class="space-y-3">
-      <div v-for="n in 3" :key="n" class="animate-pulse rounded-lg border border-border p-4"><div class="h-5 w-48 rounded bg-muted"/></div>
-    </div>
+    <SkeletonGrid v-if="isLoading" :count="3" :columns="1" />
 
-    <div v-else class="space-y-3">
-      <div v-for="profile in profiles" :key="profile._id" :class="cn('rounded-lg border border-border bg-card p-4 transition-colors', activeProfile?._id === profile._id && 'border-primary/50 bg-primary/5')">
-        <div class="flex items-center justify-between gap-4">
-          <div class="flex items-center gap-3 min-w-0">
-            <div class="size-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0" :style="{ backgroundColor: profile.bgColor }">
-              {{ profile.name.charAt(0).toUpperCase() }}
+    <template v-else>
+      <!-- Profiles List -->
+      <div class="space-y-3 mb-8">
+        <div v-for="profile in profiles" :key="profile.id" :class="cn('rounded-lg border border-border bg-card p-4 transition-colors', profile.id === 'default' && 'border-primary/50 bg-primary/5')">
+          <div class="flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="size-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 bg-primary">
+                {{ profile.name.charAt(0).toUpperCase() }}
+              </div>
+              <div class="min-w-0">
+                <template v-if="editingProfileId === profile.id">
+                  <input v-model="editProfileName" class="h-8 rounded-md border border-input bg-background px-2 text-sm" @keyup.enter="saveEdit(profile.id)" @keyup.escape="editingProfileId = null"/>
+                </template>
+                <template v-else>
+                  <h3 class="text-sm font-medium text-foreground truncate">{{ profile.name }}</h3>
+                  <p class="text-xs text-muted-foreground">{{ profile.subscriptions.length }} subscriptions</p>
+                </template>
+              </div>
             </div>
-            <div class="min-w-0">
-              <template v-if="editingProfileId === profile._id">
-                <input v-model="editProfileName" class="h-8 rounded-md border border-input bg-background px-2 text-sm" @keyup.enter="saveEdit(profile._id)" @keyup.escape="editingProfileId = null"/>
-              </template>
-              <template v-else>
-                <h3 class="text-sm font-medium text-foreground truncate">{{ profile.name }}</h3>
-                <p class="text-xs text-muted-foreground">{{ profile.subscriptions.length }} subscriptions</p>
-              </template>
+            <div class="flex items-center gap-2 shrink-0">
+              <span v-if="profile.id === 'default'" class="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary font-medium">Active</span>
+              <button v-if="editingProfileId === profile.id" class="h-8 rounded-md bg-primary px-3 text-xs text-primary-foreground" @click="saveEdit(profile.id)">Save</button>
+              <button v-else class="size-8 rounded-md text-muted-foreground hover:bg-accent flex items-center justify-center" @click="startEdit(profile)"><svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+              <button v-if="profile.id !== 'default'" class="size-8 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive flex items-center justify-center" @click="deleteProfile(profile.id)"><svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
             </div>
-          </div>
-          <div class="flex items-center gap-2 shrink-0">
-            <button v-if="activeProfile?._id !== profile._id" class="h-8 rounded-md border border-border px-3 text-xs text-muted-foreground hover:bg-accent transition-colors" @click="setActiveProfile(profile._id)">Activate</button>
-            <span v-else class="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary font-medium">Active</span>
-            <button v-if="editingProfileId === profile._id" class="h-8 rounded-md bg-primary px-3 text-xs text-primary-foreground" @click="saveEdit(profile._id)">Save</button>
-            <button v-else class="size-8 rounded-md text-muted-foreground hover:bg-accent flex items-center justify-center" @click="startEdit(profile)"><svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-            <button v-if="profile._id !== 'allChannels'" class="size-8 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive flex items-center justify-center" @click="deleteProfile(profile._id)"><svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
           </div>
         </div>
       </div>
-    </div>
 
+      <!-- Subscriptions Management -->
+      <div class="rounded-lg border border-border bg-card p-6">
+        <h2 class="text-lg font-semibold text-foreground mb-4">Subscriptions</h2>
+        <EmptyState v-if="subscribedChannels.length === 0" title="No subscriptions">
+          Subscribe to channels from their channel page to manage them here.
+        </EmptyState>
+        <div v-else class="space-y-3">
+          <div v-for="channel in subscribedChannels" :key="channel.id" class="flex items-center justify-between gap-4 p-3 rounded-lg hover:bg-accent/50 transition-colors">
+            <div class="flex items-center gap-3 min-w-0">
+              <img v-if="channel.avatar" :src="channel.avatar" :alt="channel.name" class="size-10 rounded-full object-cover shrink-0" />
+              <div v-else class="size-10 rounded-full bg-muted flex items-center justify-center shrink-0">
+                <svg class="size-6 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </div>
+              <div class="min-w-0">
+                <router-link :to="`/channel/${channel.id}`" class="text-sm font-medium text-foreground hover:text-primary">{{ channel.name }}</router-link>
+                <p class="text-xs text-muted-foreground">{{ channel.subscriberCount?.toLocaleString() || 0 }} subscribers</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <button
+                v-if="isSubscribed(channel.id)"
+                class="h-8 rounded-md border border-border px-3 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50 transition-colors"
+                @click="handleUnsubscribe(channel.id)"
+              >
+                Unsubscribe
+              </button>
+              <button
+                v-else
+                class="h-8 rounded-md bg-primary px-3 text-xs text-primary-foreground hover:bg-primary/90 transition-colors"
+                @click="handleSubscribe(channel.id)"
+              >
+                Subscribe
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Create Profile Dialog -->
     <Teleport to="body">
       <div v-if="showCreateForm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="showCreateForm = false">
         <div class="w-full max-w-sm rounded-lg bg-card border border-border p-6 shadow-xl">

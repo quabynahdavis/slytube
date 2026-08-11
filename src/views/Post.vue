@@ -1,7 +1,20 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import SkeletonGrid from '../components/ui/SkeletonGrid.vue'
+import ErrorState from '../components/ui/ErrorState.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+
+interface Comment {
+  id: string
+  author: string
+  authorId?: string
+  content: string
+  published: string
+  likeCount: number
+}
 
 const isLoading = ref(true)
+const error = ref<string | null>(null)
 
 const post = ref({
   author: '',
@@ -10,34 +23,40 @@ const post = ref({
   published: '',
   likeCount: 0,
   commentCount: 0,
-  authorThumbnails: [] as Array<{ url: string; width: number; height: number }>,
 })
 
-const comments = ref<Array<{
-  id: string; author: string; content: string; published: string; likeCount: number
-}>>([])
+const comments = ref<Comment[]>([])
 
-onMounted(async () => {
+async function loadPost() {
   isLoading.value = true
+  error.value = null
   try {
-    await new Promise((r) => setTimeout(r, 500))
+    // Placeholder: In a real implementation, this would fetch from the API
+    // For now, we show a placeholder community post with comments
+    await new Promise((resolve) => setTimeout(resolve, 300))
     post.value = {
-      author: 'Sample Channel', authorId: 'UC-sample',
-      content: 'This is a community post from a channel. It can contain text, images, polls, and other types of content that creators share with their audience.',
+      author: 'Channel',
+      authorId: 'UC-sample',
+      content: 'This is a community post from a channel. Community posts allow creators to share updates, polls, and engage with their audience beyond video content.',
       published: new Date(Date.now() - 86400000).toISOString(),
-      likeCount: 1234, commentCount: 56,
-      authorThumbnails: [{ url: '', width: 80, height: 80 }],
+      likeCount: 1234,
+      commentCount: 56,
     }
     comments.value = Array.from({ length: 8 }, (_, i) => ({
-      id: `comment-${i}`, author: `User ${i + 1}`,
+      id: `comment-${i}`,
+      author: `User ${i + 1}`,
       content: `This is comment ${i + 1} on the community post.`,
       published: new Date(Date.now() - Math.random() * 86400000).toISOString(),
       likeCount: Math.floor(Math.random() * 100),
     }))
+  } catch (e: any) {
+    error.value = e.message || 'Failed to load post'
   } finally {
     isLoading.value = false
   }
-})
+}
+
+onMounted(loadPost)
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
@@ -46,10 +65,13 @@ function formatDate(dateStr: string): string {
 
 <template>
   <div class="container mx-auto max-w-3xl px-4 py-6">
-    <div v-if="isLoading" class="animate-pulse space-y-4">
-      <div class="flex items-center gap-3"><div class="size-10 rounded-full bg-muted"/><div class="space-y-2"><div class="h-4 w-32 rounded bg-muted"/><div class="h-3 w-24 rounded bg-muted"/></div></div>
-      <div class="space-y-2"><div class="h-4 w-full rounded bg-muted"/><div class="h-4 w-3/4 rounded bg-muted"/></div>
-    </div>
+    <SkeletonGrid v-if="isLoading" :count="1" :columns="1" />
+
+    <ErrorState v-else-if="error" :message="error" retryable @retry="loadPost" />
+
+    <EmptyState v-else-if="!post.author" title="Post not found">
+      The requested community post could not be loaded.
+    </EmptyState>
 
     <template v-else>
       <!-- Post Header -->
@@ -81,7 +103,10 @@ function formatDate(dateStr: string): string {
       <!-- Comments -->
       <div>
         <h2 class="text-lg font-semibold text-foreground mb-4">Comments ({{ comments.length }})</h2>
-        <div class="space-y-4">
+        <div v-if="comments.length === 0" class="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
+          <p class="text-sm">No comments yet. Be the first to comment!</p>
+        </div>
+        <div v-else class="space-y-4">
           <div v-for="comment in comments" :key="comment.id" class="flex gap-3">
             <div class="size-8 rounded-full bg-muted flex items-center justify-center shrink-0">
               <svg class="size-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>

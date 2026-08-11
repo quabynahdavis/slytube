@@ -1,35 +1,48 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { cn } from '@/lib/utils'
-import { useWatchStatsStore } from '@/stores/watch-stats'
-import { useSettingsStore } from '@/stores/settings'
+import { useHistory } from '../composables/useData'
+import SkeletonGrid from '../components/ui/SkeletonGrid.vue'
 
-const watchStatsStore = useWatchStatsStore()
-const settingsStore = useSettingsStore()
+const { history, loadHistory } = useHistory()
 
 const isLoading = ref(true)
 const totalWatchTime = ref(0)
 const dailyAverage = ref(0)
 const mostActiveDay = ref({ date: '', seconds: 0 })
 
-const chartData = ref<Array<{ date: string; seconds: number }>>([])
+interface DayStat {
+  date: string
+  seconds: number
+}
+
+const chartData = ref<DayStat[]>([])
 
 onMounted(async () => {
   isLoading.value = true
   try {
-    await new Promise((r) => setTimeout(r, 500))
-    // Generate sample data for the last 30 days
-    const data: Array<{ date: string; seconds: number }> = []
+    await loadHistory()
+    // Generate chart data from history entries
+    const dayMap = new Map<string, number>()
+    for (const entry of history.value as any[]) {
+      if (entry.timeWatched) {
+        const date = new Date(entry.timeWatched).toISOString().split('T')[0]
+        const current = dayMap.get(date) || 0
+        dayMap.set(date, current + (entry.lengthSeconds || 0))
+      }
+    }
+    // Fill in last 30 days
+    const data: DayStat[] = []
     for (let i = 29; i >= 0; i--) {
       const date = new Date()
       date.setDate(date.getDate() - i)
       const dateStr = date.toISOString().split('T')[0]
-      data.push({ date: dateStr, seconds: Math.floor(Math.random() * 7200) })
+      data.push({ date: dateStr, seconds: dayMap.get(dateStr) || 0 })
     }
     chartData.value = data
     totalWatchTime.value = data.reduce((sum, d) => sum + d.seconds, 0)
     dailyAverage.value = Math.floor(totalWatchTime.value / 30)
-    mostActiveDay.value = data.reduce((max, d) => d.seconds > max.seconds ? d : max, data[0])
+    mostActiveDay.value = data.reduce((max, d) => d.seconds > max.seconds ? d : max, data[0] || { date: '', seconds: 0 })
   } finally {
     isLoading.value = false
   }
@@ -43,10 +56,18 @@ function formatTime(seconds: number): string {
 }
 
 function formatDate(dateStr: string): string {
+  if (!dateStr) return ''
   return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
 const maxSeconds = computed(() => Math.max(...chartData.value.map((d) => d.seconds), 1))
+
+function resetStats() {
+  chartData.value = chartData.value.map(d => ({ ...d, seconds: 0 }))
+  totalWatchTime.value = 0
+  dailyAverage.value = 0
+  mostActiveDay.value = { date: '', seconds: 0 }
+}
 </script>
 
 <template>
@@ -56,18 +77,13 @@ const maxSeconds = computed(() => Math.max(...chartData.value.map((d) => d.secon
         <h1 class="text-2xl font-bold text-foreground">Watch Statistics</h1>
         <p class="text-sm text-muted-foreground mt-1">Your viewing habits and watch time</p>
       </div>
-      <button class="inline-flex items-center gap-1 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive hover:bg-destructive/20 transition-colors" @click="watchStatsStore.resetWatchStats()">
+      <button class="inline-flex items-center gap-1 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive hover:bg-destructive/20 transition-colors" @click="resetStats">
         <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
         Reset Stats
       </button>
     </div>
 
-    <div v-if="isLoading" class="animate-pulse space-y-6">
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div v-for="n in 3" :key="n" class="rounded-lg border border-border p-6"><div class="h-8 w-24 rounded bg-muted mb-2"/><div class="h-4 w-32 rounded bg-muted"/></div>
-      </div>
-      <div class="rounded-lg border border-border p-6"><div class="h-48 w-full rounded bg-muted"/></div>
-    </div>
+    <SkeletonGrid v-if="isLoading" :count="3" :columns="3" />
 
     <template v-else>
       <!-- Stats Cards -->
@@ -114,8 +130,8 @@ const maxSeconds = computed(() => Math.max(...chartData.value.map((d) => d.secon
         <div class="space-y-4">
           <div class="flex items-center justify-between">
             <div><p class="text-sm font-medium text-foreground">Enable Watch Stats</p><p class="text-xs text-muted-foreground">Track your viewing time</p></div>
-            <button :class="cn('relative inline-flex h-6 w-11 items-center rounded-full transition-colors', settingsStore.enableWatchStats ? 'bg-primary' : 'bg-muted')" @click="settingsStore.updateSetting('enableWatchStats', !settingsStore.enableWatchStats)">
-              <span :class="cn('inline-block size-4 rounded-full bg-white transition-transform', settingsStore.enableWatchStats ? 'translate-x-6' : 'translate-x-1')"/>
+            <button :class="cn('relative inline-flex h-6 w-11 items-center rounded-full transition-colors', 'bg-primary')">
+              <span :class="cn('inline-block size-4 rounded-full bg-white transition-transform', 'translate-x-6')"/>
             </button>
           </div>
         </div>

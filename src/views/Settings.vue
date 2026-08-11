@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/stores/settings'
+import { useTheme } from '../composables/useTheme'
 
 const settingsStore = useSettingsStore()
+const { theme: currentTheme, setTheme } = useTheme()
 
 const activeTab = ref('general')
 const isLoading = ref(false)
+const saveSuccess = ref(false)
 
 const tabs = [
   { id: 'general', label: 'General', icon: 'settings' },
@@ -34,17 +37,27 @@ function isSectionExpanded(section: string): boolean {
 
 async function saveSettings() {
   isLoading.value = true
+  saveSuccess.value = false
   try {
-    await new Promise((resolve) => setTimeout(resolve, 500))
     settingsStore.loadSettings()
+    saveSuccess.value = true
+    setTimeout(() => { saveSuccess.value = false }, 3000)
   } finally {
     isLoading.value = false
   }
 }
 
 function resetAllSettings() {
-  // Placeholder for reset confirmation dialog
+  // Reset theme to system
+  setTheme('system')
+  // Reset settings store
+  settingsStore.loadSettings()
 }
+
+// Sync theme changes to settings store
+watch(currentTheme, (newTheme) => {
+  settingsStore.updateSetting('baseTheme', newTheme)
+})
 </script>
 
 <template>
@@ -103,14 +116,35 @@ function resetAllSettings() {
                   <p class="text-sm font-medium text-foreground">Base Theme</p>
                   <p class="text-xs text-muted-foreground">Choose between light, dark, or system theme</p>
                 </div>
-                <select
-                  v-model="settingsStore.baseTheme"
-                  class="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="system">System</option>
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
-                </select>
+                <div class="flex gap-2">
+                  <button
+                    :class="cn(
+                      'h-9 rounded-md px-3 text-sm font-medium transition-colors',
+                      currentTheme === 'system' ? 'bg-primary text-primary-foreground' : 'border border-border text-muted-foreground hover:bg-accent'
+                    )"
+                    @click="setTheme('system')"
+                  >
+                    System
+                  </button>
+                  <button
+                    :class="cn(
+                      'h-9 rounded-md px-3 text-sm font-medium transition-colors',
+                      currentTheme === 'light' ? 'bg-primary text-primary-foreground' : 'border border-border text-muted-foreground hover:bg-accent'
+                    )"
+                    @click="setTheme('light')"
+                  >
+                    Light
+                  </button>
+                  <button
+                    :class="cn(
+                      'h-9 rounded-md px-3 text-sm font-medium transition-colors',
+                      currentTheme === 'dark' ? 'bg-primary text-primary-foreground' : 'border border-border text-muted-foreground hover:bg-accent'
+                    )"
+                    @click="setTheme('dark')"
+                  >
+                    Dark
+                  </button>
+                </div>
               </div>
               <div class="flex items-center justify-between">
                 <div>
@@ -698,6 +732,7 @@ function resetAllSettings() {
           >
             Reset to Defaults
           </button>
+          <span v-if="saveSuccess" class="text-sm text-green-500">Settings saved!</span>
         </div>
       </div>
     </div>

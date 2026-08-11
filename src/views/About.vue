@@ -3,6 +3,20 @@ import { ref } from 'vue'
 
 const appVersion = ref('0.1.0')
 const appEnvironment = ref('Development')
+
+// Try to get version from import.meta.env (Vite environment)
+try {
+  const envVersion = import.meta.env.VITE_APP_VERSION
+  if (envVersion) {
+    appVersion.value = envVersion
+  }
+  const envMode = import.meta.env.MODE
+  if (envMode) {
+    appEnvironment.value = envMode.charAt(0).toUpperCase() + envMode.slice(1)
+  }
+} catch {
+  // Fallback to defaults
+}
 </script>
 
 <template>

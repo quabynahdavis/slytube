@@ -2,60 +2,37 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { cn } from '@/lib/utils'
+import { getPlaylistInfo } from '../api'
+import type { Playlist, Video } from '../api/types'
+import SkeletonGrid from '../components/ui/SkeletonGrid.vue'
+import ErrorState from '../components/ui/ErrorState.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
 
 const route = useRoute()
 
 const playlistId = computed(() => route.params.id as string || '')
 const isLoading = ref(true)
+const error = ref<string | null>(null)
+const playlist = ref<Playlist | null>(null)
+const videos = ref<Video[]>([])
 const isReordering = ref(false)
 
-const playlist = ref({
-  _id: '',
-  playlistName: '',
-  description: '',
-  videos: [] as Array<{
-    videoId: string
-    title: string
-    author: string
-    authorId: string
-    lengthSeconds: number
-    timeAdded: number
-    playlistItemId: string
-    videoThumbnails: Array<{ url: string; width: number; height: number }>
-  }>,
-  protected: false,
-  createdAt: 0,
-  lastUpdatedAt: 0,
-  lastPlayedAt: 0,
-})
-
-onMounted(async () => {
+async function loadPlaylist() {
+  if (!playlistId.value) return
   isLoading.value = true
+  error.value = null
   try {
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    playlist.value = {
-      _id: playlistId.value,
-      playlistName: 'My Playlist',
-      description: 'A collection of favorite videos',
-      videos: Array.from({ length: 15 }, (_, i) => ({
-        videoId: `playlist-video-${i}`,
-        title: `Playlist Video ${i + 1}`,
-        author: `Channel ${i + 1}`,
-        authorId: `UC-channel-${i}`,
-        lengthSeconds: Math.floor(Math.random() * 600) + 60,
-        timeAdded: Date.now() - i * 86400000,
-        playlistItemId: `pli-${i}`,
-        videoThumbnails: [{ url: '', width: 320, height: 180 }],
-      })),
-      protected: false,
-      createdAt: Date.now() - 30 * 86400000,
-      lastUpdatedAt: Date.now(),
-      lastPlayedAt: Date.now() - 86400000,
-    }
+    const data = await getPlaylistInfo(playlistId.value)
+    playlist.value = data
+    videos.value = data.videos || []
+  } catch (e: any) {
+    error.value = e.message || 'Failed to load playlist'
   } finally {
     isLoading.value = false
   }
-})
+}
+
+onMounted(loadPlaylist)
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600)
@@ -67,43 +44,39 @@ function formatDuration(seconds: number): string {
 
 function moveVideo(index: number, direction: 'up' | 'down') {
   const newIndex = direction === 'up' ? index - 1 : index + 1
-  if (newIndex < 0 || newIndex >= playlist.value.videos.length) return
-  const videos = playlist.value.videos
-  const [item] = videos.splice(index, 1)
-  videos.splice(newIndex, 0, item)
+  if (newIndex < 0 || newIndex >= videos.value.length) return
+  const items = videos.value
+  const [item] = items.splice(index, 1)
+  items.splice(newIndex, 0, item)
 }
 
 function removeFromPlaylist(videoId: string) {
-  playlist.value.videos = playlist.value.videos.filter((v) => v.videoId !== videoId)
+  videos.value = videos.value.filter((v) => v.id !== videoId)
 }
 </script>
 
 <template>
   <div class="container mx-auto max-w-5xl px-4 py-6">
     <!-- Loading State -->
-    <div v-if="isLoading" class="animate-pulse">
-      <div class="h-8 w-64 rounded bg-muted mb-2" />
-      <div class="h-4 w-48 rounded bg-muted mb-6" />
-      <div class="space-y-3">
-        <div v-for="n in 5" :key="n" class="flex gap-3">
-          <div class="w-32 aspect-video rounded bg-muted shrink-0" />
-          <div class="flex-1 space-y-2">
-            <div class="h-4 w-3/4 rounded bg-muted" />
-            <div class="h-3 w-1/2 rounded bg-muted" />
-          </div>
-        </div>
-      </div>
-    </div>
+    <SkeletonGrid v-if="isLoading" :count="5" />
+
+    <!-- Error State -->
+    <ErrorState v-else-if="error" :message="error" retryable @retry="loadPlaylist" />
+
+    <!-- Empty State -->
+    <EmptyState v-else-if="!playlist" title="Playlist not found">
+      The requested playlist could not be loaded.
+    </EmptyState>
 
     <template v-else>
       <!-- Playlist Header -->
       <div class="mb-6">
         <div class="flex items-start justify-between gap-4">
           <div>
-            <h1 class="text-2xl font-bold text-foreground">{{ playlist.playlistName }}</h1>
+            <h1 class="text-2xl font-bold text-foreground">{{ playlist.title }}</h1>
             <p class="text-sm text-muted-foreground mt-1">{{ playlist.description }}</p>
             <p class="text-xs text-muted-foreground mt-2">
-              {{ playlist.videos.length }} videos &middot; Last updated {{ new Date(playlist.lastUpdatedAt).toLocaleDateString() }}
+              {{ videos.length }} videos &middot; By {{ playlist.author }}
             </p>
           </div>
           <div class="flex items-center gap-2 shrink-0">
@@ -135,10 +108,10 @@ function removeFromPlaylist(videoId: string) {
       </div>
 
       <!-- Video List -->
-      <div class="space-y-2">
+      <div v-if="videos.length > 0" class="space-y-2">
         <div
-          v-for="(video, index) in playlist.videos"
-          :key="video.videoId"
+          v-for="(video, index) in videos"
+          :key="video.id"
           :class="cn(
             'flex items-center gap-3 rounded-lg border border-border bg-card p-2 group transition-colors hover:bg-accent/50',
             isReordering && 'border-dashed'
@@ -158,7 +131,7 @@ function removeFromPlaylist(videoId: string) {
                   </svg>
                 </button>
                 <button
-                  :disabled="index === playlist.videos.length - 1"
+                  :disabled="index === videos.length - 1"
                   class="size-4 text-muted-foreground hover:text-foreground disabled:opacity-30"
                   @click="moveVideo(index, 'down')"
                 >
@@ -175,15 +148,21 @@ function removeFromPlaylist(videoId: string) {
 
           <!-- Thumbnail -->
           <router-link
-            :to="`/watch?v=${video.videoId}`"
+            :to="`/watch?v=${video.id}`"
             class="relative shrink-0 w-32 aspect-video rounded bg-muted overflow-hidden"
           >
-            <div class="absolute inset-0 flex items-center justify-center">
+            <img
+              v-if="video.thumbnail"
+              :src="video.thumbnail"
+              :alt="video.title"
+              class="absolute inset-0 w-full h-full object-cover"
+            />
+            <div v-else class="absolute inset-0 flex items-center justify-center">
               <svg class="size-8 text-muted-foreground/50 group-hover:text-primary transition-colors" viewBox="0 0 24 24" fill="currentColor">
                 <polygon points="5 3 19 12 5 21 5 3" />
               </svg>
             </div>
-            <span class="absolute bottom-1 right-1 rounded bg-black/80 px-1 text-xs text-white">
+            <span v-if="video.lengthSeconds > 0" class="absolute bottom-1 right-1 rounded bg-black/80 px-1 text-xs text-white">
               {{ formatDuration(video.lengthSeconds) }}
             </span>
           </router-link>
@@ -191,7 +170,7 @@ function removeFromPlaylist(videoId: string) {
           <!-- Video Info -->
           <div class="min-w-0 flex-1">
             <router-link
-              :to="`/watch?v=${video.videoId}`"
+              :to="`/watch?v=${video.id}`"
               class="text-sm font-medium text-foreground line-clamp-1 hover:text-primary transition-colors"
             >
               {{ video.title }}
@@ -204,7 +183,7 @@ function removeFromPlaylist(videoId: string) {
             <button
               class="size-8 rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center justify-center"
               title="Remove from playlist"
-              @click="removeFromPlaylist(video.videoId)"
+              @click="removeFromPlaylist(video.id)"
             >
               <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="18" y1="6" x2="6" y2="18" />
@@ -214,6 +193,11 @@ function removeFromPlaylist(videoId: string) {
           </div>
         </div>
       </div>
+
+      <!-- Empty Playlist -->
+      <EmptyState v-else title="Empty playlist">
+        This playlist has no videos yet.
+      </EmptyState>
     </template>
   </div>
 </template>

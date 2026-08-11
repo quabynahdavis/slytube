@@ -1,24 +1,26 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { cn } from '@/lib/utils'
-import { useSubscriptionsStore } from '@/stores/subscriptions'
+import { useSubscriptions } from '../composables/useData'
+import { getChannelInfo } from '../api'
+import type { Video } from '../api/types'
+import VideoCard from '../components/VideoCard.vue'
+import SkeletonGrid from '../components/ui/SkeletonGrid.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import ErrorState from '../components/ui/ErrorState.vue'
 
-const subscriptionsStore = useSubscriptionsStore()
+const { subscriptions, loadSubscriptions } = useSubscriptions()
 
 const isLoading = ref(true)
-const activeTab = ref('videos')
 const isRefreshing = ref(false)
+const activeTab = ref('videos')
+const feedError = ref<string | null>(null)
 
-const videos = ref<Array<{
-  videoId: string
-  title: string
-  author: string
-  authorId: string
-  viewCount: number
-  lengthSeconds: number
-  published: string
-  videoThumbnails: Array<{ url: string; width: number; height: number }>
-}>>([])
+interface ChannelVideo extends Video {
+  channelId?: string
+}
+
+const feedVideos = ref<ChannelVideo[]>([])
 
 const tabs = [
   { id: 'videos', label: 'Videos' },
@@ -27,59 +29,53 @@ const tabs = [
   { id: 'posts', label: 'Posts' },
 ]
 
-onMounted(async () => {
+async function loadFeed() {
   isLoading.value = true
+  feedError.value = null
   try {
-    await new Promise((resolve) => setTimeout(resolve, 600))
-    videos.value = Array.from({ length: 20 }, (_, i) => ({
-      videoId: `sub-video-${i}`,
-      title: `Subscription Video ${i + 1} - New Upload`,
-      author: `Subscribed Channel ${i + 1}`,
-      authorId: `UC-sub-${i}`,
-      viewCount: Math.floor(Math.random() * 1000000),
-      lengthSeconds: Math.floor(Math.random() * 600) + 60,
-      published: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      videoThumbnails: [{ url: '', width: 640, height: 360 }],
-    }))
+    await loadSubscriptions()
+    // Fetch videos from each subscribed channel
+    const videoPromises = subscriptions.value.slice(0, 10).map(async (channelId) => {
+      try {
+        const channel = await getChannelInfo(channelId)
+        return (channel.videos || []).map(v => ({ ...v, channelId }))
+      } catch {
+        return []
+      }
+    })
+    const results = await Promise.allSettled(videoPromises)
+    const allVideos: ChannelVideo[] = []
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        allVideos.push(...result.value)
+      }
+    }
+    // Sort by published date (most recent first)
+    feedVideos.value = allVideos.sort((a, b) => {
+      const dateA = new Date(a.published).getTime()
+      const dateB = new Date(b.published).getTime()
+      if (isNaN(dateA) && isNaN(dateB)) return 0
+      if (isNaN(dateA)) return 1
+      if (isNaN(dateB)) return -1
+      return dateB - dateA
+    })
+  } catch (e: any) {
+    feedError.value = e.message || 'Failed to load subscription feed'
   } finally {
     isLoading.value = false
   }
-})
+}
 
 async function refreshFeed() {
   isRefreshing.value = true
-  subscriptionsStore.setSubscriptionFeedRefreshInProgress(true)
   try {
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    // Refresh logic placeholder
+    await loadFeed()
   } finally {
     isRefreshing.value = false
-    subscriptionsStore.setSubscriptionFeedRefreshInProgress(false)
   }
 }
 
-function formatViews(views: number): string {
-  if (views >= 1000000) return `${(views / 1000000).toFixed(1)}M views`
-  if (views >= 1000) return `${(views / 1000).toFixed(1)}K views`
-  return `${views} views`
-}
-
-function formatDuration(seconds: number): string {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  const s = seconds % 60
-  if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
-  return `${m}:${s.toString().padStart(2, '0')}`
-}
-
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-  if (days > 0) return `${days} days ago`
-  const hours = Math.floor(diff / (1000 * 60 * 60))
-  if (hours > 0) return `${hours} hours ago`
-  return 'Just now'
-}
+onMounted(loadFeed)
 </script>
 
 <template>
@@ -129,91 +125,43 @@ function timeAgo(dateStr: string): string {
     </div>
 
     <!-- Loading State -->
-    <div v-if="isLoading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      <div v-for="n in 8" :key="n" class="animate-pulse">
-        <div class="aspect-video rounded-lg bg-muted" />
-        <div class="mt-3 space-y-2">
-          <div class="h-4 w-3/4 rounded bg-muted" />
-          <div class="h-3 w-1/2 rounded bg-muted" />
-        </div>
-      </div>
-    </div>
+    <SkeletonGrid v-if="isLoading" :count="8" />
+
+    <!-- Error State -->
+    <ErrorState v-else-if="feedError" :message="feedError" retryable @retry="loadFeed" />
 
     <!-- Videos Grid -->
-    <div v-else-if="activeTab === 'videos'">
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        <router-link
-          v-for="video in videos"
-          :key="video.videoId"
-          :to="`/watch?v=${video.videoId}`"
-          class="group block"
-        >
-          <div class="relative aspect-video rounded-lg bg-muted overflow-hidden">
-            <div class="absolute inset-0 flex items-center justify-center">
-              <svg class="size-12 text-muted-foreground/50 group-hover:text-primary transition-colors" viewBox="0 0 24 24" fill="currentColor">
-                <polygon points="5 3 19 12 5 21 5 3" />
-              </svg>
-            </div>
-            <span class="absolute bottom-2 right-2 rounded bg-black/80 px-1.5 py-0.5 text-xs text-white font-medium">
-              {{ formatDuration(video.lengthSeconds) }}
-            </span>
-          </div>
-          <div class="mt-2">
-            <h3 class="text-sm font-medium text-foreground line-clamp-2 group-hover:text-primary transition-colors">
-              {{ video.title }}
-            </h3>
-            <p class="mt-1 text-xs text-muted-foreground hover:text-foreground">{{ video.author }}</p>
-            <p class="text-xs text-muted-foreground">{{ formatViews(video.viewCount) }} &middot; {{ timeAgo(video.published) }}</p>
-          </div>
-        </router-link>
+    <template v-else-if="activeTab === 'videos'">
+      <EmptyState v-if="subscriptions.length === 0" title="No subscriptions" action="Browse Channels" @action="$router.push('/trending')">
+        Subscribe to channels to see their latest videos here.
+      </EmptyState>
+      <EmptyState v-else-if="feedVideos.length === 0" title="No videos from subscriptions">
+        Your subscribed channels haven't uploaded any videos yet.
+      </EmptyState>
+      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <VideoCard v-for="video in feedVideos" :key="video.id" :video="video" />
       </div>
-    </div>
+    </template>
 
     <!-- Shorts Grid -->
     <div v-else-if="activeTab === 'shorts'">
-      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-        <router-link
-          v-for="n in 12"
-          :key="n"
-          :to="`/watch?v=short-${n}`"
-          class="group block"
-        >
-          <div class="relative aspect-[9/16] rounded-lg bg-muted overflow-hidden">
-            <div class="absolute inset-0 flex items-center justify-center">
-              <svg class="size-10 text-muted-foreground/50 group-hover:text-primary transition-colors" viewBox="0 0 24 24" fill="currentColor">
-                <polygon points="5 3 19 12 5 21 5 3" />
-              </svg>
-            </div>
-          </div>
-          <p class="mt-2 text-sm font-medium text-foreground line-clamp-2 group-hover:text-primary transition-colors">
-            Short Video {{ n }}
-          </p>
-          <p class="text-xs text-muted-foreground">{{ formatViews(Math.floor(Math.random() * 1000000)) }}</p>
-        </router-link>
-      </div>
+      <EmptyState v-if="!isLoading" title="No shorts from subscriptions">
+        Shorts from your subscribed channels will appear here.
+      </EmptyState>
     </div>
 
     <!-- Live Tab -->
     <div v-else-if="activeTab === 'live'">
-      <div class="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
-        <svg class="size-12 mx-auto mb-3 text-muted-foreground/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-          <line x1="12" y1="19" x2="12" y2="23" />
-          <line x1="8" y1="23" x2="16" y2="23" />
-        </svg>
-        <p class="text-sm">No live streams from your subscriptions</p>
-      </div>
+      <EmptyState v-if="!isLoading" title="No live streams">
+        Live streams from your subscribed channels will appear here.
+      </EmptyState>
     </div>
 
     <!-- Posts Tab -->
     <div v-else-if="activeTab === 'posts'">
-      <div class="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
-        <svg class="size-12 mx-auto mb-3 text-muted-foreground/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-        <p class="text-sm">No community posts from your subscriptions</p>
-      </div>
+      <EmptyState v-if="!isLoading" title="No community posts">
+        Community posts from your subscribed channels will appear here.
+      </EmptyState>
     </div>
   </div>
 </template>

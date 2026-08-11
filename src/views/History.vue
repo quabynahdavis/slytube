@@ -1,46 +1,41 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useHistoryStore } from '@/stores/history'
+import { useHistory } from '../composables/useData'
+import SkeletonGrid from '../components/ui/SkeletonGrid.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
 
-const historyStore = useHistoryStore()
+const { history, loadHistory, clearHistory, removeFromHistory } = useHistory()
 
 const isLoading = ref(true)
 const showClearConfirm = ref(false)
 const searchQuery = ref('')
 
-const allHistory = computed(() => historyStore.getHistoryCacheSorted)
+interface HistoryEntry {
+  videoId: string
+  title: string
+  author: string
+  authorId: string
+  viewCount: number
+  lengthSeconds: number
+  timeWatched: number
+  watchProgress: number
+  thumbnail?: string
+}
 
 const filteredHistory = computed(() => {
-  if (!searchQuery.value.trim()) return allHistory.value
+  if (!searchQuery.value.trim()) return history.value as unknown as HistoryEntry[]
   const q = searchQuery.value.toLowerCase()
-  return allHistory.value.filter(
+  return (history.value as unknown as HistoryEntry[]).filter(
     (entry) =>
-      entry.title.toLowerCase().includes(q) ||
-      entry.author.toLowerCase().includes(q)
+      entry.title?.toLowerCase().includes(q) ||
+      entry.author?.toLowerCase().includes(q)
   )
 })
 
 onMounted(async () => {
   isLoading.value = true
   try {
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    // Placeholder: Load history from store
-    const sampleEntries = Array.from({ length: 20 }, (_, i) => ({
-      videoId: `history-${i}`,
-      title: `Watched Video ${i + 1}`,
-      author: `Channel ${i + 1}`,
-      authorId: `UC-channel-${i}`,
-      authorUrl: `/channel/UC-channel-${i}`,
-      description: '',
-      viewCount: Math.floor(Math.random() * 5000000),
-      lengthSeconds: Math.floor(Math.random() * 600) + 60,
-      timeWatched: Date.now() - i * 86400000,
-      watchProgress: Math.random(),
-      isWatched: Math.random() > 0.5,
-      type: 'video',
-      videoThumbnails: [{ url: '', width: 320, height: 180 }],
-    }))
-    sampleEntries.forEach((entry) => historyStore.addToHistory(entry))
+    await loadHistory()
   } finally {
     isLoading.value = false
   }
@@ -63,11 +58,15 @@ function formatDate(timestamp: number): string {
 }
 
 function removeEntry(videoId: string) {
-  historyStore.removeFromHistory(videoId)
+  removeFromHistory(videoId)
+}
+
+function confirmClearHistory() {
+  showClearConfirm.value = true
 }
 
 function clearAllHistory() {
-  historyStore.clearHistory()
+  clearHistory()
   showClearConfirm.value = false
 }
 </script>
@@ -78,7 +77,7 @@ function clearAllHistory() {
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
       <div>
         <h1 class="text-2xl font-bold text-foreground">Watch History</h1>
-        <p class="text-sm text-muted-foreground mt-1">{{ allHistory.length }} videos watched</p>
+        <p class="text-sm text-muted-foreground mt-1">{{ history.length }} videos watched</p>
       </div>
       <div class="flex items-center gap-2">
         <div class="relative">
@@ -94,8 +93,9 @@ function clearAllHistory() {
           </svg>
         </div>
         <button
-          class="inline-flex items-center gap-1 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive hover:bg-destructive/20 transition-colors"
-          @click="showClearConfirm = true"
+          :disabled="history.length === 0"
+          class="inline-flex items-center gap-1 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive hover:bg-destructive/20 transition-colors disabled:opacity-50"
+          @click="confirmClearHistory"
         >
           <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="3 6 5 6 21 6" />
@@ -107,28 +107,18 @@ function clearAllHistory() {
     </div>
 
     <!-- Loading State -->
-    <div v-if="isLoading" class="space-y-3">
-      <div v-for="n in 6" :key="n" class="flex gap-3 animate-pulse">
-        <div class="w-48 aspect-video rounded-lg bg-muted shrink-0" />
-        <div class="flex-1 space-y-2">
-          <div class="h-4 w-3/4 rounded bg-muted" />
-          <div class="h-3 w-1/2 rounded bg-muted" />
-          <div class="h-3 w-1/4 rounded bg-muted" />
-        </div>
-      </div>
-    </div>
+    <SkeletonGrid v-if="isLoading" :count="6" />
 
     <!-- Empty State -->
-    <div v-else-if="filteredHistory.length === 0" class="rounded-lg border border-border bg-card p-12 text-center">
-      <svg class="size-16 mx-auto mb-4 text-muted-foreground/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <circle cx="12" cy="12" r="10" />
-        <polyline points="12 6 12 12 16 14" />
-      </svg>
-      <h3 class="text-lg font-medium text-foreground">No watch history</h3>
-      <p class="text-sm text-muted-foreground mt-1">
-        {{ searchQuery ? 'No results found for your search' : 'Videos you watch will appear here' }}
-      </p>
-    </div>
+    <EmptyState v-else-if="filteredHistory.length === 0" :title="searchQuery ? 'No results found' : 'No watch history'">
+      <template #icon>
+        <svg class="size-8 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      </template>
+      {{ searchQuery ? 'No results found for your search' : 'Videos you watch will appear here' }}
+    </EmptyState>
 
     <!-- History List -->
     <div v-else class="space-y-3">
@@ -141,19 +131,25 @@ function clearAllHistory() {
           :to="`/watch?v=${entry.videoId}`"
           class="relative shrink-0 w-48 aspect-video rounded bg-muted overflow-hidden"
         >
-          <div class="absolute inset-0 flex items-center justify-center">
+          <img
+            v-if="entry.thumbnail"
+            :src="entry.thumbnail"
+            :alt="entry.title"
+            class="absolute inset-0 w-full h-full object-cover"
+          />
+          <div v-else class="absolute inset-0 flex items-center justify-center">
             <svg class="size-10 text-muted-foreground/50 group-hover:text-primary transition-colors" viewBox="0 0 24 24" fill="currentColor">
               <polygon points="5 3 19 12 5 21 5 3" />
             </svg>
           </div>
-          <span class="absolute bottom-1 right-1 rounded bg-black/80 px-1 text-xs text-white">
+          <span v-if="entry.lengthSeconds > 0" class="absolute bottom-1 right-1 rounded bg-black/80 px-1 text-xs text-white">
             {{ formatDuration(entry.lengthSeconds) }}
           </span>
           <!-- Progress Bar -->
           <div class="absolute bottom-0 left-0 right-0 h-1 bg-muted-foreground/30">
             <div
               class="h-full bg-primary"
-              :style="{ width: `${entry.watchProgress * 100}%` }"
+              :style="{ width: `${(entry.watchProgress || 0) * 100}%` }"
             />
           </div>
         </router-link>
@@ -166,7 +162,7 @@ function clearAllHistory() {
           </router-link>
           <p class="mt-1 text-xs text-muted-foreground">{{ entry.author }}</p>
           <p class="text-xs text-muted-foreground">
-            {{ entry.viewCount.toLocaleString() }} views &middot; Watched {{ formatDate(entry.timeWatched) }}
+            {{ (entry.viewCount || 0).toLocaleString() }} views &middot; Watched {{ formatDate(entry.timeWatched) }}
           </p>
         </div>
         <div class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">

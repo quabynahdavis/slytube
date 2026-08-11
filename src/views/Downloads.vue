@@ -1,50 +1,76 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { cn } from '@/lib/utils'
-import { useDownloadsStore } from '@/stores/downloads'
+import { useDownloads } from '../composables/useData'
+import SkeletonGrid from '../components/ui/SkeletonGrid.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
 
-const downloadsStore = useDownloadsStore()
+const { downloads, loadDownloads, startDownload, cancelDownload } = useDownloads()
 
 const isLoading = ref(true)
 const activeTab = ref<'active' | 'completed'>('active')
 const showDownloadForm = ref(false)
-const newDownload = ref({ url: '', format: 'video:best', quality: '720', outputPath: '' })
+const downloadUrl = ref('')
+const downloadFormat = ref('video:best')
+const isStarting = ref(false)
+const startError = ref<string | null>(null)
 
-const activeDownloads = computed(() => downloadsStore.getActiveDownloads)
-const completedDownloads = computed(() => downloadsStore.getCompletedDownloads)
+const activeDownloads = computed(() =>
+  downloads.value.filter((d: any) => d.status === 'downloading' || d.status === 'processing' || d.status === 'queued')
+)
+
+const completedDownloads = computed(() =>
+  downloads.value.filter((d: any) => d.status === 'completed' || d.status === 'error')
+)
 
 onMounted(async () => {
   isLoading.value = true
   try {
-    await new Promise((r) => setTimeout(r, 500))
-    const samples = [
-      { id: 'dl-1', status: 'downloading' as const, progress: 45, title: 'Sample Video 1', url: 'https://youtube.com/watch?v=s1', outputPath: '~/Downloads', format: 'video:best', quality: '1080', fileSize: 250000000, downloadedBytes: 112500000, speed: 5000000, eta: 25, createdAt: Date.now() - 60000, updatedAt: Date.now() },
-      { id: 'dl-2', status: 'processing' as const, progress: 100, title: 'Sample Video 2', url: 'https://youtube.com/watch?v=s2', outputPath: '~/Downloads', format: 'audio:best', quality: 'auto', createdAt: Date.now() - 120000, updatedAt: Date.now() },
-      { id: 'dl-3', status: 'completed' as const, progress: 100, title: 'Sample Video 3', url: 'https://youtube.com/watch?v=s3', outputPath: '~/Downloads', format: 'video:720', quality: '720', fileSize: 180000000, createdAt: Date.now() - 3600000, updatedAt: Date.now() - 3000000 },
-    ]
-    samples.forEach((dl) => downloadsStore.addDownload(dl))
+    await loadDownloads()
   } finally {
     isLoading.value = false
   }
 })
 
 function formatBytes(bytes: number): string {
+  if (!bytes) return '0 B'
   if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`
   if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(1)} MB`
   if (bytes >= 1e3) return `${(bytes / 1e3).toFixed(1)} KB`
   return `${bytes} B`
 }
 
-function startNewDownload() {
-  if (!newDownload.value.url.trim()) return
-  downloadsStore.addDownload({
-    id: `dl-${Date.now()}`, status: 'queued', progress: 0, title: 'New Download',
-    url: newDownload.value.url.trim(), outputPath: newDownload.value.outputPath || '~/Downloads',
-    format: newDownload.value.format, quality: newDownload.value.quality,
-    createdAt: Date.now(), updatedAt: Date.now(),
-  })
-  showDownloadForm.value = false
-  newDownload.value = { url: '', format: 'video:best', quality: '720', outputPath: '' }
+async function handleStartDownload() {
+  if (!downloadUrl.value.trim()) return
+  isStarting.value = true
+  startError.value = null
+  try {
+    await startDownload({
+      url: downloadUrl.value.trim(),
+      format: downloadFormat.value,
+    })
+    downloadUrl.value = ''
+    downloadFormat.value = 'video:best'
+    showDownloadForm.value = false
+    await loadDownloads()
+  } catch (e: any) {
+    startError.value = e.message || 'Failed to start download'
+  } finally {
+    isStarting.value = false
+  }
+}
+
+async function handleCancelDownload(id: number) {
+  try {
+    await cancelDownload(id)
+    await loadDownloads()
+  } catch {
+    // Silently handle cancel errors
+  }
+}
+
+function clearCompleted() {
+  downloads.value = downloads.value.filter((d: any) => d.status !== 'completed' && d.status !== 'error')
 }
 </script>
 
@@ -66,65 +92,83 @@ function startNewDownload() {
         <button :class="cn('pb-3 text-sm font-medium border-b-2 transition-colors', activeTab === 'active' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground')" @click="activeTab = 'active'">Active ({{ activeDownloads.length }})</button>
         <button :class="cn('pb-3 text-sm font-medium border-b-2 transition-colors', activeTab === 'completed' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground')" @click="activeTab = 'completed'">Completed ({{ completedDownloads.length }})</button>
       </nav>
-      <button v-if="activeTab === 'completed' && completedDownloads.length > 0" class="pb-3 text-sm text-muted-foreground hover:text-foreground transition-colors" @click="downloadsStore.clearCompleted()">Clear Completed</button>
+      <button v-if="activeTab === 'completed' && completedDownloads.length > 0" class="pb-3 text-sm text-muted-foreground hover:text-foreground transition-colors" @click="clearCompleted">Clear Completed</button>
     </div>
 
-    <div v-if="isLoading" class="space-y-3">
-      <div v-for="n in 3" :key="n" class="animate-pulse rounded-lg border border-border p-4"><div class="h-4 w-3/4 rounded bg-muted mb-3"/><div class="h-2 w-full rounded bg-muted"/></div>
-    </div>
+    <SkeletonGrid v-if="isLoading" :count="3" />
 
+    <!-- Active Downloads -->
     <div v-else-if="activeTab === 'active'">
-      <div v-if="activeDownloads.length === 0" class="rounded-lg border border-border bg-card p-12 text-center">
-        <svg class="size-16 mx-auto mb-4 text-muted-foreground/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        <h3 class="text-lg font-medium text-foreground">No active downloads</h3>
-        <p class="text-sm text-muted-foreground mt-1">Start a new download to see it here</p>
-      </div>
+      <EmptyState v-if="activeDownloads.length === 0" title="No active downloads">
+        Start a new download to see it here
+      </EmptyState>
       <div v-else class="space-y-3">
         <div v-for="dl in activeDownloads" :key="dl.id" class="rounded-lg border border-border bg-card p-4">
           <div class="flex items-start justify-between gap-4">
             <div class="min-w-0 flex-1">
-              <h3 class="text-sm font-medium text-foreground truncate">{{ dl.title }}</h3>
-              <p class="text-xs text-muted-foreground mt-0.5">{{ dl.format }} &middot; {{ dl.quality }}</p>
+              <h3 class="text-sm font-medium text-foreground truncate">{{ dl.title || dl.url || 'Downloading...' }}</h3>
+              <p class="text-xs text-muted-foreground mt-0.5">{{ dl.format || 'video:best' }} &middot; {{ dl.quality || 'auto' }}</p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
               <span :class="cn('rounded-full px-2 py-0.5 text-xs font-medium capitalize', dl.status === 'downloading' && 'bg-blue-500/10 text-blue-500', dl.status === 'processing' && 'bg-yellow-500/10 text-yellow-500', dl.status === 'queued' && 'bg-muted text-muted-foreground')">{{ dl.status }}</span>
-              <button class="size-7 rounded-md text-muted-foreground hover:bg-accent flex items-center justify-center" @click="downloadsStore.removeDownload(dl.id)"><svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+              <button class="size-7 rounded-md text-muted-foreground hover:bg-accent flex items-center justify-center" @click="handleCancelDownload(dl.id)"><svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             </div>
           </div>
           <div class="mt-3">
-            <div class="flex items-center justify-between text-xs text-muted-foreground mb-1"><span>{{ dl.progress }}%</span><span v-if="dl.speed">{{ formatBytes(dl.speed) }}/s</span><span v-if="dl.eta">ETA: {{ Math.floor(dl.eta / 60) }}:{{ (dl.eta % 60).toString().padStart(2, '0') }}</span></div>
-            <div class="h-2 w-full rounded-full bg-muted overflow-hidden"><div :class="cn('h-full rounded-full transition-all', dl.status === 'downloading' && 'bg-blue-500', dl.status === 'processing' && 'bg-yellow-500 animate-pulse')" :style="{ width: `${dl.progress}%` }"/></div>
+            <div class="flex items-center justify-between text-xs text-muted-foreground mb-1"><span>{{ Math.round(dl.progress || 0) }}%</span><span v-if="dl.speed">{{ formatBytes(dl.speed) }}/s</span><span v-if="dl.eta">ETA: {{ Math.floor(dl.eta / 60) }}:{{ (dl.eta % 60).toString().padStart(2, '0') }}</span></div>
+            <div class="h-2 w-full rounded-full bg-muted overflow-hidden"><div :class="cn('h-full rounded-full transition-all', dl.status === 'downloading' && 'bg-blue-500', dl.status === 'processing' && 'bg-yellow-500 animate-pulse')" :style="{ width: `${dl.progress || 0}%` }"/></div>
             <div v-if="dl.fileSize" class="mt-1 text-xs text-muted-foreground">{{ formatBytes(dl.downloadedBytes || 0) }} / {{ formatBytes(dl.fileSize) }}</div>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- Completed Downloads -->
     <div v-else>
-      <div v-if="completedDownloads.length === 0" class="rounded-lg border border-border bg-card p-12 text-center">
-        <svg class="size-16 mx-auto mb-4 text-muted-foreground/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-        <h3 class="text-lg font-medium text-foreground">No completed downloads</h3>
-      </div>
+      <EmptyState v-if="completedDownloads.length === 0" title="No completed downloads">
+        Completed downloads will appear here
+      </EmptyState>
       <div v-else class="space-y-2">
         <div v-for="dl in completedDownloads" :key="dl.id" class="flex items-center gap-3 rounded-lg border border-border bg-card p-3 group">
           <div class="size-8 rounded-full bg-green-500/10 flex items-center justify-center shrink-0"><svg class="size-4 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
-          <div class="min-w-0 flex-1"><h3 class="text-sm font-medium text-foreground truncate">{{ dl.title }}</h3><p class="text-xs text-muted-foreground">{{ dl.format }} &middot; {{ formatBytes(dl.fileSize || 0) }}</p></div>
-          <button class="size-7 rounded-md text-muted-foreground hover:bg-accent flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" @click="downloadsStore.removeDownload(dl.id)"><svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+          <div class="min-w-0 flex-1"><h3 class="text-sm font-medium text-foreground truncate">{{ dl.title || 'Downloaded Video' }}</h3><p class="text-xs text-muted-foreground">{{ dl.format || 'video' }} &middot; {{ formatBytes(dl.fileSize || 0) }}</p></div>
+          <button class="size-7 rounded-md text-muted-foreground hover:bg-accent flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" @click="downloads = downloads.filter((d: any) => d.id !== dl.id)"><svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
         </div>
       </div>
     </div>
 
+    <!-- Download Form Dialog -->
     <Teleport to="body">
       <div v-if="showDownloadForm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="showDownloadForm = false">
         <div class="w-full max-w-md rounded-lg bg-card border border-border p-6 shadow-xl">
           <h3 class="text-lg font-semibold text-foreground mb-4">New Download</h3>
           <div class="space-y-4">
-            <div><label class="text-sm font-medium text-foreground">Video URL</label><input v-model="newDownload.url" type="url" placeholder="https://youtube.com/watch?v=..." class="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"/></div>
-            <div><label class="text-sm font-medium text-foreground">Format</label><select v-model="newDownload.format" class="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="video:best">Best Video</option><option value="video:720">720p Video</option><option value="video:1080">1080p Video</option><option value="audio:best">Audio Only</option></select></div>
-            <div><label class="text-sm font-medium text-foreground">Quality</label><select v-model="newDownload.quality" class="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="auto">Auto</option><option value="360">360p</option><option value="720">720p</option><option value="1080">1080p</option></select></div>
+            <div>
+              <label class="text-sm font-medium text-foreground">Video URL</label>
+              <input
+                v-model="downloadUrl"
+                type="url"
+                placeholder="https://youtube.com/watch?v=..."
+                class="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div>
+              <label class="text-sm font-medium text-foreground">Format</label>
+              <select v-model="downloadFormat" class="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
+                <option value="video:best">Best Video</option>
+                <option value="video:720">720p Video</option>
+                <option value="video:1080">1080p Video</option>
+                <option value="audio:best">Audio Only</option>
+              </select>
+            </div>
+            <div v-if="startError" class="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              {{ startError }}
+            </div>
             <div class="flex justify-end gap-2 pt-2">
               <button class="h-9 rounded-md border border-input bg-background px-4 text-sm font-medium text-foreground hover:bg-accent transition-colors" @click="showDownloadForm = false">Cancel</button>
-              <button class="h-9 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors" @click="startNewDownload">Download</button>
+              <button :disabled="isStarting || !downloadUrl.trim()" class="h-9 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50" @click="handleStartDownload">
+                {{ isStarting ? 'Starting...' : 'Download' }}
+              </button>
             </div>
           </div>
         </div>
