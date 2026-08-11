@@ -3,14 +3,14 @@ import type { Video, Channel, Playlist, Comment } from './types'
 import {
   invidiousGetVideo,
   invidiousSearch,
-  invidiousGetTrending,
   invidiousGetPopular,
   invidiousGetChannel,
   invidiousGetPlaylist,
   invidiousGetComments,
   invidiousGetDashManifest,
   invidiousGetDashUrl,
-  getCurrentInstanceUrl,
+  proxyImageUrl,
+  getThumbnailUrl,
 } from './invidious'
 
 function getBestThumbnail(thumbnails: any[] | undefined): string {
@@ -25,17 +25,12 @@ function getAuthorAvatar(thumbnails: any[] | undefined): string {
   return sorted[0]?.url || ''
 }
 
-function buildThumbnailUrl(videoId: string): string {
-  const instance = getCurrentInstanceUrl()
-  return `${instance}/vi/${videoId}/hqdefault.jpg`
-}
-
 function mapInvidiousVideo(v: any): Video {
   const videoId = v.videoId || ''
   const authorId = v.authorId || ''
 
-  const thumbnailUrl = getBestThumbnail(v.videoThumbnails) || (videoId ? buildThumbnailUrl(videoId) : '')
-  const authorAvatarUrl = getAuthorAvatar(v.authorThumbnails) || (authorId ? `https://i.ytimg.com/vi/${videoId}/default.jpg` : '')
+  const rawThumbnail = getBestThumbnail(v.videoThumbnails)
+  const rawAuthorAvatar = getAuthorAvatar(v.authorThumbnails)
 
   return {
     id: videoId,
@@ -43,9 +38,9 @@ function mapInvidiousVideo(v: any): Video {
     author: v.author || 'Unknown',
     authorId,
     authorUrl: `/channel/${authorId}`,
-    authorAvatar: authorAvatarUrl,
+    authorAvatar: proxyImageUrl(rawAuthorAvatar),
     description: v.description || '',
-    thumbnail: thumbnailUrl,
+    thumbnail: proxyImageUrl(rawThumbnail) || getThumbnailUrl(videoId, 'hqdefault'),
     viewCount: v.viewCount || 0,
     likeCount: v.likeCount || 0,
     lengthSeconds: v.lengthSeconds || 0,
@@ -108,8 +103,8 @@ function mapYouTubeResponse(result: any): Video {
   const videoId = details.videoId || ''
   const authorId = details.channelId || ''
 
-  const thumbnailUrl = getBestThumbnail(thumbnail) || (videoId ? buildThumbnailUrl(videoId) : '')
-  const authorAvatar = result.microformat?.playerMicroformatRenderer?.thumbnail?.thumbnails?.[0]?.url || ''
+  const rawThumbnail = getBestThumbnail(thumbnail)
+  const rawAuthorAvatar = result.microformat?.playerMicroformatRenderer?.thumbnail?.thumbnails?.[0]?.url || ''
 
   return {
     id: videoId,
@@ -117,9 +112,9 @@ function mapYouTubeResponse(result: any): Video {
     author: typeof author === 'string' ? author : (author.name || 'Unknown'),
     authorId,
     authorUrl: `/channel/${authorId}`,
-    authorAvatar,
+    authorAvatar: proxyImageUrl(rawAuthorAvatar),
     description: details.shortDescription || '',
-    thumbnail: thumbnailUrl,
+    thumbnail: proxyImageUrl(rawThumbnail) || getThumbnailUrl(videoId, 'hqdefault'),
     viewCount: parseInt(details.viewCount || '0'),
     likeCount: parseInt(result.likes || '0'),
     lengthSeconds: parseInt(details.lengthSeconds || '0'),
@@ -146,15 +141,17 @@ function mapYouTubeSearchResults(result: any): Video[] {
         const searchAuthorId = vr.ownerText?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId || ''
         const searchAuthorAvatar = vr.channelThumbnailSupportedRenderers?.channelThumbnailWithLinkRenderer?.thumbnail?.thumbnails?.[0]?.url || ''
 
+        const searchThumbnail = getBestThumbnail(vr.thumbnail?.thumbnails)
+
         videos.push({
           id: vr.videoId || '',
           title: vr.title?.runs?.[0]?.text || vr.title?.simpleText || 'Unknown',
           author: vr.ownerText?.runs?.[0]?.text || 'Unknown',
           authorId: searchAuthorId,
           authorUrl: '',
-          authorAvatar: searchAuthorAvatar,
+          authorAvatar: proxyImageUrl(searchAuthorAvatar),
           description: vr.descriptionSnippet?.runs?.[0]?.text || '',
-          thumbnail: getBestThumbnail(vr.thumbnail?.thumbnails) || (vr.videoId ? buildThumbnailUrl(vr.videoId) : ''),
+          thumbnail: proxyImageUrl(searchThumbnail) || getThumbnailUrl(vr.videoId, 'hqdefault'),
           viewCount: parseInt(vr.viewCountText?.simpleText?.replace(/[^0-9]/g, '') || '0'),
           likeCount: 0,
           lengthSeconds: 0,
@@ -252,17 +249,14 @@ export async function search(query: string): Promise<Video[]> {
 
 export async function getTrendingVideos(): Promise<Video[]> {
   try {
-    const result = await invidiousGetTrending('default')
+    const result = await invidiousGetPopular()
     const data = Array.isArray(result) ? result : []
-    return data.filter((i: any) => i.type === 'video' || i.type === 'shortVideo').map(mapInvidiousVideo)
-  } catch {
-    try {
-      const result = await invidiousGetPopular()
-      const data = Array.isArray(result) ? result : []
-      return data.filter((i: any) => i.type === 'video' || i.type === 'shortVideo').map(mapInvidiousVideo)
-    } catch {
-      return []
-    }
+    return data
+      .filter((i: any) => i.type === 'video' || i.type === 'shortVideo')
+      .map(mapInvidiousVideo)
+  } catch (e) {
+    console.error('Failed to load trending/popular:', e)
+    return []
   }
 }
 

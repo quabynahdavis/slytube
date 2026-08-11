@@ -1,15 +1,15 @@
 let tauriFetch: any = null
 
-async function initTauriFetch() {
-  try {
-    const { fetch: httpFetch } = await import('@tauri-apps/plugin-http')
-    tauriFetch = httpFetch
-  } catch {
-    tauriFetch = null
-  }
+try {
+  const http = await import('@tauri-apps/plugin-http')
+  tauriFetch = http.fetch
+} catch {
+  tauriFetch = null
 }
 
-initTauriFetch()
+export function getFetch(): typeof fetch {
+  return (tauriFetch || fetch) as any
+}
 
 export interface InvidiousInstance {
   url: string
@@ -39,11 +39,11 @@ export function getCurrentInstanceUrl(): string {
 }
 
 export async function loadInstances(): Promise<void> {
+  console.log('[Invidious] Loading instances...')
   try {
-    const response = await (tauriFetch || fetch)('https://api.invidious.io/instances.json', {
+    const response = await getFetch()('https://api.invidious.io/instances.json', {
       method: 'GET',
-      connectTimeout: 10000,
-    })
+    } as any)
     if (response.ok) {
       const data: any[] = await response.json()
       const instances = data
@@ -60,15 +60,18 @@ export async function loadInstances(): Promise<void> {
       if (instances.length > 0) {
         instancesList = instances
         currentInstance = instances[0]
+        console.log(`[Invidious] Loaded ${instances.length} instances, using ${currentInstance.url}`)
       }
     }
-  } catch {
-    // Use fallback instances
+  } catch (err) {
+    console.warn('[Invidious] Failed to load instances, using fallbacks:', err)
   }
 
   for (const instance of FALLBACK_INSTANCES) {
+    console.log(`[Invidious] Testing fallback instance: ${instance.url}`)
     if (await testInstance(instance.url)) {
       currentInstance = instance
+      console.log(`[Invidious] Using fallback instance: ${instance.url}`)
       break
     }
   }
@@ -76,19 +79,32 @@ export async function loadInstances(): Promise<void> {
 
 export async function testInstance(url: string): Promise<boolean> {
   try {
-    const response = await (tauriFetch || fetch)(`${url}/api/v1/stats`, {
+    const response = await getFetch()(`${url}/api/v1/stats`, {
       method: 'GET',
-      connectTimeout: 5000,
-    })
+    } as any)
     return response.ok
   } catch {
     return false
   }
 }
 
+export function proxyImageUrl(url: string): string {
+  if (!url) return ''
+  const instance = getCurrentInstanceUrl()
+  // Rewrite YouTube image URLs through Invidious proxy
+  return url
+    .replace('https://i.ytimg.com', `${instance}`)
+    .replace('https://i1.ytimg.com', `${instance}`)
+    .replace('https://i2.ytimg.com', `${instance}`)
+    .replace('https://i3.ytimg.com', `${instance}`)
+    .replace('https://i4.ytimg.com', `${instance}`)
+    .replace('https://yt3.ggpht.com', `${instance}/ggpht`)
+    .replace('https://yt3.googleusercontent.com', `${instance}/ggpht`)
+}
+
 async function invidiousFetch<T>(path: string): Promise<T> {
   const instances = instancesList.length > 0 ? instancesList : FALLBACK_INSTANCES
-  const useFetch = tauriFetch || fetch
+  const useFetch = getFetch()
 
   for (const instance of instances) {
     try {
@@ -98,8 +114,7 @@ async function invidiousFetch<T>(path: string): Promise<T> {
         headers: {
           Accept: 'application/json',
         },
-        connectTimeout: 15000,
-      })
+      } as any)
 
       if (response.ok) {
         if (instance.url !== currentInstance.url) {
@@ -198,7 +213,7 @@ export async function invidiousGetDashManifest(videoId: string, local = true): P
   for (const instance of instancesList.length > 0 ? instancesList : FALLBACK_INSTANCES) {
     try {
       const fullUrl = `${instance.url}${path}`
-      const response = await (tauriFetch || fetch)(fullUrl, {
+      const response = await getFetch()(fullUrl, {
         method: 'GET',
       })
       if (response.ok) {

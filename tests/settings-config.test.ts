@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest'
 import { settingsConfig, type SettingsCategory } from '@/views/Settings/config'
 
 describe('Settings Config', () => {
-  it('has exactly 5 categories', () => {
-    expect(settingsConfig).toHaveLength(5)
+  it('has exactly 7 categories', () => {
+    expect(settingsConfig).toHaveLength(7)
   })
 
-  const expectedIds = ['account', 'appearance', 'notifications', 'privacy', 'player']
+  const expectedIds = ['general', 'appearance', 'player', 'downloads', 'privacy', 'sync', 'advanced']
 
   it('has all expected category IDs', () => {
     const ids = settingsConfig.map(c => c.id)
@@ -36,7 +36,7 @@ describe('Settings Config', () => {
       for (const section of category.sections) {
         for (const item of section.items) {
           expect(item.key).toBeTruthy()
-          expect(item.type).toMatch(/^(toggle|select|accordion|link|action)$/)
+          expect(item.type).toMatch(/^(toggle|select|accordion|link|action|text)$/)
           expect(item.label).toBeTruthy()
           expect(item.description).toBeTruthy()
           expect(Array.isArray(item.synonyms)).toBe(true)
@@ -89,7 +89,7 @@ describe('Settings Config', () => {
     }
   })
 
-  it('has at least one quickAccess item', () => {
+  it('has no quickAccess items', () => {
     let quickAccessCount = 0
     for (const category of settingsConfig) {
       for (const section of category.sections) {
@@ -98,6 +98,6 @@ describe('Settings Config', () => {
         }
       }
     }
-    expect(quickAccessCount).toBeGreaterThanOrEqual(3)
+    expect(quickAccessCount).toBe(0)
   })
 })

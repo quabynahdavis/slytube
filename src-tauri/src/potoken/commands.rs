@@ -2,7 +2,7 @@ use std::sync::mpsc;
 use std::time::Duration;
 
 
-use tauri::{AppHandle, Emitter, Listener, Manager, WebviewWindowBuilder};
+use tauri::{AppHandle, Listener, WebviewWindowBuilder};
 
 
 use crate::potoken::PoTokenState;

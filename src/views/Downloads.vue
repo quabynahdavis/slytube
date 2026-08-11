@@ -100,8 +100,8 @@ function clearCompleted() {
 
     <!-- Active Downloads -->
     <div v-else-if="activeTab === 'active'">
-      <EmptyState v-if="activeDownloads.length === 0" title="No active downloads">
-        Start a new download to see it here
+      <EmptyState v-if="activeDownloads.length === 0" title="No active downloads" action="Start Download" @action="showDownloadForm = true">
+        Paste a video URL above and click "New Download" to get started.
       </EmptyState>
       <div v-else class="space-y-3">
         <div v-for="dl in activeDownloads" :key="dl.id" class="rounded-lg border border-border bg-card p-4">
@@ -127,7 +127,7 @@ function clearCompleted() {
     <!-- Completed Downloads -->
     <div v-else>
       <EmptyState v-if="completedDownloads.length === 0" title="No completed downloads">
-        Completed downloads will appear here
+        Videos you've downloaded will appear here for offline viewing.
       </EmptyState>
       <div v-else class="space-y-2">
         <div v-for="dl in completedDownloads" :key="dl.id" class="flex items-center gap-3 rounded-lg border border-border bg-card p-3 group">

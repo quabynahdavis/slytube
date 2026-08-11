@@ -13,6 +13,9 @@ export default defineConfig(async () => ({
     },
   },
   clearScreen: false,
+  build: {
+    target: 'es2022',
+  },
   server: {
     port: 1420,
     strictPort: true,

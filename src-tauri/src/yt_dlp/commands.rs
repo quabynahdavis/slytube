@@ -1,12 +1,11 @@
 use std::process::Stdio;
 
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, State};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
 use crate::yt_dlp::{
-    get_binary_path, parse_destination, parse_progress_line, validate_custom_args,
-    DownloadStatus, YtDlpState,
+    get_binary_path, parse_destination, parse_progress_line, validate_custom_args, YtDlpState,
 };
 
 /// Get video info from yt-dlp.
@@ -179,7 +178,7 @@ pub async fn yt_dlp_download(
     cmd_args.push(url);
 
     // Spawn the download process
-    let mut child = Command::new(&binary_path)
+    let child = Command::new(&binary_path)
         .args(&cmd_args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
