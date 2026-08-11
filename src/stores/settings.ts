@@ -6,6 +6,7 @@ export interface SponsorBlockCategory {
 }
 
 export interface SettingsState {
+  pinnedQuickAccess: string[]
   alwaysShowScrollbars: boolean
   autoOpenChapters: boolean
   autoplayPlaylists: boolean
@@ -247,9 +248,13 @@ export interface SettingsState {
   uiScale: number
   userPlaylistsSortBy: string
   userHistorySortBy: string
+  enableNotifications: boolean
+  enablePushNotifications: boolean
+  enableEmailNotifications: boolean
 }
 
 const DEFAULT_SETTINGS: SettingsState = {
+  pinnedQuickAccess: ['baseTheme', 'enableNotifications', 'rememberHistory', 'autoplayVideos'],
   alwaysShowScrollbars: false,
   autoOpenChapters: false,
   autoplayPlaylists: true,
@@ -491,6 +496,9 @@ const DEFAULT_SETTINGS: SettingsState = {
   uiScale: 100,
   userPlaylistsSortBy: 'latest_played_first',
   userHistorySortBy: 'latest_played_first',
+  enableNotifications: true,
+  enablePushNotifications: false,
+  enableEmailNotifications: false,
 }
 
 export const useSettingsStore = defineStore('settings', {
@@ -565,6 +573,28 @@ export const useSettingsStore = defineStore('settings', {
       if (settingKey in DEFAULT_SETTINGS) {
         ;(this as any)[settingKey] = DEFAULT_SETTINGS[settingKey]
       }
+    },
+
+    pinToQuickAccess(settingKey: string) {
+      if (!this.pinnedQuickAccess.includes(settingKey)) {
+        this.pinnedQuickAccess.push(settingKey)
+      }
+    },
+
+    unpinFromQuickAccess(settingKey: string) {
+      this.pinnedQuickAccess = this.pinnedQuickAccess.filter(k => k !== settingKey)
+    },
+
+    togglePinned(settingKey: string) {
+      if (this.pinnedQuickAccess.includes(settingKey)) {
+        this.unpinFromQuickAccess(settingKey)
+      } else {
+        this.pinToQuickAccess(settingKey)
+      }
+    },
+
+    isPinned(settingKey: string): boolean {
+      return this.pinnedQuickAccess.includes(settingKey)
     },
   },
 })
