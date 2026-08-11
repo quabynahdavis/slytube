@@ -1,43 +1,12 @@
-import { getComments } from '../composables/useInnertube'
-import * as inv from './invidious'
+import { invoke } from '@tauri-apps/api/core'
 import type { Video, Channel, Playlist, Comment } from './types'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getBestThumbnail(thumbnails: any[] | undefined): string {
   if (!thumbnails || thumbnails.length === 0) return ''
   const best = thumbnails.sort((a: any, b: any) => (b.width || 0) - (a.width || 0))[0]
   return best?.url || ''
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapYouTubeVideo(v: any): Video {
-  const author = v.author || v.channel || {}
-  return {
-    id: v.id || '',
-    title: v.title?.text || v.title || 'Unknown',
-    author: author.name || author.author || 'Unknown',
-    authorId: author.id || author.channelId || '',
-    authorUrl: author.channel_url || author.url || '',
-    description: v.description || '',
-    thumbnail: getBestThumbnail(v.thumbnails),
-    viewCount: v.view_count || v.views || 0,
-    likeCount: v.like_count || v.likes || 0,
-    lengthSeconds: v.duration?.seconds || v.length_seconds || 0,
-    published: v.published?.text || v.published || '',
-    isLive: v.is_live || v.isLive || false,
-    isUpcoming: v.is_upcoming || v.isUpcoming || false,
-    isShort: v.is_short || v.isShort || false,
-    chapters: (v.chapters || []).map((c: any) => ({
-      title: c.title?.text || c.title || '',
-      startSeconds: c.start_seconds || 0,
-      thumbnail: getBestThumbnail(c.thumbnails),
-    })),
-    captions: [],
-    related: [],
-  }
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapInvidiousVideo(v: any): Video {
   return {
     id: v.videoId || '',
@@ -60,7 +29,6 @@ function mapInvidiousVideo(v: any): Video {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapInvidiousChannel(c: any): Channel {
   return {
     id: c.authorId || '',
@@ -76,7 +44,6 @@ function mapInvidiousChannel(c: any): Channel {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapInvidiousPlaylist(p: any): Playlist {
   return {
     id: p.playlistId || '',
@@ -89,23 +56,7 @@ function mapInvidiousPlaylist(p: any): Playlist {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapYouTubeComment(c: any): Comment {
-  const author = c.author || {}
-  return {
-    id: c.comment_id || c.id || '',
-    author: author.name || 'Unknown',
-    authorId: author.id || '',
-    authorAvatar: getBestThumbnail(author.thumbnails),
-    content: c.content?.text || c.content || '',
-    likeCount: c.like_count || c.likes || 0,
-    published: c.published?.text || c.published || '',
-    replies: [],
-    replyCount: c.reply_count || c.replyCount || 0,
-  }
-}
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapInvidiousComment(c: any): Comment {
   return {
     id: c.commentId || '',
@@ -122,130 +73,172 @@ function mapInvidiousComment(c: any): Comment {
 
 export async function getVideo(videoId: string): Promise<Video> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const info: any = await {}
-    const details = info.basic_info
-    const author = details.channel
-
-    return {
-      id: details.id || videoId,
-      title: details.title || 'Unknown',
-      author: author?.name || 'Unknown',
-      authorId: author?.id || '',
-      authorUrl: author?.channel_url || '',
-      description: details.short_description || '',
-      thumbnail: getBestThumbnail(details.thumbnail),
-      viewCount: details.view_count || 0,
-      likeCount: details.like_count || 0,
-      lengthSeconds: details.duration || 0,
-      published: '',
-      isLive: details.is_live || false,
-      isUpcoming: details.is_upcoming || false,
-      isShort: false,
-      chapters: [],
-      captions: [],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      related: (info.related_videos || info.related || []).map(mapYouTubeVideo),
-    }
+    const result = await invoke('get_video_info', { videoId })
+    return mapYouTubeResponse(result as any)
   } catch {
-    const data = await inv.getVideoInfoInvidious(videoId)
-    return mapInvidiousVideo(data)
+    const result = await invoke('invidious_get_video', { videoId })
+    return mapInvidiousVideo(result as any)
   }
 }
 
-export async function getChannelInfo(channelId: string): Promise<Channel> {
-  try {
-    const instances = ['https://inv.nadeko.net', 'https://yewtu.be', 'https://invidious.private.coffee', 'https://invidious.nerdvpn.de']
-    for (const instance of instances) {
-      try {
-        const response = await fetch(`${instance}/api/v1/channels/${channelId}?fields=author,authorId,description,subCount,authorThumbnails,tabs,latestVideos`, {
-          signal: AbortSignal.timeout(8000),
-        })
-        if (response.ok) {
-          const data = await response.json()
-          return mapInvidiousChannel(data)
-        }
-      } catch { /* try next instance */ }
-    }
-    throw new Error('All Invidious instances failed')
-  } catch {
-    return {
-      id: channelId,
-      name: 'Channel unavailable',
-      description: '',
-      avatar: '',
-      banner: '',
-      subscriberCount: 0,
-      videoCount: 0,
-      tabs: [],
-      videos: [],
-      relatedChannels: [],
-    }
+function mapYouTubeResponse(result: any): Video {
+  const details = result.videoDetails || {}
+  const author = details.author || {}
+  const thumbnail = details.thumbnail?.thumbnails
+
+  return {
+    id: details.videoId || '',
+    title: details.title || 'Unknown',
+    author: typeof author === 'string' ? author : (author.name || 'Unknown'),
+    authorId: details.channelId || '',
+    authorUrl: `/channel/${details.channelId || ''}`,
+    description: details.shortDescription || '',
+    thumbnail: getBestThumbnail(thumbnail),
+    viewCount: parseInt(details.viewCount || '0'),
+    likeCount: parseInt(result.likes || '0'),
+    lengthSeconds: parseInt(details.lengthSeconds || '0'),
+    published: '',
+    isLive: details.isLive || false,
+    isUpcoming: false,
+    isShort: false,
+    chapters: [],
+    captions: [],
+    related: [],
   }
 }
 
 export async function search(query: string): Promise<Video[]> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const results: any = await {}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (results.results || []).map(mapYouTubeVideo)
+    const result = await invoke('search_videos', { query })
+    return mapYouTubeSearchResults(result as any)
   } catch {
-    const data = await inv.searchInvidious(query)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return ((data as any[]) || []).filter((i: any) => i.type === "video").map(mapInvidiousVideo)
+    const result = await invoke('invidious_search', { query })
+    return (result as any[] || []).filter((i: any) => i.type === 'video').map(mapInvidiousVideo)
+  }
+}
+
+function mapYouTubeSearchResults(result: any): Video[] {
+  const contents = result.contents?.twoColumnSearchResultsRenderer?.primaryContents
+    ?.sectionListRenderer?.contents || []
+  
+  const videos: Video[] = []
+  for (const section of contents) {
+    const items = section.itemSectionRenderer?.contents || []
+    for (const item of items) {
+      if (item.videoRenderer) {
+        const vr = item.videoRenderer
+        videos.push({
+          id: vr.videoId || '',
+          title: vr.title?.runs?.[0]?.text || vr.title?.simpleText || 'Unknown',
+          author: vr.ownerText?.runs?.[0]?.text || 'Unknown',
+          authorId: vr.ownerText?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId || '',
+          authorUrl: '',
+          description: vr.descriptionSnippet?.runs?.[0]?.text || '',
+          thumbnail: getBestThumbnail(vr.thumbnail?.thumbnails),
+          viewCount: parseInt(vr.viewCountText?.simpleText?.replace(/[^0-9]/g, '') || '0'),
+          likeCount: 0,
+          lengthSeconds: 0,
+          published: vr.publishedTimeText?.simpleText || '',
+          isLive: false,
+          isUpcoming: false,
+          isShort: false,
+          chapters: [],
+          captions: [],
+          related: [],
+        })
+      }
+    }
+  }
+  return videos
+}
+
+export async function getTrendingVideos(): Promise<Video[]> {
+  try {
+    const result = await invoke('get_trending')
+    return mapYouTubeTrendingResults(result as any)
+  } catch {
+    const result = await invoke('invidious_get_trending')
+    return (result as any[] || []).filter((i: any) => i.type === 'video').map(mapInvidiousVideo)
+  }
+}
+
+function mapYouTubeTrendingResults(result: any): Video[] {
+  const contents = result.contents?.twoColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content
+    ?.sectionListRenderer?.contents || []
+  
+  const videos: Video[] = []
+  for (const section of contents) {
+    const items = section.itemSectionRenderer?.contents || []
+    for (const item of items) {
+      if (item.videoRenderer) {
+        const vr = item.videoRenderer
+        videos.push({
+          id: vr.videoId || '',
+          title: vr.title?.runs?.[0]?.text || vr.title?.simpleText || 'Unknown',
+          author: vr.ownerText?.runs?.[0]?.text || 'Unknown',
+          authorId: vr.ownerText?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId || '',
+          authorUrl: '',
+          description: '',
+          thumbnail: getBestThumbnail(vr.thumbnail?.thumbnails),
+          viewCount: parseInt(vr.viewCountText?.simpleText?.replace(/[^0-9]/g, '') || '0'),
+          likeCount: 0,
+          lengthSeconds: 0,
+          published: vr.publishedTimeText?.simpleText || '',
+          isLive: false,
+          isUpcoming: false,
+          isShort: false,
+          chapters: [],
+          captions: [],
+          related: [],
+        })
+      }
+    }
+  }
+  return videos
+}
+
+export async function getChannelInfo(channelId: string): Promise<Channel> {
+  try {
+    const result = await invoke('get_channel_info', { channelId })
+    return mapYouTubeChannel(result as any)
+  } catch {
+    const result = await invoke('invidious_get_channel', { channelId })
+    return mapInvidiousChannel(result as any)
+  }
+}
+
+function mapYouTubeChannel(result: any): Channel {
+  const metadata = result.metadata?.channelMetadataRenderer
+  const headerData = result.header?.c4TabbedHeaderRenderer
+  
+  return {
+    id: metadata?.externalId || '',
+    name: metadata?.title || 'Unknown',
+    description: metadata?.description || '',
+    avatar: getBestThumbnail(metadata?.avatar?.thumbnails),
+    banner: getBestThumbnail(headerData?.banner?.thumbnails),
+    subscriberCount: parseInt(headerData?.subscriberCountText?.simpleText?.replace(/[^0-9]/g, '') || '0'),
+    videoCount: 0,
+    tabs: ['home', 'videos', 'playlists', 'community'],
+    videos: [],
+    relatedChannels: [],
   }
 }
 
 export async function getPlaylistInfo(playlistId: string): Promise<Playlist> {
   try {
-    const instances = ['https://inv.nadeko.net', 'https://yewtu.be', 'https://invidious.private.coffee', 'https://invidious.nerdvpn.de']
-    for (const instance of instances) {
-      try {
-        const response = await fetch(`${instance}/api/v1/playlists/${playlistId}?fields=title,description,author,authorId,videoCount,videos`, {
-          signal: AbortSignal.timeout(8000),
-        })
-        if (response.ok) {
-          const data = await response.json()
-          return mapInvidiousPlaylist(data)
-        }
-      } catch { /* try next instance */ }
-    }
-    throw new Error('All Invidious instances failed')
+    const result = await invoke('invidious_get_playlist', { playlistId })
+    return mapInvidiousPlaylist(result as any)
   } catch {
-    return {
-      id: playlistId,
-      title: 'Playlist unavailable',
-      description: '',
-      author: '',
-      authorId: '',
-      videoCount: 0,
-      videos: [],
-    }
+    return { id: playlistId, title: 'Playlist unavailable', description: '', author: '', authorId: '', videoCount: 0, videos: [] }
   }
 }
 
 export async function getCommentsInfo(videoId: string): Promise<Comment[]> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const comments: any = await getComments(videoId)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (comments.contents || []).map(mapYouTubeComment)
+    const result = await invoke('invidious_get_comments', { videoId })
+    return ((result as any).comments || []).map(mapInvidiousComment)
   } catch {
-    const data = await inv.getCommentsInvidious(videoId) as any
-    return (data.comments || []).map(mapInvidiousComment)
-  }
-}
-
-export async function getTrendingVideos(): Promise<Video[]> {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const trending: any = await Promise.resolve({ videos: [], contents: [] })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (trending.videos || trending.contents || []).map(mapYouTubeVideo)
-  } catch {
-    const data = await inv.getTrendingInvidious()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return ((data as any[]) || []).filter((i: any) => i.type === "video").map(mapInvidiousVideo)
+    return []
   }
 }

@@ -1,12 +1,20 @@
 #[allow(dead_code)]
+mod commands;
+#[allow(dead_code)]
 mod db;
+#[allow(dead_code)]
+mod http_client;
 mod potoken;
 mod system;
 mod yt_dlp;
 
+use std::sync::Arc;
+
 use tauri::{AppHandle, Manager};
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+use crate::http_client::HttpClient;
+
+// Learn more about Tauri commands at https://tauri.app/develop/calling-calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
@@ -34,6 +42,12 @@ pub fn run() {
 
     builder
         .setup(|app| {
+            // Initialize HTTP client for YouTube/Invidious API calls
+            let http_client = Arc::new(HttpClient::new()
+                .map_err(|e| format!("Failed to create HTTP client: {}", e))?);
+            app.manage(http_client);
+            tracing::info!("HTTP client initialized");
+
             // Initialize yt-dlp state for managing active downloads
             app.manage(yt_dlp::YtDlpState::new());
             tracing::info!("YtDlpState initialized");
@@ -71,6 +85,23 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             system_deep_link,
+            // YouTube InnerTube API
+            commands::youtube::get_video_info,
+            commands::youtube::search_videos,
+            commands::youtube::get_trending,
+            commands::youtube::get_channel_info,
+            commands::youtube::get_channel_videos,
+            commands::youtube::get_comments,
+            // Invidious API
+            commands::invidious::invidious_get_video,
+            commands::invidious::invidious_search,
+            commands::invidious::invidious_get_trending,
+            commands::invidious::invidious_get_channel,
+            commands::invidious::invidious_get_playlist,
+            commands::invidious::invidious_get_comments,
+            commands::invidious::invidious_get_instances,
+            commands::invidious::invidious_test_instance,
+            // yt-dlp
             yt_dlp::yt_dlp_get_info,
             yt_dlp::yt_dlp_get_playback_info,
             yt_dlp::yt_dlp_download,
