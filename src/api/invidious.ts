@@ -1,4 +1,15 @@
-import { fetch as tauriFetch } from '@tauri-apps/plugin-http'
+let tauriFetch: any = null
+
+async function initTauriFetch() {
+  try {
+    const { fetch: httpFetch } = await import('@tauri-apps/plugin-http')
+    tauriFetch = httpFetch
+  } catch {
+    tauriFetch = null
+  }
+}
+
+initTauriFetch()
 
 export interface InvidiousInstance {
   url: string
@@ -29,7 +40,7 @@ export function getCurrentInstanceUrl(): string {
 
 export async function loadInstances(): Promise<void> {
   try {
-    const response = await tauriFetch('https://api.invidious.io/instances.json', {
+    const response = await (tauriFetch || fetch)('https://api.invidious.io/instances.json', {
       method: 'GET',
       connectTimeout: 10000,
     })
@@ -65,7 +76,7 @@ export async function loadInstances(): Promise<void> {
 
 export async function testInstance(url: string): Promise<boolean> {
   try {
-    const response = await tauriFetch(`${url}/api/v1/stats`, {
+    const response = await (tauriFetch || fetch)(`${url}/api/v1/stats`, {
       method: 'GET',
       connectTimeout: 5000,
     })
@@ -76,10 +87,13 @@ export async function testInstance(url: string): Promise<boolean> {
 }
 
 async function invidiousFetch<T>(path: string): Promise<T> {
-  for (const instance of instancesList.length > 0 ? instancesList : FALLBACK_INSTANCES) {
+  const instances = instancesList.length > 0 ? instancesList : FALLBACK_INSTANCES
+  const useFetch = tauriFetch || fetch
+
+  for (const instance of instances) {
     try {
       const fullUrl = `${instance.url}${path}`
-      const response = await tauriFetch(fullUrl, {
+      const response = await useFetch(fullUrl, {
         method: 'GET',
         headers: {
           Accept: 'application/json',
@@ -93,7 +107,8 @@ async function invidiousFetch<T>(path: string): Promise<T> {
         }
         return await response.json() as T
       }
-    } catch {
+    } catch (e) {
+      console.warn(`Invidious instance ${instance.url} failed:`, e)
       continue
     }
   }
@@ -183,9 +198,8 @@ export async function invidiousGetDashManifest(videoId: string, local = true): P
   for (const instance of instancesList.length > 0 ? instancesList : FALLBACK_INSTANCES) {
     try {
       const fullUrl = `${instance.url}${path}`
-      const response = await tauriFetch(fullUrl, {
+      const response = await (tauriFetch || fetch)(fullUrl, {
         method: 'GET',
-        connectTimeout: 15000,
       })
       if (response.ok) {
         return await response.text()
