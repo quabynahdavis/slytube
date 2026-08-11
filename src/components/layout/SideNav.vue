@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/stores/settings'
 import { useSubscriptionsStore } from '@/stores/subscriptions'
 
+const { t } = useI18n()
 const route = useRoute()
 const settingsStore = useSettingsStore()
 const subscriptionsStore = useSubscriptionsStore()
@@ -17,21 +19,21 @@ interface NavItem {
 }
 
 const mainNavItems = computed<NavItem[]>(() => [
-  { name: 'Home', icon: 'home', route: '/' },
-  { name: 'Trending', icon: 'trending', route: '/trending' },
-  { name: 'Subscriptions', icon: 'subscriptions', route: '/subscriptions', badge: subscriptionsStore.getSubscriptionCacheReady ? undefined : 0 },
+  { name: t('nav.home'), icon: 'home', route: '/' },
+  { name: t('nav.trending'), icon: 'trending', route: '/trending' },
+  { name: t('nav.subscriptions'), icon: 'subscriptions', route: '/subscriptions', badge: subscriptionsStore.getSubscriptionCacheReady ? undefined : 0 },
 ])
 
 const libraryNavItems = computed<NavItem[]>(() => [
-  { name: 'History', icon: 'history', route: '/history' },
-  { name: 'Playlists', icon: 'playlists', route: '/playlists' },
-  { name: 'Downloads', icon: 'downloads', route: '/downloads' },
-  { name: 'Watch Later', icon: 'watch-later', route: '/playlist/watch-later' },
+  { name: t('nav.history'), icon: 'history', route: '/history' },
+  { name: t('nav.playlists'), icon: 'playlists', route: '/playlists' },
+  { name: t('nav.downloads'), icon: 'downloads', route: '/downloads' },
+  { name: t('nav.watchLater'), icon: 'watch-later', route: '/playlist/watch-later' },
 ])
 
 const bottomNavItems = computed<NavItem[]>(() => [
-  { name: 'Settings', icon: 'settings', route: '/settings' },
-  { name: 'About', icon: 'about', route: '/about' },
+  { name: t('nav.settings'), icon: 'settings', route: '/settings' },
+  { name: t('nav.about'), icon: 'about', route: '/about' },
 ])
 
 const isExpanded = computed(() => settingsStore.expandSideBar)
@@ -78,7 +80,7 @@ const isExpanded = computed(() => settingsStore.expandSideBar)
       <!-- Library Section -->
       <div v-if="isExpanded" class="px-4 pb-2">
         <h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Library
+          {{ t('nav.library') }}
         </h3>
       </div>
       <ul class="space-y-1 px-2">

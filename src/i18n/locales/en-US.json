@@ -1,0 +1,239 @@
+{
+  "nav": {
+    "home": "Home",
+    "trending": "Trending",
+    "subscriptions": "Subscriptions",
+    "history": "History",
+    "downloads": "Downloads",
+    "settings": "Settings",
+    "search": "Search",
+    "playlists": "Playlists",
+    "watchLater": "Watch Later",
+    "about": "About",
+    "library": "Library"
+  },
+  "actions": {
+    "play": "Play",
+    "pause": "Pause",
+    "download": "Download",
+    "subscribe": "Subscribe",
+    "share": "Share",
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "search": "Search",
+    "reset": "Reset to Defaults",
+    "clear": "Clear All",
+    "remove": "Remove"
+  },
+  "settings": {
+    "title": "Settings",
+    "description": "Configure your SlyTube experience",
+    "tabs": {
+      "general": "General",
+      "player": "Player",
+      "downloads": "Downloads",
+      "subscription": "Subscription",
+      "privacy": "Privacy",
+      "performance": "Performance",
+      "advanced": "Advanced"
+    },
+    "theme": {
+      "title": "Theme & Appearance",
+      "baseTheme": "Base Theme",
+      "baseThemeDescription": "Choose between light, dark, or system theme",
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "sidebar": {
+      "expand": "Expand Sidebar",
+      "expandDescription": "Show labels in the sidebar navigation"
+    },
+    "landingPage": {
+      "title": "Landing Page",
+      "description": "Choose what page to show on startup"
+    },
+    "region": {
+      "title": "Region & Language",
+      "region": "Region",
+      "regionDescription": "Content region preference",
+      "locale": "Locale",
+      "localeDescription": "Interface language"
+    },
+    "player": {
+      "playback": "Playback",
+      "autoplay": "Autoplay Videos",
+      "autoplayDescription": "Automatically play videos when opened",
+      "defaultQuality": "Default Quality",
+      "defaultQualityDescription": "Preferred video quality",
+      "defaultPlaybackRate": "Default Playback Rate",
+      "defaultPlaybackRateDescription": "Default video speed",
+      "defaultVolume": "Default Volume",
+      "defaultVolumeDescription": "Default audio volume level"
+    },
+    "sponsorblock": {
+      "title": "SponsorBlock",
+      "enable": "Enable SponsorBlock",
+      "enableDescription": "Skip sponsored segments in videos"
+    },
+    "downloads": {
+      "title": "Download Settings",
+      "path": "Download Path",
+      "pathDescription": "Where downloaded files are saved",
+      "defaultFormat": "Default Format",
+      "defaultFormatDescription": "Preferred download format"
+    },
+    "subscription": {
+      "title": "Subscription Settings",
+      "fetchAutomatically": "Fetch Automatically",
+      "fetchAutomaticallyDescription": "Automatically fetch new subscription videos",
+      "hideWatched": "Hide Watched Videos",
+      "hideWatchedDescription": "Hide videos you've already watched in subscriptions"
+    },
+    "privacy": {
+      "title": "History & Privacy",
+      "rememberHistory": "Remember History",
+      "rememberHistoryDescription": "Keep track of watched videos",
+      "rememberSearchHistory": "Remember Search History",
+      "rememberSearchHistoryDescription": "Save search queries for suggestions"
+    },
+    "performance": {
+      "title": "Performance Settings",
+      "disableSmoothScrolling": "Disable Smooth Scrolling",
+      "disableSmoothScrollingDescription": "Improve scrolling performance",
+      "ambientMode": "Ambient Mode",
+      "ambientModeDescription": "Enable ambient lighting effect around videos"
+    },
+    "advanced": {
+      "backend": "Backend & API",
+      "backendPreference": "Backend Preference",
+      "backendPreferenceDescription": "Choose your preferred API backend",
+      "invidiousInstance": "Default Invidious Instance",
+      "invidiousInstanceDescription": "Your preferred Invidious server",
+      "backendFallback": "Backend Fallback",
+      "backendFallbackDescription": "Use fallback if primary backend fails"
+    },
+    "sync": {
+      "title": "Sync Server",
+      "enable": "Enable Sync Server",
+      "enableDescription": "Sync data across devices",
+      "serverUrl": "Sync Server URL",
+      "serverUrlDescription": "Your sync server address",
+      "comingSoon": "Coming Soon",
+      "comingSoonNote": "Sync server connection will be available in a future release"
+    },
+    "save": "Save Settings",
+    "saving": "Saving...",
+    "saved": "Settings saved!"
+  },
+  "errors": {
+    "network": "Network error. Please check your connection.",
+    "videoNotFound": "Video not found",
+    "failedToLoad": "Failed to load video",
+    "failedToLoadTrending": "Failed to load trending videos",
+    "searchFailed": "Search failed",
+    "failedToStartDownload": "Failed to start download",
+    "generic": "Something went wrong. Please try again."
+  },
+  "emptyStates": {
+    "noResults": "No results found",
+    "noResultsDescription": "Try different keywords or check your spelling.",
+    "noHistory": "No watch history",
+    "noHistoryDescription": "Videos you watch will appear here",
+    "noSubscriptions": "No subscriptions",
+    "noSubscriptionsDescription": "Subscribe to channels to see them here",
+    "noDownloads": "No active downloads",
+    "noDownloadsDescription": "Start a new download to see it here",
+    "noCompletedDownloads": "No completed downloads",
+    "noCompletedDownloadsDescription": "Completed downloads will appear here",
+    "noRelatedVideos": "No related videos",
+    "searchYouTube": "Search YouTube",
+    "searchYouTubeDescription": "Enter a search query above to find videos.",
+    "noTrendingVideos": "No trending videos",
+    "noTrendingVideosDescription": "Check back later for trending content."
+  },
+  "player": {
+    "quality": "Quality",
+    "speed": "Speed",
+    "volume": "Volume",
+    "fullscreen": "Fullscreen",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "subscribe": "Subscribe",
+    "subscribed": "Subscribed",
+    "download": "Download",
+    "share": "Share",
+    "like": "Like",
+    "dislike": "Dislike",
+    "relatedVideos": "Related Videos",
+    "comments": "Comments",
+    "commentsLoading": "Comments loading...",
+    "sponsorBlockSegments": "SponsorBlock Segments"
+  },
+  "home": {
+    "trending": "Trending",
+    "now": "Now",
+    "music": "Music",
+    "gaming": "Gaming",
+    "movies": "Movies"
+  },
+  "search": {
+    "placeholder": "Search...",
+    "searchButton": "Search",
+    "sortBy": "Sort by...",
+    "relevance": "Relevance",
+    "date": "Upload date",
+    "views": "View count",
+    "rating": "Rating",
+    "type": "Type...",
+    "all": "All",
+    "videos": "Videos",
+    "channels": "Channels",
+    "playlists": "Playlists",
+    "duration": "Duration...",
+    "anyDuration": "Any duration",
+    "short": "Under 4 min",
+    "medium": "4-20 min",
+    "long": "Over 20 min",
+    "dateFilter": "Date...",
+    "anyTime": "Any time",
+    "lastHour": "Last hour",
+    "today": "Today",
+    "thisWeek": "This week",
+    "thisMonth": "This month",
+    "thisYear": "This year",
+    "loadingSuggestions": "Loading suggestions..."
+  },
+  "downloads": {
+    "title": "Downloads",
+    "description": "Manage your video downloads",
+    "newDownload": "New Download",
+    "active": "Active",
+    "completed": "Completed",
+    "clearCompleted": "Clear Completed",
+    "videoUrl": "Video URL",
+    "format": "Format",
+    "bestVideo": "Best Video",
+    "video720": "720p Video",
+    "video1080": "1080p Video",
+    "audioOnly": "Audio Only",
+    "starting": "Starting...",
+    "downloading": "Downloading...",
+    "downloadedVideo": "Downloaded Video"
+  },
+  "history": {
+    "title": "Watch History",
+    "videosWatched": "{count} videos watched",
+    "searchHistory": "Search history...",
+    "clearHistory": "Clear History",
+    "clearWatchHistory": "Clear Watch History",
+    "clearHistoryWarning": "This will permanently delete all your watch history. This action cannot be undone.",
+    "noResultsForSearch": "No results found for your search",
+    "removeFromHistory": "Remove from history"
+  },
+  "watch": {
+    "views": "{count} views",
+    "noVideoId": "No video ID provided"
+  }
+}

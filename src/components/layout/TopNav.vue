@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from '@/stores/settings'
 import { useSearchHistoryStore } from '@/stores/search-history'
 import { getSearchSuggestions } from '@/composables/useInnertube'
 
+const { t } = useI18n()
 const router = useRouter()
 const settingsStore = useSettingsStore()
 const searchHistoryStore = useSearchHistoryStore()
@@ -100,7 +102,7 @@ defineExpose({
             <input
               v-model="searchQuery"
               type="search"
-              placeholder="Search"
+              :placeholder="t('search.placeholder')"
               class="h-10 w-full rounded-l-full border border-input bg-background px-4 pr-10 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
               @focus="handleSearchFocus"
               @blur="handleSearchBlur"
@@ -116,7 +118,7 @@ defineExpose({
                   <svg class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 12a9 9 0 11-6.219-8.56" />
                   </svg>
-                  <span>Loading suggestions...</span>
+                  <span>{{ t('search.loadingSuggestions') }}</span>
                 </li>
                 <!-- Live search suggestions -->
                 <template v-else-if="suggestions.length > 0">
@@ -168,7 +170,7 @@ defineExpose({
     <div class="flex items-center gap-2">
       <button
         class="inline-flex items-center justify-center size-9 rounded-full text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-        title="Downloads"
+        :title="t('nav.downloads')"
         @click="router.push('/downloads')"
       >
         <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -179,7 +181,7 @@ defineExpose({
       </button>
       <button
         class="inline-flex items-center justify-center size-9 rounded-full text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-        title="Settings"
+        :title="t('nav.settings')"
         @click="router.push('/settings')"
       >
         <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

@@ -102,7 +102,7 @@ export function usePlayer() {
   function updateQualities() {
     if (!player.value) return
     const tracks = player.value.getVariantTracks()
-    qualities.value = tracks.filter((t: shaka.extern.Track) => t.type === 'variant')
+    qualities.value = tracks.filter((t: any) => t.type === 'variant')
   }
 
   function play() {
@@ -151,7 +151,7 @@ export function usePlayer() {
       player.value.configure({ abr: { enabled: true } })
     } else {
       player.value.configure({ abr: { enabled: false } })
-      const track = qualities.value.find((t: shaka.extern.Track) => t.id.toString() === qualityId)
+      const track = qualities.value.find((t: any) => t.id.toString() === qualityId)
       if (track) {
         player.value.selectVariantTrack(track, true)
       }

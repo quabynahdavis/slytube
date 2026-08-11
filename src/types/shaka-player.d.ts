@@ -1,17 +1,9 @@
 declare module 'shaka-player/dist/shaka-player.compiled' {
-  interface PlayerStatic {
-    new (mediaElement?: HTMLMediaElement | null): any
-    isBrowserSupported(): boolean
-  }
+  const shaka: any
+  export default shaka
+}
 
-  const shaka: {
-    Player: PlayerStatic
-    polyfill: {
-      installAll(): void
-    }
-    extern: {
-      Track: any
-    }
-  }
+declare module 'shaka-player' {
+  const shaka: any
   export default shaka
 }

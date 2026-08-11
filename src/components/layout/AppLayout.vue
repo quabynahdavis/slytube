@@ -1,19 +1,16 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/stores/settings'
 import { useTheme } from '@/composables/useTheme'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import SideNav from './SideNav.vue'
 import TopNav from './TopNav.vue'
-import TabBar from './TabBar.vue'
 import ToastContainer from '@/components/ToastContainer.vue'
 
 const settingsStore = useSettingsStore()
 const { theme, setTheme } = useTheme()
 const { register } = useKeyboardShortcuts()
 
-const isVerticalTabBar = computed(() => settingsStore.useVerticalTabBar)
 const hideSideBarOnWatch = computed(() => settingsStore.hideSideBarOnWatchPages)
 
 const topNavRef = ref<InstanceType<typeof TopNav> | null>(null)
@@ -41,6 +38,11 @@ register('k', () => {
     mainRef.value.scrollBy({ top: -200, behavior: 'smooth' })
   }
 })
+
+register('escape', () => {
+  // Close any open dialogs by dispatching a global event
+  window.dispatchEvent(new CustomEvent('close-dialogs'))
+})
 </script>
 
 <template>
@@ -48,18 +50,12 @@ register('k', () => {
     <!-- Side Navigation -->
     <SideNav
       v-if="!hideSideBarOnWatch"
-      :class="cn(
-        isVerticalTabBar ? 'hidden' : ''
-      )"
     />
 
     <!-- Main Content Area -->
     <div class="flex flex-1 flex-col overflow-hidden">
       <!-- Top Navigation -->
       <TopNav ref="topNavRef" />
-
-      <!-- Tab Bar -->
-      <TabBar />
 
       <!-- Page Content -->
       <main ref="mainRef" class="flex-1 overflow-y-auto">
