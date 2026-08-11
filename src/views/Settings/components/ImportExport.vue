@@ -13,6 +13,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { PhDownloadSimple, PhUploadSimple, PhTrash } from '@phosphor-icons/vue'
 import type { SettingsState } from '@/stores/settings'
 
 const { t } = useI18n()
@@ -76,20 +77,22 @@ async function handleDeleteAll() {
   await settingsStore.clearAllData()
   toast.success(t('settings.importExport.dataDeleted'))
 }
-
-
 </script>
 
 <template>
   <div class="flex items-center gap-1">
-    <!-- Import Button -->
+    <!-- Export -->
+    <Button variant="ghost" size="sm" class="gap-1.5 h-7 text-xs" @click="handleExport">
+      <PhDownloadSimple :size="14" />
+      {{ t('settings.importExport.export') }}
+    </Button>
+
+    <!-- Import -->
     <Dialog v-model:open="importDialogOpen">
       <DialogTrigger as-child>
-        <Button variant="ghost" size="sm" class="gap-2">
-          <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
-          </svg>
-          <span class="hidden sm:inline">{{ t('settings.importExport.import') }}</span>
+        <Button variant="ghost" size="sm" class="gap-1.5 h-7 text-xs">
+          <PhUploadSimple :size="14" />
+          {{ t('settings.importExport.import') }}
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -99,19 +102,10 @@ async function handleDeleteAll() {
         </DialogHeader>
         <div class="py-4">
           <Button variant="outline" class="w-full" @click="triggerImport">
-            <svg class="size-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-              <polyline points="14,2 14,8 20,8" />
-            </svg>
+            <PhUploadSimple :size="16" class="mr-2" />
             {{ t('settings.importExport.chooseFile') }}
           </Button>
-          <input
-            ref="fileInput"
-            type="file"
-            accept=".json"
-            class="hidden"
-            @change="handleFileSelect"
-          />
+          <input ref="fileInput" type="file" accept=".json" class="hidden" @change="handleFileSelect" />
         </div>
         <DialogFooter>
           <Button variant="outline" @click="importDialogOpen = false">
@@ -121,23 +115,11 @@ async function handleDeleteAll() {
       </DialogContent>
     </Dialog>
 
-    <!-- Export Button -->
-    <Button variant="ghost" size="sm" class="gap-2" @click="handleExport">
-      <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M18 8l-5-5-5 5M12 3v12" />
-      </svg>
-      <span class="hidden sm:inline">{{ t('settings.importExport.export') }}</span>
-    </Button>
-
-    <!-- Delete All Data Button -->
+    <!-- Delete All -->
     <Dialog>
       <DialogTrigger as-child>
-        <Button variant="ghost" size="sm" class="gap-2 text-destructive hover:text-destructive">
-          <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-          </svg>
-          <span class="hidden sm:inline">{{ t('settings.importExport.deleteAll') }}</span>
+        <Button variant="ghost" size="sm" class="gap-1.5 h-7 text-xs text-destructive hover:text-destructive">
+          <PhTrash :size="14" />
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -154,7 +136,7 @@ async function handleDeleteAll() {
       </DialogContent>
     </Dialog>
 
-    <!-- Import Preview Dialog -->
+    <!-- Import Preview -->
     <Dialog v-model:open="importPreviewOpen">
       <DialogContent>
         <DialogHeader>
@@ -163,11 +145,6 @@ async function handleDeleteAll() {
             {{ t('settings.importExport.importChanges', { count: importChangesCount }) }}
           </DialogDescription>
         </DialogHeader>
-        <div class="py-2 max-h-48 overflow-y-auto rounded-md border border-border bg-muted/30 px-3">
-          <p class="text-xs text-muted-foreground py-2">
-            {{ t('settings.importExport.importWarning') }}
-          </p>
-        </div>
         <DialogFooter>
           <Button variant="outline" @click="importPreviewOpen = false">
             {{ t('settings.common.cancel') }}

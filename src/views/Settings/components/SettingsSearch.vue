@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useSettingsSearch } from '@/composables/useSettingsSearch'
+import { PhMagnifyingGlass, PhX } from '@phosphor-icons/vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -34,25 +35,13 @@ function handleBlur() {
 async function navigateToResult(result: typeof searchResults.value[0]) {
   showDropdown.value = false
   setSearchQuery('')
-
-  if (result.category.route === '/settings') {
-    const el = document.getElementById(`setting-${result.item.key}`)
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      el.classList.add('ring-2', 'ring-primary', 'ring-offset-2')
-      setTimeout(() => el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2'), 2000)
-    }
-    return
-  }
-
-  await router.push(`${result.category.route}#setting-${result.item.key}`)
-
+  await router.push(result.category.route)
   await new Promise(resolve => setTimeout(resolve, 100))
   const el = document.getElementById(`setting-${result.item.key}`)
   if (el) {
     el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    el.classList.add('ring-2', 'ring-primary', 'ring-offset-2')
-    setTimeout(() => el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2'), 2000)
+    el.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'dark:ring-offset-background')
+    setTimeout(() => el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'dark:ring-offset-background'), 2000)
   }
 }
 
@@ -83,16 +72,13 @@ function clearSearch() {
 <template>
   <div class="relative">
     <div class="relative">
-      <svg class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="8" />
-        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-      </svg>
+      <PhMagnifyingGlass :size="16" class="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
       <input
         ref="inputRef"
         :value="searchQuery"
         type="text"
         :placeholder="t('settings.search.placeholder')"
-        class="h-10 w-full rounded-lg border border-input bg-background pl-10 pr-10 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+        class="h-8 w-full rounded-md border border-input bg-background pl-8 pr-8 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary"
         @input="handleInput"
         @focus="handleFocus"
         @blur="handleBlur"
@@ -100,24 +86,18 @@ function clearSearch() {
       />
       <button
         v-if="searchQuery"
-        class="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground hover:text-foreground"
+        class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
         @click="clearSearch"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
+        <PhX :size="14" />
       </button>
     </div>
 
-    <!-- Search Results Dropdown -->
+    <!-- Results Dropdown -->
     <div
       v-if="showDropdown && searchResults.length > 0"
-      class="absolute top-full left-0 right-0 mt-1 rounded-lg border border-border bg-popover shadow-xl z-50 max-h-80 overflow-y-auto"
+      class="absolute top-full left-0 right-0 mt-1 rounded-md border border-border bg-popover shadow-xl z-50 max-h-72 overflow-y-auto"
     >
-      <div class="px-3 py-2 border-b border-border">
-        <p class="text-xs text-muted-foreground">{{ t('settings.search.results', { count: searchResults.length }) }}</p>
-      </div>
       <ul class="py-1">
         <li
           v-for="(result, idx) in searchResults"
@@ -126,11 +106,8 @@ function clearSearch() {
           :class="idx === selectedIndex ? 'bg-accent' : 'hover:bg-accent/50'"
           @mousedown="navigateToResult(result)"
         >
-          <div class="flex items-center gap-2">
-            <span class="text-xs font-medium text-primary shrink-0">{{ result.category.id }}</span>
-            <span class="text-sm text-foreground truncate">{{ result.item.label }}</span>
-          </div>
-          <p class="text-xs text-muted-foreground mt-0.5">{{ result.item.description }}</p>
+          <div class="text-xs text-foreground">{{ result.item.label }}</div>
+          <div class="text-[10px] text-muted-foreground">{{ result.category.id }} → {{ result.section.id }}</div>
         </li>
       </ul>
     </div>
@@ -138,9 +115,9 @@ function clearSearch() {
     <!-- No Results -->
     <div
       v-else-if="showDropdown && searchQuery.length >= 2 && searchResults.length === 0"
-      class="absolute top-full left-0 right-0 mt-1 rounded-lg border border-border bg-popover shadow-xl z-50 p-4 text-center"
+      class="absolute top-full left-0 right-0 mt-1 rounded-md border border-border bg-popover shadow-xl z-50 p-3 text-center"
     >
-      <p class="text-sm text-muted-foreground">{{ t('settings.search.noResults', { query: searchQuery }) }}</p>
+      <p class="text-xs text-muted-foreground">{{ t('settings.search.noResults', { query: searchQuery }) }}</p>
     </div>
   </div>
 </template>

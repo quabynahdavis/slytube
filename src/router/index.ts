@@ -14,11 +14,7 @@ import Hashtag from '@/views/Hashtag.vue'
 import Popular from '@/views/Popular.vue'
 import Post from '@/views/Post.vue'
 import Settings from '@/views/Settings/index.vue'
-import SettingsAccount from '@/views/Settings/Account.vue'
-import SettingsAppearance from '@/views/Settings/Appearance.vue'
-import SettingsNotifications from '@/views/Settings/Notifications.vue'
-import SettingsPrivacy from '@/views/Settings/Privacy.vue'
-import SettingsPlayer from '@/views/Settings/Player.vue'
+import SettingsCategory from '@/views/Settings/CategoryView.vue'
 import ProfileSettings from '@/views/ProfileSettings.vue'
 import Stats from '@/views/Stats.vue'
 import About from '@/views/About.vue'
@@ -45,11 +41,11 @@ const router = createRouter({
       name: 'settings',
       component: Settings,
       children: [
-        { path: 'account', name: 'settings-account', component: SettingsAccount },
-        { path: 'appearance', name: 'settings-appearance', component: SettingsAppearance },
-        { path: 'notifications', name: 'settings-notifications', component: SettingsNotifications },
-        { path: 'privacy', name: 'settings-privacy', component: SettingsPrivacy },
-        { path: 'player', name: 'settings-player', component: SettingsPlayer },
+        { path: 'account', name: 'settings-account', component: SettingsCategory, props: { categoryId: 'account' } },
+        { path: 'appearance', name: 'settings-appearance', component: SettingsCategory, props: { categoryId: 'appearance' } },
+        { path: 'notifications', name: 'settings-notifications', component: SettingsCategory, props: { categoryId: 'notifications' } },
+        { path: 'privacy', name: 'settings-privacy', component: SettingsCategory, props: { categoryId: 'privacy' } },
+        { path: 'player', name: 'settings-player', component: SettingsCategory, props: { categoryId: 'player' } },
       ],
     },
     { path: '/profiles', name: 'profiles', component: ProfileSettings },

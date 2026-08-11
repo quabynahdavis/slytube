@@ -35,21 +35,7 @@
       "noResults": "No settings found for \"{query}\"",
       "results": "{count} result(s)"
     },
-    "quickAccess": {
-      "title": "Quick Access",
-      "empty": "Pin frequently used settings for quick access",
-      "pin": "Pin to Quick Access",
-      "unpin": "Unpin from Quick Access"
-    },
-    "tabs": {
-      "general": "General",
-      "player": "Player",
-      "downloads": "Downloads",
-      "subscription": "Subscription",
-      "privacy": "Privacy",
-      "performance": "Performance",
-      "advanced": "Advanced"
-    },
+    "changedCount": "{count} setting(s) modified",
     "categories": {
       "title": "Categories",
       "account": "Account & Security",
@@ -66,14 +52,10 @@
     "common": {
       "lookingFor": "Looking for something else?",
       "goTo": "Go to {category}",
-      "goToSync": "Go to Account & Security → Sync Server",
-      "pinHint": "Pin frequently used settings for quick access",
       "backToSettings": "Back to Settings",
       "cancel": "Cancel",
       "reset": "Reset",
-      "resetCategory": "Reset Category",
-      "resetCategoryTitle": "Reset Category to Defaults?",
-      "resetCategoryDesc": "All settings in this category will be reset to their default values."
+      "resetCategory": "Reset Category"
     },
     "importExport": {
       "import": "Import",
