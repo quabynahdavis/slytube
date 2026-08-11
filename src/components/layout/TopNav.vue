@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSettingsStore } from '@/stores/settings'
 import { useSearchHistoryStore } from '@/stores/search-history'
+import { getSearchSuggestions } from '@/composables/useInnertube'
 
 const router = useRouter()
 const settingsStore = useSettingsStore()
@@ -10,6 +11,10 @@ const searchHistoryStore = useSearchHistoryStore()
 
 const searchQuery = ref('')
 const isSearchFocused = ref(false)
+const suggestions = ref<string[]>([])
+const isLoadingSuggestions = ref(false)
+
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
 function handleSearch() {
   if (!searchQuery.value.trim()) return
@@ -22,6 +27,9 @@ function handleSearch() {
 
 function handleSearchFocus() {
   isSearchFocused.value = true
+  if (searchQuery.value.trim()) {
+    fetchSuggestions(searchQuery.value.trim())
+  }
 }
 
 function handleSearchBlur() {
@@ -35,7 +43,41 @@ function selectSearchSuggestion(query: string) {
   handleSearch()
 }
 
+function fetchSuggestions(query: string) {
+  if (debounceTimer) clearTimeout(debounceTimer)
+  if (!query.trim()) {
+    suggestions.value = []
+    return
+  }
+  isLoadingSuggestions.value = true
+  debounceTimer = setTimeout(async () => {
+    try {
+      const results = await getSearchSuggestions(query)
+      suggestions.value = results.slice(0, 8)
+    } catch {
+      suggestions.value = []
+    } finally {
+      isLoadingSuggestions.value = false
+    }
+  }, 200)
+}
+
+watch(searchQuery, (newVal) => {
+  if (isSearchFocused.value) {
+    fetchSuggestions(newVal)
+  }
+})
+
 const recentSearches = () => searchHistoryStore.getLatestSearchHistoryNames.slice(0, 5)
+
+const showDropdown = () => isSearchFocused.value && (suggestions.value.length > 0 || recentSearches().length > 0 || isLoadingSuggestions.value)
+
+defineExpose({
+  focusSearch: () => {
+    const input = document.querySelector('input[type="search"]') as HTMLInputElement | null
+    input?.focus()
+  }
+})
 </script>
 
 <template>
@@ -65,22 +107,47 @@ const recentSearches = () => searchHistoryStore.getLatestSearchHistoryNames.slic
             />
             <!-- Search Suggestions Dropdown -->
             <div
-              v-if="isSearchFocused && recentSearches().length > 0"
+              v-if="showDropdown()"
               class="absolute top-full left-0 right-0 mt-1 rounded-md border border-border bg-popover shadow-lg z-50"
             >
               <ul class="py-1">
-                <li
-                  v-for="suggestion in recentSearches()"
-                  :key="suggestion"
-                  class="flex items-center gap-2 px-4 py-2 text-sm cursor-pointer hover:bg-accent"
-                  @mousedown="selectSearchSuggestion(suggestion)"
-                >
-                  <svg class="size-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 16 14" />
+                <!-- Loading indicator -->
+                <li v-if="isLoadingSuggestions" class="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground">
+                  <svg class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12a9 9 0 11-6.219-8.56" />
                   </svg>
-                  <span>{{ suggestion }}</span>
+                  <span>Loading suggestions...</span>
                 </li>
+                <!-- Live search suggestions -->
+                <template v-else-if="suggestions.length > 0">
+                  <li
+                    v-for="suggestion in suggestions"
+                    :key="suggestion"
+                    class="flex items-center gap-2 px-4 py-2 text-sm cursor-pointer hover:bg-accent"
+                    @mousedown="selectSearchSuggestion(suggestion)"
+                  >
+                    <svg class="size-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    <span>{{ suggestion }}</span>
+                  </li>
+                </template>
+                <!-- Recent searches fallback -->
+                <template v-else>
+                  <li
+                    v-for="suggestion in recentSearches()"
+                    :key="suggestion"
+                    class="flex items-center gap-2 px-4 py-2 text-sm cursor-pointer hover:bg-accent"
+                    @mousedown="selectSearchSuggestion(suggestion)"
+                  >
+                    <svg class="size-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    <span>{{ suggestion }}</span>
+                  </li>
+                </template>
               </ul>
             </div>
           </div>

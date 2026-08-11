@@ -1,15 +1,46 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/stores/settings'
+import { useTheme } from '@/composables/useTheme'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import SideNav from './SideNav.vue'
 import TopNav from './TopNav.vue'
 import TabBar from './TabBar.vue'
+import ToastContainer from '@/components/ToastContainer.vue'
 
 const settingsStore = useSettingsStore()
+const { theme, setTheme } = useTheme()
+const { register } = useKeyboardShortcuts()
 
 const isVerticalTabBar = computed(() => settingsStore.useVerticalTabBar)
 const hideSideBarOnWatch = computed(() => settingsStore.hideSideBarOnWatchPages)
+
+const topNavRef = ref<InstanceType<typeof TopNav> | null>(null)
+const mainRef = ref<HTMLElement | null>(null)
+
+// Register keyboard shortcuts
+register('/', () => {
+  topNavRef.value?.focusSearch()
+})
+
+register('t', () => {
+  const current = theme.value
+  const next = current === 'dark' ? 'light' : 'dark'
+  setTheme(next)
+})
+
+register('j', () => {
+  if (mainRef.value) {
+    mainRef.value.scrollBy({ top: 200, behavior: 'smooth' })
+  }
+})
+
+register('k', () => {
+  if (mainRef.value) {
+    mainRef.value.scrollBy({ top: -200, behavior: 'smooth' })
+  }
+})
 </script>
 
 <template>
@@ -25,13 +56,13 @@ const hideSideBarOnWatch = computed(() => settingsStore.hideSideBarOnWatchPages)
     <!-- Main Content Area -->
     <div class="flex flex-1 flex-col overflow-hidden">
       <!-- Top Navigation -->
-      <TopNav />
+      <TopNav ref="topNavRef" />
 
       <!-- Tab Bar -->
       <TabBar />
 
       <!-- Page Content -->
-      <main class="flex-1 overflow-y-auto">
+      <main ref="mainRef" class="flex-1 overflow-y-auto">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
             <component :is="Component" />
@@ -39,6 +70,9 @@ const hideSideBarOnWatch = computed(() => settingsStore.hideSideBarOnWatchPages)
         </router-view>
       </main>
     </div>
+
+    <!-- Toast Notifications -->
+    <ToastContainer />
   </div>
 </template>
 
