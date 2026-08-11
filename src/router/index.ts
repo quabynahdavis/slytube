@@ -13,7 +13,12 @@ import Channel from '@/views/Channel.vue'
 import Hashtag from '@/views/Hashtag.vue'
 import Popular from '@/views/Popular.vue'
 import Post from '@/views/Post.vue'
-import Settings from '@/views/Settings.vue'
+import Settings from '@/views/Settings/index.vue'
+import SettingsAccount from '@/views/Settings/Account.vue'
+import SettingsAppearance from '@/views/Settings/Appearance.vue'
+import SettingsNotifications from '@/views/Settings/Notifications.vue'
+import SettingsPrivacy from '@/views/Settings/Privacy.vue'
+import SettingsPlayer from '@/views/Settings/Player.vue'
 import ProfileSettings from '@/views/ProfileSettings.vue'
 import Stats from '@/views/Stats.vue'
 import About from '@/views/About.vue'
@@ -35,7 +40,18 @@ const router = createRouter({
     { path: '/hashtag/:tag', name: 'hashtag', component: Hashtag },
     { path: '/popular', name: 'popular', component: Popular },
     { path: '/post/:id', name: 'post', component: Post },
-    { path: '/settings', name: 'settings', component: Settings },
+    {
+      path: '/settings',
+      name: 'settings',
+      component: Settings,
+      children: [
+        { path: 'account', name: 'settings-account', component: SettingsAccount },
+        { path: 'appearance', name: 'settings-appearance', component: SettingsAppearance },
+        { path: 'notifications', name: 'settings-notifications', component: SettingsNotifications },
+        { path: 'privacy', name: 'settings-privacy', component: SettingsPrivacy },
+        { path: 'player', name: 'settings-player', component: SettingsPlayer },
+      ],
+    },
     { path: '/profiles', name: 'profiles', component: ProfileSettings },
     { path: '/stats', name: 'stats', component: Stats },
     { path: '/about', name: 'about', component: About },
