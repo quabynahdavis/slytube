@@ -153,13 +153,10 @@ function mapYouTubeSearchResults(result: any): Video[] {
 }
 
 export async function getTrendingVideos(): Promise<Video[]> {
-  try {
-    const result = await invoke('get_trending')
-    return mapYouTubeTrendingResults(result as any)
-  } catch {
-    const result = await invoke('invidious_get_trending')
-    return (result as any[] || []).filter((i: any) => i.type === 'video').map(mapInvidiousVideo)
-  }
+  // Use Invidious as primary for trending
+  const result = await invoke('invidious_get_trending')
+  const data = (result as any[]) || []
+  return data.filter((i: any) => i.type === 'video').map(mapInvidiousVideo)
 }
 
 function mapYouTubeTrendingResults(result: any): Video[] {

@@ -39,6 +39,7 @@ pub async fn invidious_get_trending(
 ) -> Result<serde_json::Value, String> {
     let instance = get_instance_url();
     let url = format!("{}/api/v1/trending?type=news", instance);
+    tracing::info!("Fetching trending: {}", url);
     http_client.get_json(&url).await
 }
 
