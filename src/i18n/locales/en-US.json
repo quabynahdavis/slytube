@@ -51,6 +51,7 @@
       "advanced": "Advanced"
     },
     "categories": {
+      "title": "Categories",
       "account": "Account & Security",
       "accountDesc": "Profile, sync, sessions",
       "appearance": "Appearance",
@@ -92,9 +93,6 @@
       "deleteTitle": "Delete All Data?",
       "deleteDesc": "This will permanently delete all your settings and reset them to defaults. This action cannot be undone.",
       "confirmDelete": "Delete All"
-    },
-    "categories": {
-      "title": "Categories"
     },
     "theme": {
       "title": "Theme & Appearance",
