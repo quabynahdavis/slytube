@@ -21,3 +21,4 @@
 | 2026-08-11 | 6.0.0 | Shaka Player integration for DASH playback | Migration Team |
 | 2026-08-11 | 6.1.0 | i18n scaffolding with vue-i18n (en-US) | Migration Team |
 | 2026-08-11 | 6.2.0 | Keyboard shortcuts, settings import/export | Migration Team |
+| 2026-08-11 | 6.3.0 | Fix i18n locale loading, add ErrorBoundary | Migration Team |
