@@ -6,6 +6,7 @@ import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import SideNav from './SideNav.vue'
 import TopNav from './TopNav.vue'
 import ToastContainer from '@/components/ToastContainer.vue'
+import ErrorBoundary from '@/components/error/ErrorBoundary.vue'
 
 const settingsStore = useSettingsStore()
 const { theme, setTheme } = useTheme()
@@ -59,11 +60,13 @@ register('escape', () => {
 
       <!-- Page Content -->
       <main ref="mainRef" class="flex-1 overflow-y-auto">
+        <ErrorBoundary>
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
             <component :is="Component" />
           </transition>
         </router-view>
+        </ErrorBoundary>
       </main>
     </div>
 
