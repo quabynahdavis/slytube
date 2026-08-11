@@ -25,3 +25,4 @@
 | 2026-08-11 | 6.4.0 | Settings sub-pages wired with components | Migration Team |
 | 2026-08-11 | 6.5.0 | Rust HTTP client for YouTube/Invidious (CORS-free) | Migration Team |
 | 2026-08-11 | 6.6.0 | Fix settings child route rendering | Migration Team |
+| 2026-08-11 | 6.7.0 | Fix trending: use Invidious as primary source | Migration Team |
