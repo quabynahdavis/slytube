@@ -41,6 +41,7 @@ const router = createRouter({
       name: 'settings',
       component: Settings,
       children: [
+        { path: '', redirect: 'general' },
         { path: 'general', name: 'settings-general', component: SettingsCategory, props: { categoryId: 'general' } },
         { path: 'appearance', name: 'settings-appearance', component: SettingsCategory, props: { categoryId: 'appearance' } },
         { path: 'player', name: 'settings-player', component: SettingsCategory, props: { categoryId: 'player' } },
