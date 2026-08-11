@@ -80,10 +80,23 @@ async function resetCategory() {
           <SettingsSelect v-else-if="item.type === 'select'" :item="item" />
           <SettingsAccordion v-else-if="item.type === 'accordion'" :item="item" />
           <SettingsLink v-else-if="item.type === 'link' || item.crossLink" :item="item" />
+          <div v-else-if="item.type === 'text'" class="px-4 py-3">
+            <div class="flex items-center justify-between gap-4">
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-foreground">{{ t(item.label) }}</p>
+                <p class="text-xs text-muted-foreground mt-0.5">{{ t(item.description) }}</p>
+              </div>
+              <input
+                type="text"
+                :value="(settingsStore as any)[item.key]"
+                class="w-48 h-8 px-3 rounded-md border border-input bg-background text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                @input="settingsStore.updateSetting(item.key as any, ($event.target as HTMLInputElement).value)"
+              />
+            </div>
+          </div>
           <div v-else-if="item.type === 'action'" class="px-4 py-3">
             <button
               class="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
-              @click="item.key === 'exportData' || item.key === 'deleteData' ? null : null"
             >
               {{ t(item.label) }}
             </button>
