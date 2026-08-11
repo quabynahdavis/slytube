@@ -6,6 +6,7 @@ import VideoCard from '../components/VideoCard.vue'
 import SkeletonGrid from '../components/ui/SkeletonGrid.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const isLoading = ref(true)
 const error = ref<string | null>(null)
@@ -54,11 +55,16 @@ onMounted(loadPopular)
         <h1 class="text-2xl font-bold text-foreground">Popular</h1>
         <p class="text-sm text-muted-foreground mt-1">Most viewed videos</p>
       </div>
-      <select v-model="sortBy" class="h-9 rounded-md border border-input bg-background px-3 text-sm">
-        <option value="views">Most Views</option>
-        <option value="likes">Most Liked</option>
-        <option value="recent">Most Recent</option>
-      </select>
+      <Select v-model="sortBy">
+        <SelectTrigger class="w-[180px]">
+          <SelectValue placeholder="Sort by..." />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="views">Most Views</SelectItem>
+          <SelectItem value="likes">Most Liked</SelectItem>
+          <SelectItem value="recent">Most Recent</SelectItem>
+        </SelectContent>
+      </Select>
     </div>
 
     <SkeletonGrid v-if="isLoading" :count="8" />

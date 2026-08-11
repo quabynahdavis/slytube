@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { useDownloads } from '../composables/useData'
 import SkeletonGrid from '../components/ui/SkeletonGrid.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const { downloads, loadDownloads, startDownload, cancelDownload } = useDownloads()
 
@@ -154,12 +155,17 @@ function clearCompleted() {
             </div>
             <div>
               <label class="text-sm font-medium text-foreground">Format</label>
-              <select v-model="downloadFormat" class="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
-                <option value="video:best">Best Video</option>
-                <option value="video:720">720p Video</option>
-                <option value="video:1080">1080p Video</option>
-                <option value="audio:best">Audio Only</option>
-              </select>
+              <Select v-model="downloadFormat" class="mt-1">
+                <SelectTrigger class="w-full">
+                  <SelectValue placeholder="Select format..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="video:best">Best Video</SelectItem>
+                  <SelectItem value="video:720">720p Video</SelectItem>
+                  <SelectItem value="video:1080">1080p Video</SelectItem>
+                  <SelectItem value="audio:best">Audio Only</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div v-if="startError" class="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
               {{ startError }}

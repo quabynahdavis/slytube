@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/stores/settings'
 import { useTheme } from '../composables/useTheme'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const settingsStore = useSettingsStore()
 const { theme: currentTheme, setTheme } = useTheme()
@@ -171,15 +172,17 @@ watch(currentTheme, (newTheme) => {
                   <p class="text-sm font-medium text-foreground">Landing Page</p>
                   <p class="text-xs text-muted-foreground">Choose what page to show on startup</p>
                 </div>
-                <select
-                  v-model="settingsStore.landingPage"
-                  class="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="subscriptions">Subscriptions</option>
-                  <option value="trending">Trending</option>
-                  <option value="popular">Popular</option>
-                  <option value="search">Search</option>
-                </select>
+                <Select v-model="settingsStore.landingPage">
+                  <SelectTrigger class="w-[180px]">
+                    <SelectValue placeholder="Select page..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="subscriptions">Subscriptions</SelectItem>
+                    <SelectItem value="trending">Trending</SelectItem>
+                    <SelectItem value="popular">Popular</SelectItem>
+                    <SelectItem value="search">Search</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
@@ -203,33 +206,37 @@ watch(currentTheme, (newTheme) => {
                   <p class="text-sm font-medium text-foreground">Region</p>
                   <p class="text-xs text-muted-foreground">Content region preference</p>
                 </div>
-                <select
-                  v-model="settingsStore.region"
-                  class="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="US">United States</option>
-                  <option value="GB">United Kingdom</option>
-                  <option value="DE">Germany</option>
-                  <option value="FR">France</option>
-                  <option value="JP">Japan</option>
-                </select>
+                <Select v-model="settingsStore.region">
+                  <SelectTrigger class="w-[180px]">
+                    <SelectValue placeholder="Select region..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="US">United States</SelectItem>
+                    <SelectItem value="GB">United Kingdom</SelectItem>
+                    <SelectItem value="DE">Germany</SelectItem>
+                    <SelectItem value="FR">France</SelectItem>
+                    <SelectItem value="JP">Japan</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div class="flex items-center justify-between">
                 <div>
                   <p class="text-sm font-medium text-foreground">Locale</p>
                   <p class="text-xs text-muted-foreground">Interface language</p>
                 </div>
-                <select
-                  v-model="settingsStore.currentLocale"
-                  class="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="system">System Default</option>
-                  <option value="en">English</option>
-                  <option value="es">Spanish</option>
-                  <option value="fr">French</option>
-                  <option value="de">German</option>
-                  <option value="ja">Japanese</option>
-                </select>
+                <Select v-model="settingsStore.currentLocale">
+                  <SelectTrigger class="w-[180px]">
+                    <SelectValue placeholder="Select language..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="system">System Default</SelectItem>
+                    <SelectItem value="en">English</SelectItem>
+                    <SelectItem value="es">Spanish</SelectItem>
+                    <SelectItem value="fr">French</SelectItem>
+                    <SelectItem value="de">German</SelectItem>
+                    <SelectItem value="ja">Japanese</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
@@ -276,39 +283,43 @@ watch(currentTheme, (newTheme) => {
                   <p class="text-sm font-medium text-foreground">Default Quality</p>
                   <p class="text-xs text-muted-foreground">Preferred video quality</p>
                 </div>
-                <select
-                  v-model="settingsStore.defaultQuality"
-                  class="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="auto">Auto</option>
-                  <option value="144">144p</option>
-                  <option value="240">240p</option>
-                  <option value="360">360p</option>
-                  <option value="480">480p</option>
-                  <option value="720">720p</option>
-                  <option value="1080">1080p</option>
-                  <option value="1440">1440p</option>
-                  <option value="2160">4K</option>
-                </select>
+                <Select v-model="settingsStore.defaultQuality">
+                  <SelectTrigger class="w-[180px]">
+                    <SelectValue placeholder="Select quality..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Auto</SelectItem>
+                    <SelectItem value="144">144p</SelectItem>
+                    <SelectItem value="240">240p</SelectItem>
+                    <SelectItem value="360">360p</SelectItem>
+                    <SelectItem value="480">480p</SelectItem>
+                    <SelectItem value="720">720p</SelectItem>
+                    <SelectItem value="1080">1080p</SelectItem>
+                    <SelectItem value="1440">1440p</SelectItem>
+                    <SelectItem value="2160">4K</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div class="flex items-center justify-between">
                 <div>
                   <p class="text-sm font-medium text-foreground">Default Playback Rate</p>
                   <p class="text-xs text-muted-foreground">Default video speed</p>
                 </div>
-                <select
-                  v-model="settingsStore.defaultPlayback"
-                  class="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option :value="0.25">0.25x</option>
-                  <option :value="0.5">0.5x</option>
-                  <option :value="0.75">0.75x</option>
-                  <option :value="1">1x (Normal)</option>
-                  <option :value="1.25">1.25x</option>
-                  <option :value="1.5">1.5x</option>
-                  <option :value="1.75">1.75x</option>
-                  <option :value="2">2x</option>
-                </select>
+                <Select v-model="settingsStore.defaultPlayback">
+                  <SelectTrigger class="w-[180px]">
+                    <SelectValue placeholder="Select speed..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem :value="0.25">0.25x</SelectItem>
+                    <SelectItem :value="0.5">0.5x</SelectItem>
+                    <SelectItem :value="0.75">0.75x</SelectItem>
+                    <SelectItem :value="1">1x (Normal)</SelectItem>
+                    <SelectItem :value="1.25">1.25x</SelectItem>
+                    <SelectItem :value="1.5">1.5x</SelectItem>
+                    <SelectItem :value="1.75">1.75x</SelectItem>
+                    <SelectItem :value="2">2x</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div class="flex items-center justify-between">
                 <div>
@@ -399,15 +410,17 @@ watch(currentTheme, (newTheme) => {
                   <p class="text-sm font-medium text-foreground">Default Format</p>
                   <p class="text-xs text-muted-foreground">Preferred download format</p>
                 </div>
-                <select
-                  v-model="settingsStore.ytDlpSelectedTemplate"
-                  class="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="video:best">Best Video</option>
-                  <option value="video:720">720p Video</option>
-                  <option value="video:1080">1080p Video</option>
-                  <option value="audio:best">Audio Only</option>
-                </select>
+                <Select v-model="settingsStore.ytDlpSelectedTemplate">
+                  <SelectTrigger class="w-[180px]">
+                    <SelectValue placeholder="Select format..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="video:best">Best Video</SelectItem>
+                    <SelectItem value="video:720">720p Video</SelectItem>
+                    <SelectItem value="video:1080">1080p Video</SelectItem>
+                    <SelectItem value="audio:best">Audio Only</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
@@ -614,14 +627,16 @@ watch(currentTheme, (newTheme) => {
                   <p class="text-sm font-medium text-foreground">Backend Preference</p>
                   <p class="text-xs text-muted-foreground">Choose your preferred API backend</p>
                 </div>
-                <select
-                  v-model="settingsStore.backendPreference"
-                  class="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="invidious">Invidious</option>
-                  <option value="local">Local API</option>
-                  <option value="piped">Piped</option>
-                </select>
+                <Select v-model="settingsStore.backendPreference">
+                  <SelectTrigger class="w-[180px]">
+                    <SelectValue placeholder="Select backend..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="invidious">Invidious</SelectItem>
+                    <SelectItem value="local">Local API</SelectItem>
+                    <SelectItem value="piped">Piped</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div class="flex items-center justify-between">
                 <div>
