@@ -3,14 +3,20 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getVideo } from '../api'
 import { useSponsorBlock } from '../composables/useData'
+import { getInvidiousManifestUrl } from '../api/manifest'
 import type { Video } from '../api/types'
+import type { SponsorBlockSegment } from '../api/sponsorblock'
 import ErrorState from '../components/ui/ErrorState.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import ShakaPlayer from '../components/player/ShakaPlayer.vue'
 
 const route = useRoute()
 const videoId = computed(() => route.query.v as string || route.params.id as string || '')
 const video = ref<Video | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
+const playerError = ref<string | null>(null)
+const manifestUrl = ref<string>('')
 
 const sponsorBlock = useSponsorBlock(videoId.value)
 
@@ -25,6 +31,7 @@ async function load() {
   try {
     video.value = await getVideo(videoId.value)
     await sponsorBlock.load()
+    manifestUrl.value = getInvidiousManifestUrl(videoId.value)
   } catch (e: any) {
     error.value = e.message || 'Failed to load video'
   } finally {
@@ -46,6 +53,8 @@ function formatDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
+const segments = computed(() => sponsorBlock.segments.value as SponsorBlockSegment[])
+
 onMounted(load)
 </script>
 
@@ -62,11 +71,20 @@ onMounted(load)
     <div v-else-if="video" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Main Content -->
       <div class="lg:col-span-2 space-y-4">
-        <!-- Video Player Placeholder -->
-        <div class="aspect-video bg-black rounded-xl flex items-center justify-center">
-          <svg class="size-16 text-white/50" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M8 5v14l11-7z" />
-          </svg>
+        <!-- Shaka Player -->
+        <ShakaPlayer
+          v-if="manifestUrl"
+          :manifest-url="manifestUrl"
+          :title="video.title"
+          :segments="segments"
+          :chapters="video.chapters"
+          @error="playerError = $event"
+        />
+
+        <!-- Player Error Fallback -->
+        <div v-if="playerError" class="bg-destructive/10 border border-destructive/20 rounded-xl p-4">
+          <p class="text-sm text-destructive font-medium">Player Error: {{ playerError }}</p>
+          <p class="text-xs text-muted-foreground mt-1">The video may be unavailable or require authentication.</p>
         </div>
 
         <!-- Video Info -->
