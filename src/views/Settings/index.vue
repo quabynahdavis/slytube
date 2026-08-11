@@ -16,8 +16,13 @@ const { t } = useI18n()
       <SettingsSearch />
     </header>
 
+    <!-- Child Route View -->
+    <div v-if="$route.name !== 'settings'" class="min-h-screen">
+      <router-view />
+    </div>
+
     <!-- Content -->
-    <div class="max-w-3xl mx-auto px-4 py-6 space-y-8">
+    <div v-else class="max-w-3xl mx-auto px-4 py-6 space-y-8">
       <!-- Quick Access -->
       <QuickAccess />
 
