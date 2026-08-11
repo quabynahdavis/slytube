@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from '@/stores/settings'
+import { useSyncStore } from '@/stores/sync'
 import { useSearchHistoryStore } from '@/stores/search-history'
 import { getSearchSuggestions } from '@/composables/useInnertube'
 import {
@@ -12,11 +13,16 @@ import {
   PhMagnifyingGlass as MagnifyingGlass,
   PhClockCounterClockwise as ClockCounterClockwise,
   PhSpinner as Spinner,
+  PhCloud as Cloud,
+  PhCloudCheck as CloudCheck,
+  PhCloudX as CloudX,
+  PhCloudSlash as CloudSlash,
 } from '@phosphor-icons/vue'
 
 const { t } = useI18n()
 const router = useRouter()
 const settingsStore = useSettingsStore()
+const syncStore = useSyncStore()
 const searchHistoryStore = useSearchHistoryStore()
 
 const searchQuery = ref('')
@@ -81,6 +87,22 @@ watch(searchQuery, (newVal) => {
 const recentSearches = () => searchHistoryStore.getLatestSearchHistoryNames.slice(0, 5)
 
 const showDropdown = () => isSearchFocused.value && (suggestions.value.length > 0 || recentSearches().length > 0 || isLoadingSuggestions.value)
+
+const syncStatusTooltip = computed(() => {
+  if (!settingsStore.syncServerEnabled) return ''
+  const status = syncStore.syncServerStatus
+  if (status === 'syncing') return 'Syncing...'
+  if (status === 'error') return syncStore.syncServerError || 'Sync error'
+  if (status === 'success') {
+    const lastSync = settingsStore.syncServerLastSyncAt
+    if (lastSync) {
+      const date = new Date(lastSync)
+      return `Last synced: ${date.toLocaleString()}`
+    }
+    return 'Synced'
+  }
+  return 'Sync idle'
+})
 
 function toggleSidebar() {
   settingsStore.updateSetting('expandSideBar', !settingsStore.expandSideBar)
@@ -176,6 +198,27 @@ defineExpose({
 
     <!-- Right Actions -->
     <div class="flex items-center gap-2">
+      <!-- Sync Status Indicator -->
+      <div
+        v-if="settingsStore.syncServerEnabled"
+        class="inline-flex items-center justify-center size-9 rounded-full text-muted-foreground relative"
+        :title="syncStatusTooltip"
+      >
+        <CloudCheck v-if="syncStore.syncServerStatus === 'success'" :size="20" class="text-green-500" />
+        <CloudX v-else-if="syncStore.syncServerStatus === 'error'" :size="20" class="text-red-500" />
+        <Cloud v-else-if="syncStore.syncServerStatus === 'syncing'" :size="20" class="text-yellow-500 animate-pulse" />
+        <Cloud v-else :size="20" class="text-muted-foreground/60" />
+        <!-- Status dot -->
+        <span
+          class="absolute top-1 right-1 size-2 rounded-full"
+          :class="{
+            'bg-green-500': syncStore.syncServerStatus === 'success',
+            'bg-red-500': syncStore.syncServerStatus === 'error',
+            'bg-yellow-500 animate-ping': syncStore.syncServerStatus === 'syncing',
+            'bg-muted-foreground/40': syncStore.syncServerStatus === 'idle',
+          }"
+        />
+      </div>
       <button
         class="inline-flex items-center justify-center size-9 rounded-full text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
         :title="t('nav.downloads')"
