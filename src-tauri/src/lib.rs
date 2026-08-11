@@ -101,6 +101,7 @@ pub fn run() {
             commands::invidious::invidious_get_comments,
             commands::invidious::invidious_get_instances,
             commands::invidious::invidious_test_instance,
+            commands::invidious::invidious_get_dash_manifest,
             // yt-dlp
             yt_dlp::yt_dlp_get_info,
             yt_dlp::yt_dlp_get_playback_info,

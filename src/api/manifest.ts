@@ -10,7 +10,7 @@ export function getLocalManifestUrl(dashManifestUrl: string, poToken?: string): 
 
 export function getInvidiousManifestUrl(videoId: string): string {
   const instance = getCurrentInstance()
-  return `${instance}/api/manifest/dash/id/${videoId}`
+  return `${instance}/api/manifest/dash/id/${videoId}?local=true`
 }
 
 export function getInvidiousDashManifest(videoId: string, format: 'dash' | 'blob' = 'dash'): string {

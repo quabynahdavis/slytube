@@ -90,3 +90,28 @@ pub async fn invidious_test_instance(
         Err(_) => Ok(false),
     }
 }
+
+#[tauri::command]
+pub async fn invidious_get_dash_manifest(
+    http_client: State<'_, SharedHttpClient>,
+    video_id: String,
+) -> Result<String, String> {
+    let instance = get_instance_url();
+    let url = format!("{}/api/manifest/dash/id/{}?local=true", instance, video_id);
+    
+    let response = http_client
+        .client()
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch DASH manifest: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("DASH manifest request failed with status: {}", response.status()));
+    }
+
+    let text = response.text().await
+        .map_err(|e| format!("Failed to read DASH manifest: {}", e))?;
+
+    Ok(text)
+}

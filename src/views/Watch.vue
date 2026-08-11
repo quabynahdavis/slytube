@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { getVideo } from '../api'
 import { useSponsorBlock } from '../composables/useData'
 import { getInvidiousManifestUrl } from '../api/manifest'
+import { invoke } from '@tauri-apps/api/core'
 import type { Video } from '../api/types'
 import type { SponsorBlockSegment } from '../api/sponsorblock'
 import ErrorState from '../components/ui/ErrorState.vue'
@@ -31,7 +32,12 @@ async function load() {
   try {
     video.value = await getVideo(videoId.value)
     await sponsorBlock.load()
-    manifestUrl.value = getInvidiousManifestUrl(videoId.value)
+    try {
+      const manifestXml = await invoke('invidious_get_dash_manifest', { videoId: videoId.value })
+      manifestUrl.value = `data:application/dash+xml;charset=UTF-8,${encodeURIComponent(manifestXml as string)}`
+    } catch {
+      manifestUrl.value = getInvidiousManifestUrl(videoId.value)
+    }
   } catch (e: any) {
     error.value = e.message || 'Failed to load video'
   } finally {
