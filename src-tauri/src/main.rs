@@ -25,6 +25,6 @@ fn init_tracing() {
 
 fn main() {
     init_tracing();
-    tracing::info!("Starting OpenTubeX");
+    tracing::info!("Starting Slytube");
     slytube_lib::run()
 }

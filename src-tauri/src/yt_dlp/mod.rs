@@ -1,11 +1,10 @@
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 
-use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, Manager, State};
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tauri::{AppHandle, Manager};
 use tokio::process::Child;
 
 mod commands;

@@ -17,24 +17,27 @@ pub fn register_shortcuts(app: &AppHandle) -> Result<(), Box<dyn std::error::Err
 
     // Play/Pause media key
     let app_handle = app.clone();
-    app.global_shortcut()
-        .on_shortcut("MediaPlayPause", move |_, _, _| {
-            let _ = app_handle.emit("shortcut-media-play-pause", ());
-        })?;
+    if app.global_shortcut().on_shortcut("MediaPlayPause", move |_, _, _| {
+        let _ = app_handle.emit("shortcut-media-play-pause", ());
+    }).is_err() {
+        tracing::warn!("Failed to register MediaPlayPause shortcut");
+    }
 
     // Next track media key
     let app_handle = app.clone();
-    app.global_shortcut()
-        .on_shortcut("MediaNextTrack", move |_, _, _| {
-            let _ = app_handle.emit("shortcut-media-next", ());
-        })?;
+    if app.global_shortcut().on_shortcut("MediaNextTrack", move |_, _, _| {
+        let _ = app_handle.emit("shortcut-media-next", ());
+    }).is_err() {
+        tracing::warn!("Failed to register MediaNextTrack shortcut");
+    }
 
     // Previous track media key
     let app_handle = app.clone();
-    app.global_shortcut()
-        .on_shortcut("MediaPreviousTrack", move |_, _, _| {
-            let _ = app_handle.emit("shortcut-media-previous", ());
-        })?;
+    if app.global_shortcut().on_shortcut("MediaPreviousTrack", move |_, _, _| {
+        let _ = app_handle.emit("shortcut-media-previous", ());
+    }).is_err() {
+        tracing::warn!("Failed to register MediaPreviousTrack shortcut");
+    }
 
     Ok(())
 }
