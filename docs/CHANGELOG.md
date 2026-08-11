@@ -36,3 +36,5 @@
 | 2026-08-11 | 7.3.0 | Playback: multi-layered DASH/format fallback chain | Migration Team |
 | 2026-08-11 | 8.0.0 | Sync: wire frontend store to Rust sync commands | Migration Team |
 | 2026-08-11 | 8.1.0 | Tests: Vitest + 35 unit tests for settings, sync, search | Migration Team |
+| 2026-08-11 | 8.2.0 | Fix: move Invidious calls to frontend webview (instances block non-browser clients) | Migration Team |
+| 2026-08-11 | 8.3.0 | Fix: trending and homepage now load via frontend Invidious client | Migration Team |
