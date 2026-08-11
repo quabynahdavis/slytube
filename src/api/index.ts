@@ -14,19 +14,25 @@ import {
 
 function getBestThumbnail(thumbnails: any[] | undefined): string {
   if (!thumbnails || thumbnails.length === 0) return ''
-  const best = thumbnails.sort((a: any, b: any) => (b.width || 0) - (a.width || 0))[0]
-  return best?.url || ''
+  const sorted = [...thumbnails].sort((a, b) => (b.width || 0) - (a.width || 0))
+  return sorted[0]?.url || ''
 }
 
 function mapInvidiousVideo(v: any): Video {
+  const authorThumbnails = v.authorThumbnails || []
+  const bestAuthorAvatar = authorThumbnails.length > 0
+    ? authorThumbnails[authorThumbnails.length - 1]?.url || ''
+    : ''
+
   return {
     id: v.videoId || '',
     title: v.title || 'Unknown',
     author: v.author || 'Unknown',
     authorId: v.authorId || '',
     authorUrl: `/channel/${v.authorId || ''}`,
+    authorAvatar: bestAuthorAvatar,
     description: v.description || '',
-    thumbnail: v.videoThumbnails?.[0]?.url || '',
+    thumbnail: getBestThumbnail(v.videoThumbnails),
     viewCount: v.viewCount || 0,
     likeCount: v.likeCount || 0,
     lengthSeconds: v.lengthSeconds || 0,
@@ -86,12 +92,15 @@ function mapYouTubeResponse(result: any): Video {
   const author = details.author || {}
   const thumbnail = details.thumbnail?.thumbnails
 
+  const authorAvatar = result.microformat?.playerMicroformatRenderer?.thumbnail?.thumbnails?.[0]?.url || ''
+
   return {
     id: details.videoId || '',
     title: details.title || 'Unknown',
     author: typeof author === 'string' ? author : (author.name || 'Unknown'),
     authorId: details.channelId || '',
     authorUrl: `/channel/${details.channelId || ''}`,
+    authorAvatar,
     description: details.shortDescription || '',
     thumbnail: getBestThumbnail(thumbnail),
     viewCount: parseInt(details.viewCount || '0'),
@@ -123,6 +132,7 @@ function mapYouTubeSearchResults(result: any): Video[] {
           author: vr.ownerText?.runs?.[0]?.text || 'Unknown',
           authorId: vr.ownerText?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId || '',
           authorUrl: '',
+          authorAvatar: '',
           description: vr.descriptionSnippet?.runs?.[0]?.text || '',
           thumbnail: getBestThumbnail(vr.thumbnail?.thumbnails),
           viewCount: parseInt(vr.viewCountText?.simpleText?.replace(/[^0-9]/g, '') || '0'),

@@ -65,8 +65,16 @@ function timeAgo(published: string): string {
       </div>
     </div>
     <div class="flex gap-3">
-      <div class="size-9 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-        <span class="text-xs font-medium text-primary">{{ video.author?.[0] || '?' }}</span>
+      <div class="size-9 rounded-full overflow-hidden shrink-0 bg-muted">
+        <img
+          v-if="video.authorAvatar"
+          :src="video.authorAvatar"
+          :alt="video.author"
+          class="w-full h-full object-cover"
+        />
+        <div v-else class="w-full h-full bg-primary/20 flex items-center justify-center">
+          <span class="text-xs font-medium text-primary">{{ video.author?.[0] || '?' }}</span>
+        </div>
       </div>
       <div class="flex-1 min-w-0">
         <h3 class="text-sm font-medium text-foreground line-clamp-2 group-hover:text-primary leading-snug">

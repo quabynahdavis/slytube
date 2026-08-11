@@ -4,6 +4,7 @@ export interface Video {
   author: string
   authorId: string
   authorUrl: string
+  authorAvatar: string
   description: string
   thumbnail: string
   viewCount: number
