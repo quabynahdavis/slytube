@@ -25,7 +25,7 @@ function mapInvidiousVideo(v: any): Video {
     isShort: v.isShort || false,
     chapters: [],
     captions: [],
-    related: [],
+    related: (v.recommendedVideos || []).map(mapInvidiousVideo),
   }
 }
 
@@ -56,7 +56,6 @@ function mapInvidiousPlaylist(p: any): Playlist {
   }
 }
 
-
 function mapInvidiousComment(c: any): Comment {
   return {
     id: c.commentId || '',
@@ -68,16 +67,6 @@ function mapInvidiousComment(c: any): Comment {
     published: c.publishedText || '',
     replies: (c.replies?.comments || []).map(mapInvidiousComment),
     replyCount: c.replyCount || 0,
-  }
-}
-
-export async function getVideo(videoId: string): Promise<Video> {
-  try {
-    const result = await invoke('get_video_info', { videoId })
-    return mapYouTubeResponse(result as any)
-  } catch {
-    const result = await invoke('invidious_get_video', { videoId })
-    return mapInvidiousVideo(result as any)
   }
 }
 
@@ -107,20 +96,10 @@ function mapYouTubeResponse(result: any): Video {
   }
 }
 
-export async function search(query: string): Promise<Video[]> {
-  try {
-    const result = await invoke('search_videos', { query })
-    return mapYouTubeSearchResults(result as any)
-  } catch {
-    const result = await invoke('invidious_search', { query })
-    return (result as any[] || []).filter((i: any) => i.type === 'video').map(mapInvidiousVideo)
-  }
-}
-
 function mapYouTubeSearchResults(result: any): Video[] {
   const contents = result.contents?.twoColumnSearchResultsRenderer?.primaryContents
     ?.sectionListRenderer?.contents || []
-  
+
   const videos: Video[] = []
   for (const section of contents) {
     const items = section.itemSectionRenderer?.contents || []
@@ -152,27 +131,10 @@ function mapYouTubeSearchResults(result: any): Video[] {
   return videos
 }
 
-export async function getTrendingVideos(): Promise<Video[]> {
-  // Use Invidious as primary for trending
-  const result = await invoke('invidious_get_trending')
-  const data = (result as any[]) || []
-  return data.filter((i: any) => i.type === 'video').map(mapInvidiousVideo)
-}
-
-export async function getChannelInfo(channelId: string): Promise<Channel> {
-  try {
-    const result = await invoke('get_channel_info', { channelId })
-    return mapYouTubeChannel(result as any)
-  } catch {
-    const result = await invoke('invidious_get_channel', { channelId })
-    return mapInvidiousChannel(result as any)
-  }
-}
-
 function mapYouTubeChannel(result: any): Channel {
   const metadata = result.metadata?.channelMetadataRenderer
   const headerData = result.header?.c4TabbedHeaderRenderer
-  
+
   return {
     id: metadata?.externalId || '',
     name: metadata?.title || 'Unknown',
@@ -184,6 +146,99 @@ function mapYouTubeChannel(result: any): Channel {
     tabs: ['home', 'videos', 'playlists', 'community'],
     videos: [],
     relatedChannels: [],
+  }
+}
+
+export async function getVideo(videoId: string): Promise<Video> {
+  try {
+    const result = await invoke('get_video_info', { videoId })
+    return mapYouTubeResponse(result as any)
+  } catch {
+    const result = await invoke('invidious_get_video', { videoId })
+    return mapInvidiousVideo(result as any)
+  }
+}
+
+export async function getVideoPlaybackInfo(videoId: string): Promise<{
+  dashUrl: string | null
+  formatStreams: any[]
+  manifestXml: string | null
+}> {
+  let dashUrl: string | null = null
+  let formatStreams: any[] = []
+  let manifestXml: string | null = null
+
+  try {
+    dashUrl = await invoke<string>('invidious_get_dash_url', { videoId })
+  } catch {
+    // dashUrl not available
+  }
+
+  if (!dashUrl) {
+    try {
+      const info = await invoke<any>('invidious_get_video', { videoId })
+      if (info?.dashUrl) {
+        dashUrl = info.dashUrl
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  try {
+    formatStreams = await invoke<any[]>('invidious_get_format_streams', { videoId })
+  } catch {
+    // format streams not available
+  }
+
+  if (!dashUrl && formatStreams.length === 0) {
+    try {
+      manifestXml = await invoke<string>('invidious_get_dash_manifest', { videoId })
+    } catch {
+      // manifest fetch failed
+    }
+  }
+
+  return { dashUrl, formatStreams, manifestXml }
+}
+
+export async function search(query: string): Promise<Video[]> {
+  try {
+    const result = await invoke('search_videos', { query })
+    return mapYouTubeSearchResults(result as any)
+  } catch {
+    const result = await invoke('invidious_search', { query })
+    return (result as any[] || []).filter((i: any) => i.type === 'video').map(mapInvidiousVideo)
+  }
+}
+
+export async function getTrendingVideos(): Promise<Video[]> {
+  try {
+    const result = await invoke('invidious_get_trending')
+    const data = (result as any[]) || []
+    return data.filter((i: any) => i.type === 'video').map(mapInvidiousVideo)
+  } catch {
+    return []
+  }
+}
+
+export async function getPopularVideos(): Promise<Video[]> {
+  try {
+    const result = await invoke('invidious_get_popular')
+    const data = (result as any[]) || []
+    return data.filter((i: any) => i.type === 'video' || i.type === 'shortVideo').map(mapInvidiousVideo)
+  } catch {
+    return []
+  }
+}
+
+export async function getChannelInfo(channelId: string): Promise<Channel> {
+  try {
+    const result = await invoke('get_channel_info', { channelId })
+    return mapYouTubeChannel(result as any)
+  } catch {
+    const result = await invoke('invidious_get_channel', { channelId })
+    return mapInvidiousChannel(result as any)
   }
 }
 

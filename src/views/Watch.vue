@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getVideo } from '../api'
+import { getVideo, getVideoPlaybackInfo } from '../api'
 import { useSponsorBlock } from '../composables/useData'
 import { getInvidiousManifestUrl } from '../api/manifest'
-import { invoke } from '@tauri-apps/api/core'
 import type { Video } from '../api/types'
 import type { SponsorBlockSegment } from '../api/sponsorblock'
 import ErrorState from '../components/ui/ErrorState.vue'
@@ -18,6 +17,7 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const playerError = ref<string | null>(null)
 const manifestUrl = ref<string>('')
+const selectedFormatUrl = ref<string>('')
 
 const sponsorBlock = useSponsorBlock(videoId.value)
 
@@ -29,13 +29,33 @@ async function load() {
   }
   loading.value = true
   error.value = null
+  selectedFormatUrl.value = ''
+
   try {
     video.value = await getVideo(videoId.value)
     await sponsorBlock.load()
-    try {
-      const manifestXml = await invoke('invidious_get_dash_manifest', { videoId: videoId.value })
-      manifestUrl.value = `data:application/dash+xml;charset=UTF-8,${encodeURIComponent(manifestXml as string)}`
-    } catch {
+
+    const playbackInfo = await getVideoPlaybackInfo(videoId.value)
+
+    if (playbackInfo.dashUrl) {
+      manifestUrl.value = playbackInfo.dashUrl
+    } else if (playbackInfo.manifestXml) {
+      manifestUrl.value = `data:application/dash+xml;charset=UTF-8,${encodeURIComponent(playbackInfo.manifestXml)}`
+    } else if (playbackInfo.formatStreams.length > 0) {
+      const bestFormat = playbackInfo.formatStreams
+        .filter((f: any) => f.qualityLabel)
+        .sort((a: any, b: any) => {
+          const aHeight = parseInt(a.qualityLabel) || 0
+          const bHeight = parseInt(b.qualityLabel) || 0
+          return bHeight - aHeight
+        })[0]
+      if (bestFormat?.url) {
+        selectedFormatUrl.value = bestFormat.url
+        manifestUrl.value = ''
+      } else {
+        manifestUrl.value = getInvidiousManifestUrl(videoId.value)
+      }
+    } else {
       manifestUrl.value = getInvidiousManifestUrl(videoId.value)
     }
   } catch (e: any) {
@@ -77,21 +97,35 @@ onMounted(load)
     <div v-else-if="video" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Main Content -->
       <div class="lg:col-span-2 space-y-4">
-        <!-- Shaka Player -->
+        <!-- Shaka Player (DASH) -->
         <ShakaPlayer
-           v-if="manifestUrl"
-           :manifest-url="manifestUrl"
-           :video-id="videoId"
-           :title="video.title"
-           :segments="segments"
-           :chapters="video.chapters"
-           @error="playerError = $event"
-         />
+          v-if="manifestUrl"
+          :manifest-url="manifestUrl"
+          :video-id="videoId"
+          :title="video.title"
+          :segments="segments"
+          :chapters="video.chapters"
+          @error="playerError = $event"
+        />
+
+        <!-- Direct Video Fallback -->
+        <video
+          v-else-if="selectedFormatUrl"
+          :src="selectedFormatUrl"
+          controls
+          class="w-full aspect-video bg-black rounded-xl"
+          @error="playerError = 'Failed to load video stream'"
+        />
 
         <!-- Player Error Fallback -->
         <div v-if="playerError" class="bg-destructive/10 border border-destructive/20 rounded-xl p-4">
           <p class="text-sm text-destructive font-medium">Player Error: {{ playerError }}</p>
           <p class="text-xs text-muted-foreground mt-1">The video may be unavailable or require authentication.</p>
+          <div v-if="selectedFormatUrl" class="mt-3">
+            <a :href="selectedFormatUrl" target="_blank" class="text-sm text-primary hover:underline">
+              Open stream in new tab
+            </a>
+          </div>
         </div>
 
         <!-- Video Info -->

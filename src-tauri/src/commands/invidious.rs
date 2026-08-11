@@ -63,6 +63,40 @@ pub async fn invidious_get_video(
 }
 
 #[tauri::command]
+pub async fn invidious_get_dash_url(
+    http_client: State<'_, SharedHttpClient>,
+    video_id: String,
+) -> Result<String, String> {
+    let video_info = try_instances(&http_client, |instance| {
+        build_api_url(instance, "videos", &video_id, &[])
+    }).await?;
+
+    if let Some(dash_url) = video_info.get("dashUrl").and_then(|v| v.as_str()) {
+        if !dash_url.is_empty() {
+            return Ok(dash_url.to_string());
+        }
+    }
+
+    Err(format!("No DASH URL available for video {}", video_id))
+}
+
+#[tauri::command]
+pub async fn invidious_get_format_streams(
+    http_client: State<'_, SharedHttpClient>,
+    video_id: String,
+) -> Result<Vec<serde_json::Value>, String> {
+    let video_info = try_instances(&http_client, |instance| {
+        build_api_url(instance, "videos", &video_id, &[])
+    }).await?;
+
+    if let Some(formats) = video_info.get("formatStreams").and_then(|v| v.as_array()) {
+        return Ok(formats.clone());
+    }
+
+    Err(format!("No format streams available for video {}", video_id))
+}
+
+#[tauri::command]
 pub async fn invidious_search(
     http_client: State<'_, SharedHttpClient>,
     query: String,
