@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { getVideo, getVideoPlaybackInfo } from '../api'
 import { useSponsorBlock } from '../composables/useData'
 import { getInvidiousManifestUrl } from '../api/manifest'
+import { useSubscriptionsStore } from '../stores/subscriptions'
 import type { Video } from '../api/types'
 import type { SponsorBlockSegment } from '../api/sponsorblock'
 import ErrorState from '../components/ui/ErrorState.vue'
@@ -19,7 +20,13 @@ const playerError = ref<string | null>(null)
 const manifestUrl = ref<string>('')
 const selectedFormatUrl = ref<string>('')
 
+const subscriptionsStore = useSubscriptionsStore()
 const sponsorBlock = useSponsorBlock(videoId.value)
+
+// Optimistic like state
+const optimisticLikeCount = ref<number | null>(null)
+const userLikeState = ref<'liked' | 'disliked' | 'none'>('none')
+const likeLoading = ref(false)
 
 async function load() {
   if (!videoId.value) {
@@ -81,7 +88,128 @@ function formatDuration(seconds: number): string {
 
 const segments = computed(() => sponsorBlock.segments.value as SponsorBlockSegment[])
 
-onMounted(load)
+// Subscription computed state for current video's channel
+const isSubscribed = computed(() =>
+  video.value ? subscriptionsStore.isSubscribed(video.value.authorId) : false
+)
+const isSubscribePending = computed(() =>
+  video.value ? subscriptionsStore.isPending(video.value.authorId) : false
+)
+
+// Like count display (optimistic or actual)
+const displayLikeCount = computed(() => {
+  if (optimisticLikeCount.value !== null) return optimisticLikeCount.value
+  return video.value?.likeCount ?? 0
+})
+
+/**
+ * Handle subscribe button click with optimistic update.
+ * Immediately toggles visual state, calls API in background,
+ * and rolls back on failure.
+ */
+async function handleSubscribe() {
+  if (!video.value) return
+  const channelId = video.value.authorId
+  const channelName = video.value.author
+
+  const result = await subscriptionsStore.toggleSubscription(channelId, channelName)
+
+  if (!result.success) {
+    // Show user feedback on failure (could be a toast/notification)
+    console.warn('Failed to update subscription')
+  }
+}
+
+/**
+ * Handle like button click with optimistic update.
+ * Immediately updates visual state, calls API in background,
+ * and rolls back on failure.
+ */
+async function handleLike() {
+  if (!video.value || likeLoading.value) return
+
+  const previousState = userLikeState.value
+  const previousCount = video.value.likeCount
+
+  // Determine new state
+  if (previousState === 'liked') {
+    // Unlike
+    userLikeState.value = 'none'
+    optimisticLikeCount.value = previousCount - 1
+  } else {
+    // Like (remove dislike if present)
+    userLikeState.value = 'liked'
+    const countAdjustment = previousState === 'disliked' ? 1 : 0
+    optimisticLikeCount.value = previousCount + 1 + countAdjustment
+  }
+
+  likeLoading.value = true
+
+  try {
+    // Simulate API call - replace with real API when backend is ready
+    await performLikeApiCall(video.value.id, userLikeState.value)
+  } catch (error) {
+    // Rollback on failure
+    userLikeState.value = previousState
+    optimisticLikeCount.value = previousCount
+    console.error('Like failed:', error)
+  } finally {
+    likeLoading.value = false
+  }
+}
+
+/**
+ * Handle dislike button click with optimistic update.
+ */
+async function handleDislike() {
+  if (!video.value || likeLoading.value) return
+
+  const previousState = userLikeState.value
+  const previousCount = video.value.likeCount
+
+  // Determine new state
+  if (previousState === 'disliked') {
+    // Remove dislike
+    userLikeState.value = 'none'
+    optimisticLikeCount.value = previousCount
+  } else {
+    // Dislike (remove like if present)
+    userLikeState.value = 'disliked'
+    const countAdjustment = previousState === 'liked' ? -1 : 0
+    optimisticLikeCount.value = previousCount + countAdjustment
+  }
+
+  likeLoading.value = true
+
+  try {
+    await performLikeApiCall(video.value.id, userLikeState.value)
+  } catch (error) {
+    // Rollback on failure
+    userLikeState.value = previousState
+    optimisticLikeCount.value = previousCount
+    console.error('Dislike failed:', error)
+  } finally {
+    likeLoading.value = false
+  }
+}
+
+/**
+ * Placeholder for the actual like/dislike API call.
+ */
+async function performLikeApiCall(_videoId: string, _state: 'liked' | 'disliked' | 'none'): Promise<void> {
+  // Simulate network delay
+  await new Promise((resolve) => setTimeout(resolve, 300))
+  // TODO: Replace with real API call:
+  // await invoke('rate_video', { videoId, rating: state })
+}
+
+onMounted(() => {
+  load()
+  // Initialize optimistic like count from video data
+  if (video.value) {
+    optimisticLikeCount.value = video.value.likeCount
+  }
+})
 </script>
 
 <template>
@@ -140,26 +268,64 @@ onMounted(load)
                 <p class="text-sm font-medium text-foreground">{{ video.author }}</p>
                 <p class="text-xs text-muted-foreground">{{ formatViews(video.viewCount) }}</p>
               </div>
-              <button class="px-4 py-1.5 bg-primary text-primary-foreground rounded-full text-sm font-medium">
-                Subscribe
+              <button
+                class="px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ease-in-out"
+                :class="isSubscribed
+                  ? 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                  : 'bg-primary text-primary-foreground hover:bg-primary/90'"
+                :disabled="isSubscribePending"
+                @click="handleSubscribe"
+              >
+                <span
+                  class="inline-block transition-all duration-200"
+                  :class="{ 'opacity-50': isSubscribePending }"
+                >
+                  {{ isSubscribePending ? '...' : isSubscribed ? 'Subscribed' : 'Subscribe' }}
+                </span>
               </button>
             </div>
             <div class="flex gap-2">
-              <!-- Like button (Coming Soon) -->
-              <div class="relative group" title="Like — Coming Soon">
-                <button
-                  class="px-4 py-1.5 bg-secondary/60 text-secondary-foreground/50 rounded-full text-sm flex items-center gap-2 cursor-not-allowed"
-                  disabled
+              <!-- Like button with optimistic update -->
+              <button
+                class="px-4 py-1.5 rounded-full text-sm flex items-center gap-2 transition-all duration-200 ease-in-out"
+                :class="userLikeState === 'liked'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'"
+                :disabled="likeLoading"
+                @click="handleLike"
+              >
+                <svg
+                  class="size-4 transition-transform duration-200"
+                  :class="{ 'scale-110': userLikeState === 'liked' }"
+                  :fill="userLikeState === 'liked' ? 'currentColor' : 'none'"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2"
                 >
-                  <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
-                  </svg>
-                  {{ video.likeCount }}
-                </button>
-                <span class="absolute -top-6 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-yellow-500/90 text-[9px] font-semibold text-black rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                  Soon
-                </span>
-              </div>
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                </svg>
+                <span class="transition-all duration-200">{{ displayLikeCount }}</span>
+              </button>
+              <!-- Dislike button with optimistic update -->
+              <button
+                class="px-4 py-1.5 rounded-full text-sm flex items-center gap-2 transition-all duration-200 ease-in-out"
+                :class="userLikeState === 'disliked'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'"
+                :disabled="likeLoading"
+                @click="handleDislike"
+              >
+                <svg
+                  class="size-4 transition-transform duration-200"
+                  :class="{ 'scale-110': userLikeState === 'disliked' }"
+                  :fill="userLikeState === 'disliked' ? 'currentColor' : 'none'"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018c.163 0 .326.02.485.06L17 4m-7 10v5a2 2 0 002 2h.095c.5 0 .905-.405.905-.905 0-.714.211-1.412.608-2.006L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
+                </svg>
+              </button>
               <!-- Download button (Coming Soon) -->
               <div class="relative group" title="Download — Coming Soon">
                 <button

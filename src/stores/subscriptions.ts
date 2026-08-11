@@ -22,6 +22,8 @@ export interface SubscriptionCacheState {
   subscriptionLiveNextAutoRefreshTimestamp: Date | null
   subscriptionPostsLastRefreshTimestamp: Date | null
   subscriptionPostsNextAutoRefreshTimestamp: Date | null
+  subscribedChannelIds: Set<string>
+  pendingSubscriptions: Set<string>
 }
 
 export const useSubscriptionsStore = defineStore('subscriptions', {
@@ -42,6 +44,8 @@ export const useSubscriptionsStore = defineStore('subscriptions', {
     subscriptionLiveNextAutoRefreshTimestamp: null,
     subscriptionPostsLastRefreshTimestamp: null,
     subscriptionPostsNextAutoRefreshTimestamp: null,
+    subscribedChannelIds: new Set(),
+    pendingSubscriptions: new Set(),
   }),
 
   getters: {
@@ -61,6 +65,8 @@ export const useSubscriptionsStore = defineStore('subscriptions', {
     getShortsCache: (state) => state.shortsCache,
     getLiveCache: (state) => state.liveCache,
     getPostsCache: (state) => state.postsCache,
+    isSubscribed: (state) => (channelId: string) => state.subscribedChannelIds.has(channelId),
+    isPending: (state) => (channelId: string) => state.pendingSubscriptions.has(channelId),
   },
 
   actions: {
@@ -129,6 +135,60 @@ export const useSubscriptionsStore = defineStore('subscriptions', {
 
     setSubscriptionFeedRefreshInProgress(inProgress: boolean) {
       this.subscriptionFeedRefreshInProgress = inProgress
+    },
+
+    setSubscribed(channelId: string, subscribed: boolean) {
+      if (subscribed) {
+        this.subscribedChannelIds.add(channelId)
+      } else {
+        this.subscribedChannelIds.delete(channelId)
+      }
+    },
+
+    setPending(channelId: string, pending: boolean) {
+      if (pending) {
+        this.pendingSubscriptions.add(channelId)
+      } else {
+        this.pendingSubscriptions.delete(channelId)
+      }
+    },
+
+    /**
+     * Optimistically toggle subscription status.
+     * Immediately updates UI state, then calls the API.
+     * Rolls back on failure.
+     */
+    async toggleSubscription(channelId: string, channelName: string): Promise<{ success: boolean; subscribed: boolean }> {
+      const wasSubscribed = this.subscribedChannelIds.has(channelId)
+      const newState = !wasSubscribed
+
+      // Optimistic update: toggle UI immediately
+      this.setSubscribed(channelId, newState)
+      this.setPending(channelId, true)
+
+      try {
+        // Simulate API call - replace with real API when backend is ready
+        await this.performSubscriptionApiCall(channelId, channelName, newState)
+        return { success: true, subscribed: newState }
+      } catch (error) {
+        // Rollback on failure
+        this.setSubscribed(channelId, wasSubscribed)
+        console.error('Subscription toggle failed:', error)
+        return { success: false, subscribed: wasSubscribed }
+      } finally {
+        this.setPending(channelId, false)
+      }
+    },
+
+    /**
+     * Placeholder for the actual subscription API call.
+     * Replace with real implementation (e.g., invoke('subscribe_channel') or Invidious API).
+     */
+    async performSubscriptionApiCall(_channelId: string, _channelName: string, _subscribe: boolean): Promise<void> {
+      // Simulate network delay
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      // TODO: Replace with real API call:
+      // await invoke('subscribe_channel', { channelId, channelName, subscribe })
     },
   },
 })
