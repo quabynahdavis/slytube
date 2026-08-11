@@ -10,6 +10,7 @@ import {
   invidiousGetComments,
   invidiousGetDashManifest,
   invidiousGetDashUrl,
+  getCurrentInstanceUrl,
 } from './invidious'
 
 function getBestThumbnail(thumbnails: any[] | undefined): string {
@@ -25,7 +26,8 @@ function getAuthorAvatar(thumbnails: any[] | undefined): string {
 }
 
 function buildThumbnailUrl(videoId: string): string {
-  return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+  const instance = getCurrentInstanceUrl()
+  return `${instance}/vi/${videoId}/hqdefault.jpg`
 }
 
 function mapInvidiousVideo(v: any): Video {
@@ -141,15 +143,18 @@ function mapYouTubeSearchResults(result: any): Video[] {
     for (const item of items) {
       if (item.videoRenderer) {
         const vr = item.videoRenderer
+        const searchAuthorId = vr.ownerText?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId || ''
+        const searchAuthorAvatar = vr.channelThumbnailSupportedRenderers?.channelThumbnailWithLinkRenderer?.thumbnail?.thumbnails?.[0]?.url || ''
+
         videos.push({
           id: vr.videoId || '',
           title: vr.title?.runs?.[0]?.text || vr.title?.simpleText || 'Unknown',
           author: vr.ownerText?.runs?.[0]?.text || 'Unknown',
-          authorId: vr.ownerText?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId || '',
+          authorId: searchAuthorId,
           authorUrl: '',
-          authorAvatar: '',
+          authorAvatar: searchAuthorAvatar,
           description: vr.descriptionSnippet?.runs?.[0]?.text || '',
-          thumbnail: getBestThumbnail(vr.thumbnail?.thumbnails),
+          thumbnail: getBestThumbnail(vr.thumbnail?.thumbnails) || (vr.videoId ? buildThumbnailUrl(vr.videoId) : ''),
           viewCount: parseInt(vr.viewCountText?.simpleText?.replace(/[^0-9]/g, '') || '0'),
           likeCount: 0,
           lengthSeconds: 0,
