@@ -18,21 +18,32 @@ function getBestThumbnail(thumbnails: any[] | undefined): string {
   return sorted[0]?.url || ''
 }
 
+function getAuthorAvatar(thumbnails: any[] | undefined): string {
+  if (!thumbnails || thumbnails.length === 0) return ''
+  const sorted = [...thumbnails].sort((a, b) => (b.width || 0) - (a.width || 0))
+  return sorted[0]?.url || ''
+}
+
+function buildThumbnailUrl(videoId: string): string {
+  return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+}
+
 function mapInvidiousVideo(v: any): Video {
-  const authorThumbnails = v.authorThumbnails || []
-  const bestAuthorAvatar = authorThumbnails.length > 0
-    ? authorThumbnails[authorThumbnails.length - 1]?.url || ''
-    : ''
+  const videoId = v.videoId || ''
+  const authorId = v.authorId || ''
+
+  const thumbnailUrl = getBestThumbnail(v.videoThumbnails) || (videoId ? buildThumbnailUrl(videoId) : '')
+  const authorAvatarUrl = getAuthorAvatar(v.authorThumbnails) || (authorId ? `https://i.ytimg.com/vi/${videoId}/default.jpg` : '')
 
   return {
-    id: v.videoId || '',
+    id: videoId,
     title: v.title || 'Unknown',
     author: v.author || 'Unknown',
-    authorId: v.authorId || '',
-    authorUrl: `/channel/${v.authorId || ''}`,
-    authorAvatar: bestAuthorAvatar,
+    authorId,
+    authorUrl: `/channel/${authorId}`,
+    authorAvatar: authorAvatarUrl,
     description: v.description || '',
-    thumbnail: getBestThumbnail(v.videoThumbnails),
+    thumbnail: thumbnailUrl,
     viewCount: v.viewCount || 0,
     likeCount: v.likeCount || 0,
     lengthSeconds: v.lengthSeconds || 0,
@@ -92,17 +103,21 @@ function mapYouTubeResponse(result: any): Video {
   const author = details.author || {}
   const thumbnail = details.thumbnail?.thumbnails
 
+  const videoId = details.videoId || ''
+  const authorId = details.channelId || ''
+
+  const thumbnailUrl = getBestThumbnail(thumbnail) || (videoId ? buildThumbnailUrl(videoId) : '')
   const authorAvatar = result.microformat?.playerMicroformatRenderer?.thumbnail?.thumbnails?.[0]?.url || ''
 
   return {
-    id: details.videoId || '',
+    id: videoId,
     title: details.title || 'Unknown',
     author: typeof author === 'string' ? author : (author.name || 'Unknown'),
-    authorId: details.channelId || '',
-    authorUrl: `/channel/${details.channelId || ''}`,
+    authorId,
+    authorUrl: `/channel/${authorId}`,
     authorAvatar,
     description: details.shortDescription || '',
-    thumbnail: getBestThumbnail(thumbnail),
+    thumbnail: thumbnailUrl,
     viewCount: parseInt(details.viewCount || '0'),
     likeCount: parseInt(result.likes || '0'),
     lengthSeconds: parseInt(details.lengthSeconds || '0'),
