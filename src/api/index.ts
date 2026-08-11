@@ -159,41 +159,6 @@ export async function getTrendingVideos(): Promise<Video[]> {
   return data.filter((i: any) => i.type === 'video').map(mapInvidiousVideo)
 }
 
-function mapYouTubeTrendingResults(result: any): Video[] {
-  const contents = result.contents?.twoColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content
-    ?.sectionListRenderer?.contents || []
-  
-  const videos: Video[] = []
-  for (const section of contents) {
-    const items = section.itemSectionRenderer?.contents || []
-    for (const item of items) {
-      if (item.videoRenderer) {
-        const vr = item.videoRenderer
-        videos.push({
-          id: vr.videoId || '',
-          title: vr.title?.runs?.[0]?.text || vr.title?.simpleText || 'Unknown',
-          author: vr.ownerText?.runs?.[0]?.text || 'Unknown',
-          authorId: vr.ownerText?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId || '',
-          authorUrl: '',
-          description: '',
-          thumbnail: getBestThumbnail(vr.thumbnail?.thumbnails),
-          viewCount: parseInt(vr.viewCountText?.simpleText?.replace(/[^0-9]/g, '') || '0'),
-          likeCount: 0,
-          lengthSeconds: 0,
-          published: vr.publishedTimeText?.simpleText || '',
-          isLive: false,
-          isUpcoming: false,
-          isShort: false,
-          chapters: [],
-          captions: [],
-          related: [],
-        })
-      }
-    }
-  }
-  return videos
-}
-
 export async function getChannelInfo(channelId: string): Promise<Channel> {
   try {
     const result = await invoke('get_channel_info', { channelId })

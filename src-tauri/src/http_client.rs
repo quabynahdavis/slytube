@@ -96,6 +96,9 @@ impl HttpClient {
             .header("X-Youtube-Bootstrap-Logged-In", "false")
             .header("X-Youtube-Client-Name", "1")
             .header("X-Youtube-Client-Version", "2.20240101.01.00")
+            .header("Sec-Fetch-Site", "same-origin")
+            .header("Sec-Fetch-Mode", "same-origin")
+            .header("Sec-Fetch-Dest", "empty")
             .json(body)
             .send()
             .await
