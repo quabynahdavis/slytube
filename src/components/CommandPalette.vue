@@ -254,7 +254,6 @@ function handleItemSelect(item: CommandItem) {
       >
         <Command
           class="rounded-lg border bg-popover shadow-2xl"
-          @update:model-value="(val) => search = val"
         >
           <div class="flex items-center border-b px-3">
             <HugeiconsIcon :icon="Search01Icon" class="mr-2 h-4 w-4 shrink-0 opacity-50" />
@@ -274,15 +273,12 @@ function handleItemSelect(item: CommandItem) {
               :heading="group === 'navigation' ? 'Navigation' : 'Actions'"
             >
               <CommandItem
-                v-for="(item, index) in items"
+                v-for="item in items"
                 :key="item.id"
                 :value="item.label"
                 :data-index="flatFilteredItems.indexOf(item)"
                 :data-selected="flatFilteredItems.indexOf(item) === selectedIndex"
-                class="flex items-center gap-2 px-2 py-2.5 text-sm cursor-pointer rounded-sm"
-                :class="{
-                  'bg-accent text-accent-foreground': flatFilteredItems.indexOf(item) === selectedIndex,
-                }"
+                :class="'flex items-center gap-2 px-2 py-2.5 text-sm cursor-pointer rounded-sm' + (flatFilteredItems.indexOf(item) === selectedIndex ? ' bg-accent text-accent-foreground' : '')"
                 @click="handleItemSelect(item)"
                 @mouseenter="selectedIndex = flatFilteredItems.indexOf(item)"
               >

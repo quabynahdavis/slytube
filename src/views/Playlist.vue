@@ -196,7 +196,7 @@ function removeFromPlaylist(videoId: string) {
 
       <!-- Empty Playlist -->
       <EmptyState v-else title="Empty playlist">
-        This playlist has no videos yet.
+        Add videos to this playlist to watch them later.
       </EmptyState>
     </template>
   </div>

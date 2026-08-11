@@ -126,10 +126,9 @@ onMounted(() => {
     </EmptyState>
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       <VideoCard
-        v-for="(video, index) in results"
+        v-for="video in results"
         :key="video.id"
         :video="video"
-        v-staggered-anim="index"
       />
     </div>
   </div>

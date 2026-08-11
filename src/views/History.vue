@@ -110,14 +110,14 @@ function clearAllHistory() {
     <SkeletonGrid v-if="isLoading" :count="6" />
 
     <!-- Empty State -->
-    <EmptyState v-else-if="filteredHistory.length === 0" :title="searchQuery ? 'No results found' : 'No watch history'">
+    <EmptyState v-else-if="filteredHistory.length === 0" :title="searchQuery ? 'No results for your search' : 'Start watching to build your history'">
       <template #icon>
         <svg class="size-8 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <circle cx="12" cy="12" r="10" />
           <polyline points="12 6 12 12 16 14" />
         </svg>
       </template>
-      {{ searchQuery ? 'No results found for your search' : 'Videos you watch will appear here' }}
+      {{ searchQuery ? 'Try different keywords or check your spelling' : 'Watch any video and it will show up here for easy access' }}
     </EmptyState>
 
     <!-- History List -->

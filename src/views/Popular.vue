@@ -72,7 +72,7 @@ onMounted(loadPopular)
     <ErrorState v-else-if="error" :message="error" retryable @retry="loadPopular" />
 
     <EmptyState v-else-if="sortedVideos.length === 0" title="No popular videos">
-      Check back later for popular content.
+      Popular videos aren't available right now. Check back later or explore Trending.
     </EmptyState>
 
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

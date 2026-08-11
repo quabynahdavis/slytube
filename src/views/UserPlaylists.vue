@@ -51,7 +51,7 @@ async function handleDeletePlaylist(id: string) {
     <SkeletonGrid v-if="isLoading" :count="6" :columns="3" />
 
     <EmptyState v-else-if="playlists.length === 0" title="No playlists yet" action="Create Playlist" @action="showCreateDialog = true">
-      Create a playlist to organize your videos.
+      Create playlists to organize and save your favorite videos.
     </EmptyState>
 
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
