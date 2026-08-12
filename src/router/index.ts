@@ -19,7 +19,13 @@ import Settings from '@/views/Settings/index.vue'
 import SettingsCategory from '@/views/Settings/CategoryView.vue'
 import ProfileSettings from '@/views/ProfileSettings.vue'
 import Stats from '@/views/Stats.vue'
-import About from '@/views/About.vue'
+import About from '@/views/About/index.vue'
+import AboutOverview from '@/views/About/Overview.vue'
+import AboutSystem from '@/views/About/System.vue'
+import AboutLibrary from '@/views/About/Library.vue'
+import AboutShortcuts from '@/views/About/Shortcuts.vue'
+import AboutChangelog from '@/views/About/Changelog.vue'
+import AboutLicense from '@/views/About/License.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -57,7 +63,20 @@ const router = createRouter({
     },
     { path: '/profiles', name: 'profiles', component: ProfileSettings },
     { path: '/stats', name: 'stats', component: Stats },
-    { path: '/about', name: 'about', component: About },
+    {
+      path: '/about',
+      name: 'about',
+      component: About,
+      children: [
+        { path: '', redirect: { name: 'about-overview' } },
+        { path: 'overview', name: 'about-overview', component: AboutOverview },
+        { path: 'system', name: 'about-system', component: AboutSystem },
+        { path: 'library', name: 'about-library', component: AboutLibrary },
+        { path: 'shortcuts', name: 'about-shortcuts', component: AboutShortcuts },
+        { path: 'changelog', name: 'about-changelog', component: AboutChangelog },
+        { path: 'license', name: 'about-license', component: AboutLicense },
+      ],
+    },
   ],
 })
 
