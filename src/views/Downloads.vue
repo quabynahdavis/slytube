@@ -33,14 +33,6 @@ onMounted(async () => {
   }
 })
 
-function formatBytes(bytes: number): string {
-  if (!bytes) return '0 B'
-  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`
-  if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(1)} MB`
-  if (bytes >= 1e3) return `${(bytes / 1e3).toFixed(1)} KB`
-  return `${bytes} B`
-}
-
 async function handleStartDownload() {
   if (!downloadUrl.value.trim()) return
   isStarting.value = true
@@ -107,8 +99,8 @@ function clearCompleted() {
         <div v-for="dl in activeDownloads" :key="dl.id" class="rounded-lg border border-border bg-card p-4">
           <div class="flex items-start justify-between gap-4">
             <div class="min-w-0 flex-1">
-              <h3 class="text-sm font-medium text-foreground truncate">{{ dl.title || dl.url || 'Downloading...' }}</h3>
-              <p class="text-xs text-muted-foreground mt-0.5">{{ dl.format || 'video:best' }} &middot; {{ dl.quality || 'auto' }}</p>
+              <h3 class="text-sm font-medium text-foreground truncate">{{ dl.title || dl.videoId || 'Downloading...' }}</h3>
+              <p class="text-xs text-muted-foreground mt-0.5">{{ dl.destination || dl.status }}</p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
               <span :class="cn('rounded-full px-2 py-0.5 text-xs font-medium capitalize', dl.status === 'downloading' && 'bg-blue-500/10 text-blue-500', dl.status === 'processing' && 'bg-yellow-500/10 text-yellow-500', dl.status === 'queued' && 'bg-muted text-muted-foreground')">{{ dl.status }}</span>
@@ -116,9 +108,9 @@ function clearCompleted() {
             </div>
           </div>
           <div class="mt-3">
-            <div class="flex items-center justify-between text-xs text-muted-foreground mb-1"><span>{{ Math.round(dl.progress || 0) }}%</span><span v-if="dl.speed">{{ formatBytes(dl.speed) }}/s</span><span v-if="dl.eta">ETA: {{ Math.floor(dl.eta / 60) }}:{{ (dl.eta % 60).toString().padStart(2, '0') }}</span></div>
-            <div class="h-2 w-full rounded-full bg-muted overflow-hidden"><div :class="cn('h-full rounded-full transition-all', dl.status === 'downloading' && 'bg-blue-500', dl.status === 'processing' && 'bg-yellow-500 animate-pulse')" :style="{ width: `${dl.progress || 0}%` }"/></div>
-            <div v-if="dl.fileSize" class="mt-1 text-xs text-muted-foreground">{{ formatBytes(dl.downloadedBytes || 0) }} / {{ formatBytes(dl.fileSize) }}</div>
+            <div class="flex items-center justify-between text-xs text-muted-foreground mb-1"><span>{{ Math.round(dl.percent || 0) }}%</span><span v-if="dl.speed">{{ dl.speed }}</span><span v-if="dl.eta">ETA: {{ dl.eta }}</span></div>
+            <div class="h-2 w-full rounded-full bg-muted overflow-hidden"><div :class="cn('h-full rounded-full transition-all', dl.status === 'downloading' && 'bg-blue-500', dl.status === 'processing' && 'bg-yellow-500 animate-pulse')" :style="{ width: `${dl.percent || 0}%` }"/></div>
+            <div v-if="dl.errorMessage" class="mt-1 text-xs text-destructive">{{ dl.errorMessage }}</div>
           </div>
         </div>
       </div>
@@ -132,7 +124,7 @@ function clearCompleted() {
       <div v-else class="space-y-2">
         <div v-for="dl in completedDownloads" :key="dl.id" class="flex items-center gap-3 rounded-lg border border-border bg-card p-3 group">
           <div class="size-8 rounded-full bg-green-500/10 flex items-center justify-center shrink-0"><svg class="size-4 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
-          <div class="min-w-0 flex-1"><h3 class="text-sm font-medium text-foreground truncate">{{ dl.title || 'Downloaded Video' }}</h3><p class="text-xs text-muted-foreground">{{ dl.format || 'video' }} &middot; {{ formatBytes(dl.fileSize || 0) }}</p></div>
+          <div class="min-w-0 flex-1"><h3 class="text-sm font-medium text-foreground truncate">{{ dl.title || 'Downloaded Video' }}</h3><p class="text-xs text-muted-foreground">{{ dl.destination || dl.videoId }}</p></div>
           <button class="size-7 rounded-md text-muted-foreground hover:bg-accent flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" @click="downloads = downloads.filter((d: any) => d.id !== dl.id)"><svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
         </div>
       </div>

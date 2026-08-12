@@ -1,11 +1,14 @@
 use std::process::Stdio;
 
+use chrono::Utc;
+use sqlx::SqlitePool;
 use tauri::{AppHandle, Emitter, State};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
+use crate::db::{models::DownloadRecord, DbPool};
 use crate::yt_dlp::{
-    get_binary_path, parse_destination, parse_progress_line, validate_custom_args, YtDlpState,
+    get_binary_path, parse_destination, parse_progress_line, validate_custom_args, DownloadStatus, YtDlpState,
 };
 
 /// Get video info from yt-dlp.
@@ -75,6 +78,7 @@ pub async fn yt_dlp_download(
     app_handle: AppHandle,
     args: crate::yt_dlp::YtDlpDownloadArgs,
     state: State<'_, YtDlpState>,
+    pool: State<'_, DbPool>,
 ) -> Result<u64, String> {
     let binary_path = get_binary_path(&app_handle)?;
 
@@ -186,23 +190,36 @@ pub async fn yt_dlp_download(
         .map_err(|e| format!("Failed to spawn yt-dlp: {}", e))?;
 
     // Get the download ID
-    let mut counter = state.download_counter.lock().map_err(|e| e.to_string())?;
+    let mut counter = state.download_counter.lock().await;
     *counter += 1;
     let download_id = *counter;
     drop(counter);
 
+    // Insert download record into database
+    let now = chrono::Utc::now().to_rfc3339();
+    sqlx::query(
+        "INSERT INTO download_records (id, video_id, title, status, percent, destination, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+    )
+    .bind(download_id as i64)
+    .bind(&args.video_id)
+    .bind(&args.video_id) // title will be updated when we get destination
+    .bind("pending")
+    .bind(0.0)
+    .bind("")
+    .bind(&now)
+    .execute(&**pool)
+    .await
+    .map_err(|e| format!("Failed to insert download record: {}", e))?;
+
     // Store the child process
-    state
-        .active_downloads
-        .lock()
-        .map_err(|e| e.to_string())?
-        .insert(download_id, child);
+    state.active_downloads.lock().await.insert(download_id, child);
 
     // Spawn progress monitoring
     let app_handle_clone = app_handle.clone();
     let state_clone = state.inner().clone();
+    let pool_clone = pool.inner().cloned();
     tauri::async_runtime::spawn(async move {
-        monitor_download(download_id, app_handle_clone, state_clone).await;
+        monitor_download(download_id, app_handle_clone, state_clone, pool_clone).await;
     });
 
     Ok(download_id)
@@ -217,7 +234,7 @@ pub async fn yt_dlp_cancel(
 ) -> Result<(), String> {
     // Take the child out of the map to release the lock before awaiting
     let child = {
-        let mut active = state.active_downloads.lock().map_err(|e| e.to_string())?;
+        let mut active = state.active_downloads.lock().await;
         active.remove(&id)
     };
 
@@ -234,13 +251,58 @@ pub async fn yt_dlp_cancel(
     Ok(())
 }
 
-/// List active downloads.
+/// List active downloads with full status info.
 #[tauri::command]
 pub async fn yt_dlp_list(
+    pool: State<'_, DbPool>,
     state: State<'_, YtDlpState>,
-) -> Result<Vec<u64>, String> {
-    let active = state.active_downloads.lock().map_err(|e| e.to_string())?;
-    Ok(active.keys().copied().collect())
+) -> Result<Vec<DownloadStatus>, String> {
+    // Get active downloads from state
+    let active = state.active_downloads.lock().await;
+    let active_ids: std::collections::HashSet<u64> = active.keys().copied().collect();
+
+    // Query completed/failed downloads from database
+    let records = sqlx::query_as::<_, DownloadRecord>(
+        "SELECT id, video_id, title, status, percent, destination, created_at FROM download_records ORDER BY created_at DESC"
+    )
+    .fetch_all(&**pool)
+    .await
+    .map_err(|e| format!("Failed to fetch download records: {}", e))?;
+
+    // Build DownloadStatus from database records
+    let mut statuses: Vec<DownloadStatus> = records
+        .into_iter()
+        .map(|r| DownloadStatus {
+            id: r.id as u64,
+            video_id: r.video_id,
+            title: r.title,
+            status: r.status,
+            percent: r.percent,
+            speed: None,
+            eta: None,
+            destination: Some(r.destination),
+            error_message: None,
+        })
+        .collect();
+
+    // Add active downloads that aren't in the database yet
+    for id in active_ids {
+        if !statuses.iter().any(|s| s.id == id) {
+            statuses.push(DownloadStatus {
+                id,
+                video_id: String::new(),
+                title: "Downloading...".to_string(),
+                status: "downloading".to_string(),
+                percent: 0.0,
+                speed: None,
+                eta: None,
+                destination: None,
+                error_message: None,
+            });
+        }
+    }
+
+    Ok(statuses)
 }
 
 /// Monitor download progress.
@@ -248,12 +310,13 @@ async fn monitor_download(
     id: u64,
     app_handle: AppHandle,
     state: YtDlpState,
+    pool: SqlitePool,
 ) {
     // Take the child out of the active downloads map so we don't hold the lock
     // across await points. The child is removed from the map for the duration
     // of monitoring and re-inserted only if monitoring fails unexpectedly.
     let child = {
-        let mut active = state.active_downloads.lock().unwrap();
+        let mut active = state.active_downloads.lock().await;
         active.remove(&id)
     };
 
@@ -280,6 +343,16 @@ async fn monitor_download(
                         "eta": eta,
                     }),
                 );
+
+                // Update progress in database
+                let _ = sqlx::query(
+                    "UPDATE download_records SET percent = ?, status = ? WHERE id = ?"
+                )
+                .bind(percent)
+                .bind("downloading")
+                .bind(id as i64)
+                .execute(&pool)
+                .await;
             } else if let Some(dest) = parse_destination(&line) {
                 let _ = app_handle.emit(
                     "yt-dlp-destination",
@@ -288,6 +361,20 @@ async fn monitor_download(
                         "destination": dest,
                     }),
                 );
+
+                // Update destination and title in database
+                let title = std::path::Path::new(&dest)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or(&dest);
+                let _ = sqlx::query(
+                    "UPDATE download_records SET destination = ?, title = ? WHERE id = ?"
+                )
+                .bind(&dest)
+                .bind(title)
+                .bind(id as i64)
+                .execute(&pool)
+                .await;
             }
         }
     }
@@ -299,6 +386,15 @@ async fn monitor_download(
                 "yt-dlp-complete",
                 serde_json::json!({ "id": id }),
             );
+
+            // Update status to completed in database
+            let _ = sqlx::query(
+                "UPDATE download_records SET status = ?, percent = 100.0 WHERE id = ?"
+            )
+            .bind("completed")
+            .bind(id as i64)
+            .execute(&pool)
+            .await;
         } else {
             let error_msg = if let Some(stderr) = stderr {
                 let reader = BufReader::new(stderr);
@@ -317,6 +413,16 @@ async fn monitor_download(
                 "yt-dlp-error",
                 serde_json::json!({ "id": id, "error": error_msg }),
             );
+
+            // Update status to failed in database
+            let _ = sqlx::query(
+                "UPDATE download_records SET status = ?, error_message = ? WHERE id = ?"
+            )
+            .bind("failed")
+            .bind(&error_msg)
+            .bind(id as i64)
+            .execute(&pool)
+            .await;
         }
     }
 }
