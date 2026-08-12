@@ -9,6 +9,13 @@ import ErrorState from '@/components/ui/ErrorState.vue'
 import { useSearchHistoryStore } from '@/stores/search-history'
 import { getSearchSuggestions } from '@/composables/useInnertube'
 import { PhPlayCircle, PhUser, PhMagnifyingGlass } from '@phosphor-icons/vue'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 const route = useRoute()
 const router = useRouter()
@@ -206,33 +213,53 @@ function timeAgo(published: string): string {
     </div>
 
     <!-- Filters -->
-    <div v-if="results.length > 0 || loading" class="flex flex-wrap  mb-6 pb-4 border-b border-border">
-      <select v-model="sortBy" class="h-8 px-2 rounded-md border border-input bg-background text-sm">
-        <option value="relevance">Relevance</option>
-        <option value="date">Upload date</option>
-        <option value="views">View count</option>
-        <option value="rating">Rating</option>
-      </select>
-      <select v-model="filterType" class="h-8 px-2 rounded-md border border-input bg-background text-sm">
-        <option value="all">All</option>
-        <option value="video">Videos</option>
-        <option value="channel">Channels</option>
-        <option value="playlist">Playlists</option>
-      </select>
-      <select v-model="filterDuration" class="h-8 px-2 rounded-md border border-input bg-background text-sm">
-        <option value="all">Any duration</option>
-        <option value="short">Under 4 min</option>
-        <option value="medium">4-20 min</option>
-        <option value="long">Over 20 min</option>
-      </select>
-      <select v-model="filterDate" class="h-8 px-2 rounded-md border border-input bg-background text-sm">
-        <option value="all">Any time</option>
-        <option value="hour">Last hour</option>
-        <option value="today">Today</option>
-        <option value="week">This week</option>
-        <option value="month">This month</option>
-        <option value="year">This year</option>
-      </select>
+    <div v-if="results.length > 0 || loading" class="flex flex-wrap gap-3 mb-6 pb-4 border-b border-border">
+      <Select v-model="sortBy">
+        <SelectTrigger class="w-[150px]">
+          <SelectValue placeholder="Sort by..." />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="relevance">Relevance</SelectItem>
+          <SelectItem value="date">Upload date</SelectItem>
+          <SelectItem value="views">View count</SelectItem>
+          <SelectItem value="rating">Rating</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select v-model="filterType">
+        <SelectTrigger class="w-[140px]">
+          <SelectValue placeholder="Type..." />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All</SelectItem>
+          <SelectItem value="video">Videos</SelectItem>
+          <SelectItem value="channel">Channels</SelectItem>
+          <SelectItem value="playlist">Playlists</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select v-model="filterDuration">
+        <SelectTrigger class="w-[150px]">
+          <SelectValue placeholder="Duration..." />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Any duration</SelectItem>
+          <SelectItem value="short">Under 4 min</SelectItem>
+          <SelectItem value="medium">4-20 min</SelectItem>
+          <SelectItem value="long">Over 20 min</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select v-model="filterDate">
+        <SelectTrigger class="w-[140px]">
+          <SelectValue placeholder="Date..." />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Any time</SelectItem>
+          <SelectItem value="hour">Last hour</SelectItem>
+          <SelectItem value="today">Today</SelectItem>
+          <SelectItem value="week">This week</SelectItem>
+          <SelectItem value="month">This month</SelectItem>
+          <SelectItem value="year">This year</SelectItem>
+        </SelectContent>
+      </Select>
     </div>
 
     <SkeletonGrid v-if="loading" :count="6" />
