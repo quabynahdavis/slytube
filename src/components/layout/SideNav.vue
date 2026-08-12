@@ -120,7 +120,7 @@ const subscribedChannelList = computed(() => {
               <PhWifiHigh :size="20" class="shrink-0" />
               <span class="truncate">{{ t('nav.subscriptions') }}</span>
             </div>
-            <PhCaretRight :size="14" class="shrink-0 text-muted-foreground" />
+            <PhCaretRight :size="14" v-if="isExpanded" class="truncate shrink-0 text-muted-foreground" />
           </router-link>
         </li>
         <!-- Channel List -->
