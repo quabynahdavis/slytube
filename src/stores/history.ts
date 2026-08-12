@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { invoke } from '@tauri-apps/api/core'
 
 export interface HistoryEntry {
   videoId: string
@@ -44,11 +45,20 @@ export const useHistoryStore = defineStore('history', {
   },
 
   actions: {
-    loadHistory() {
-      // Placeholder for DB integration
+    async loadHistory() {
+      try {
+        const entries = await invoke<HistoryEntry[]>('db_history_find_all', { limit: 100 })
+        this.historyCacheSorted = entries
+        this.historyCacheById = {}
+        for (const entry of entries) {
+          this.historyCacheById[entry.videoId] = entry
+        }
+      } catch {
+        // Database unavailable, keep in-memory state
+      }
     },
 
-    addToHistory(entry: HistoryEntry) {
+    async addToHistory(entry: HistoryEntry) {
       const i = this.historyCacheSorted.findIndex(
         (currentRecord) => entry.videoId === currentRecord.videoId
       )
@@ -67,9 +77,15 @@ export const useHistoryStore = defineStore('history', {
 
       this.historyCacheSorted.unshift(entry)
       this.historyCacheById[entry.videoId] = entry
+
+      try {
+        await invoke('db_history_upsert', { entry })
+      } catch {
+        // Database unavailable, change is in-memory only
+      }
     },
 
-    removeFromHistory(videoId: string) {
+    async removeFromHistory(videoId: string) {
       for (let i = 0; i < this.historyCacheSorted.length; i++) {
         if (this.historyCacheSorted[i].videoId === videoId) {
           this.historyCacheSorted.splice(i, 1)
@@ -77,11 +93,23 @@ export const useHistoryStore = defineStore('history', {
         }
       }
       delete this.historyCacheById[videoId]
+
+      try {
+        await invoke('db_history_delete', { videoId })
+      } catch {
+        // Database unavailable, change is in-memory only
+      }
     },
 
-    clearHistory() {
+    async clearHistory() {
       this.historyCacheSorted = []
       this.historyCacheById = {}
+
+      try {
+        await invoke('db_history_clear')
+      } catch {
+        // Database unavailable, change is in-memory only
+      }
     },
 
     updateWatchProgress(videoId: string, progress: number) {

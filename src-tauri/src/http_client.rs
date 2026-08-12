@@ -74,6 +74,7 @@ impl HttpClient {
         let response = self.client
             .get(url)
             .header("Accept", "application/json")
+            .header("User-Agent", USER_AGENT)
             .send()
             .await
             .map_err(|e| format!("GET {} failed: {}", url, e))?;

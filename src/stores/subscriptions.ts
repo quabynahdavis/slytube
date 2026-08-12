@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { invoke } from '@tauri-apps/api/core'
 
 export interface SubscriptionCacheEntry {
   videos: unknown[] | null
@@ -70,8 +71,13 @@ export const useSubscriptionsStore = defineStore('subscriptions', {
   },
 
   actions: {
-    loadSubscriptions() {
-      // Placeholder for DB integration
+    async loadSubscriptions() {
+      try {
+        const channelIds = await invoke<string[]>('db_profiles_get_subscriptions', { profileId: 'default' })
+        this.subscribedChannelIds = new Set(channelIds)
+      } catch {
+        // Database unavailable, keep existing in-memory state
+      }
     },
 
     updateVideoCacheByChannel(channelId: string, entries: unknown[], timestamp: Date = new Date()) {
@@ -154,41 +160,66 @@ export const useSubscriptionsStore = defineStore('subscriptions', {
     },
 
     /**
-     * Optimistically toggle subscription status.
-     * Immediately updates UI state, then calls the API.
+     * Optimistically subscribe to a channel.
+     * Immediately updates UI state, then calls the DB.
      * Rolls back on failure.
      */
-    async toggleSubscription(channelId: string, channelName: string): Promise<{ success: boolean; subscribed: boolean }> {
-      const wasSubscribed = this.subscribedChannelIds.has(channelId)
-      const newState = !wasSubscribed
-
-      // Optimistic update: toggle UI immediately
-      this.setSubscribed(channelId, newState)
+    async subscribeToChannel(channelId: string): Promise<{ success: boolean }> {
+      // Optimistic update: add to subscribed set immediately
+      this.setSubscribed(channelId, true)
       this.setPending(channelId, true)
 
       try {
-        // Simulate API call - replace with real API when backend is ready
-        await this.performSubscriptionApiCall(channelId, channelName, newState)
-        return { success: true, subscribed: newState }
+        await invoke('db_profiles_add_subscription', { profileId: 'default', channelId })
+        return { success: true }
       } catch (error) {
         // Rollback on failure
-        this.setSubscribed(channelId, wasSubscribed)
-        console.error('Subscription toggle failed:', error)
-        return { success: false, subscribed: wasSubscribed }
+        this.setSubscribed(channelId, false)
+        console.error('Failed to subscribe to channel:', error)
+        return { success: false }
       } finally {
         this.setPending(channelId, false)
       }
     },
 
     /**
-     * Placeholder for the actual subscription API call.
-     * Replace with real implementation (e.g., invoke('subscribe_channel') or Invidious API).
+     * Optimistically unsubscribe from a channel.
+     * Immediately updates UI state, then calls the DB.
+     * Rolls back on failure.
      */
-    async performSubscriptionApiCall(_channelId: string, _channelName: string, _subscribe: boolean): Promise<void> {
-      // Simulate network delay
-      await new Promise((resolve) => setTimeout(resolve, 300))
-      // TODO: Replace with real API call:
-      // await invoke('subscribe_channel', { channelId, channelName, subscribe })
+    async unsubscribeFromChannel(channelId: string): Promise<{ success: boolean }> {
+      // Optimistic update: remove from subscribed set immediately
+      this.setSubscribed(channelId, false)
+      this.setPending(channelId, true)
+
+      try {
+        await invoke('db_profiles_remove_subscription', { profileId: 'default', channelId })
+        return { success: true }
+      } catch (error) {
+        // Rollback on failure
+        this.setSubscribed(channelId, true)
+        console.error('Failed to unsubscribe from channel:', error)
+        return { success: false }
+      } finally {
+        this.setPending(channelId, false)
+      }
+    },
+
+    /**
+     * Optimistically toggle subscription status.
+     * Immediately updates UI state, then calls the DB.
+     * Rolls back on failure.
+     */
+    async toggleSubscription(channelId: string, channelName: string): Promise<{ success: boolean; subscribed: boolean }> {
+      const wasSubscribed = this.subscribedChannelIds.has(channelId)
+
+      if (wasSubscribed) {
+        const result = await this.unsubscribeFromChannel(channelId)
+        return { success: result.success, subscribed: false }
+      }
+
+      const result = await this.subscribeToChannel(channelId)
+      return { success: result.success, subscribed: true }
     },
   },
 })

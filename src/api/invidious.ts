@@ -3,7 +3,9 @@ let tauriFetch: any = null
 try {
   const http = await import('@tauri-apps/plugin-http')
   tauriFetch = http.fetch
-} catch {
+  console.log('[Invidious] Tauri HTTP client loaded')
+} catch (e) {
+  console.warn('[Invidious] Tauri HTTP not available, using standard fetch:', e)
   tauriFetch = null
 }
 
