@@ -1,8 +1,10 @@
 {
   "nav": {
-    "home": "Home",
+    "home": "For You",
     "trending": "Trending",
     "subscriptions": "Subscriptions",
+    "shorts": "Shorts",
+    "posts": "Posts",
     "history": "History",
     "downloads": "Downloads",
     "settings": "Settings",
@@ -10,7 +12,9 @@
     "playlists": "Playlists",
     "watchLater": "Watch Later",
     "about": "About",
-    "library": "Library"
+    "library": "Library",
+    "showAll": "Show all",
+    "manageSubscriptions": "Manage subscriptions"
   },
   "actions": {
     "play": "Play",

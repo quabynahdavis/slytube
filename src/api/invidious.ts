@@ -118,6 +118,18 @@ export async function invidiousGetDashManifest(videoId: string, local = true): P
   return invidiousFetch(`/api/manifest/dash/id/${videoId}?local=${local}`)
 }
 
+export async function invidiousGetChannelShorts(channelId: string): Promise<any> {
+  return invidiousFetch(`/api/v1/channels/${channelId}/shorts`)
+}
+
+export async function invidiousGetChannelCommunityPosts(channelId: string): Promise<any> {
+  return invidiousFetch(`/api/v1/channels/${channelId}/community`)
+}
+
+export async function invidiousGetChannelInfo(channelId: string): Promise<any> {
+  return invidiousFetch(`/api/v1/channels/${channelId}`)
+}
+
 export async function invidiousGetDashUrl(videoId: string): Promise<string> {
   const info = await invidiousGetVideo(videoId)
   return info.dashUrl || ''

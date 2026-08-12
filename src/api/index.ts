@@ -9,6 +9,8 @@ import {
   invidiousGetComments,
   invidiousGetDashManifest,
   invidiousGetDashUrl,
+  invidiousGetChannelShorts,
+  invidiousGetChannelCommunityPosts,
   proxyImageUrl,
   getThumbnailUrl,
 } from './invidious'
@@ -296,4 +298,61 @@ export async function getCommentsInfo(videoId: string): Promise<Comment[]> {
   } catch {
     return []
   }
+}
+
+export async function getChannelShorts(channelId: string): Promise<Video[]> {
+  try {
+    const result = await invidiousGetChannelShorts(channelId)
+    const shorts = result.videos || result.shorts || []
+    return shorts.map((s: any) => mapInvidiousVideo({ ...s, videoId: s.videoId || s.id, isShort: true }))
+  } catch {
+    return []
+  }
+}
+
+export async function getChannelCommunityPosts(channelId: string): Promise<any[]> {
+  try {
+    const result = await invidiousGetChannelCommunityPosts(channelId)
+    return result.comments || result.posts || []
+  } catch {
+    return []
+  }
+}
+
+export async function getSubscribedChannelsShorts(channelIds: string[]): Promise<Video[]> {
+  const allShorts: Video[] = []
+  const promises = channelIds.slice(0, 5).map(async (channelId) => {
+    try {
+      const shorts = await getChannelShorts(channelId)
+      return shorts.slice(0, 5)
+    } catch {
+      return []
+    }
+  })
+  const results = await Promise.allSettled(promises)
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      allShorts.push(...result.value)
+    }
+  }
+  return allShorts
+}
+
+export async function getSubscribedChannelsPosts(channelIds: string[]): Promise<any[]> {
+  const allPosts: any[] = []
+  const promises = channelIds.slice(0, 5).map(async (channelId) => {
+    try {
+      const posts = await getChannelCommunityPosts(channelId)
+      return posts.slice(0, 3)
+    } catch {
+      return []
+    }
+  })
+  const results = await Promise.allSettled(promises)
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      allPosts.push(...result.value)
+    }
+  }
+  return allPosts
 }

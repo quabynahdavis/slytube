@@ -3,6 +3,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Home from '@/views/Home.vue'
 import Trending from '@/views/Trending.vue'
 import Subscriptions from '@/views/Subscriptions.vue'
+import Shorts from '@/views/Shorts.vue'
+import Posts from '@/views/Posts.vue'
 import History from '@/views/History.vue'
 import UserPlaylists from '@/views/UserPlaylists.vue'
 import Playlist from '@/views/Playlist.vue'
@@ -25,6 +27,8 @@ const router = createRouter({
     { path: '/', name: 'home', component: Home },
     { path: '/trending', name: 'trending', component: Trending },
     { path: '/subscriptions', name: 'subscriptions', component: Subscriptions },
+    { path: '/shorts', name: 'shorts', component: Shorts },
+    { path: '/posts', name: 'posts', component: Posts },
     { path: '/history', name: 'history', component: History },
     { path: '/playlists', name: 'playlists', component: UserPlaylists },
     { path: '/playlist/:id', name: 'playlist', component: Playlist },
