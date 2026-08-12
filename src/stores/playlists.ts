@@ -32,16 +32,16 @@ export interface PlaylistsState {
 
 interface DbPlaylist {
   id: string
-  profile_id: string
+  profileId: string
   name: string
   description: string | null
-  created_at: string
+  createdAt: string
 }
 
 const DEFAULT_PROFILE_ID = 'default'
 
 function mapDbPlaylistToPlaylist(db: DbPlaylist): Playlist {
-  const createdAt = new Date(db.created_at).getTime()
+  const createdAt = new Date(db.createdAt).getTime()
   return {
     _id: db.id,
     playlistName: db.name,
@@ -94,10 +94,10 @@ export const usePlaylistsStore = defineStore('playlists', {
 
       const dbPlaylist: DbPlaylist = {
         id,
-        profile_id: DEFAULT_PROFILE_ID,
+        profileId: DEFAULT_PROFILE_ID,
         name: trimmedName,
         description: description.trim() || null,
-        created_at: now,
+        createdAt: now,
       }
 
       try {

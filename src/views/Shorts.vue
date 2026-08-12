@@ -56,7 +56,14 @@ onMounted(loadShorts)
 </script>
 
 <template>
-  <div class="h-full flex items-center justify-center bg-background">
+  <div class="h-full flex flex-col bg-background">
+    <!-- Header -->
+    <div class="px-6 py-4 border-b border-border">
+      <h1 class="text-2xl font-bold text-foreground">Shorts</h1>
+      <p class="text-sm text-muted-foreground mt-1">Short videos from channels you follow</p>
+    </div>
+
+    <div class="flex-1 flex items-center justify-center">
     <SkeletonGrid v-if="loading" :count="1" :columns="1" />
 
     <ErrorState v-else-if="error" :message="error" retryable @retry="loadShorts" />
@@ -133,6 +140,7 @@ onMounted(loadShorts)
       <div class="absolute top-4 right-4 text-white text-sm bg-black/50 px-2 py-1 rounded">
         {{ currentIndex + 1 }} / {{ shorts.length }}
       </div>
+    </div>
     </div>
   </div>
 </template>

@@ -162,7 +162,7 @@ export function useHistory() {
 
   async function addToHistory(entry: any) {
     try {
-      await invoke('db_history_upsert', entry)
+      await invoke('db_history_upsert', { entry })
       await loadHistory()
     } catch {}
   }

@@ -6,18 +6,14 @@ export interface HistoryEntry {
   title: string
   author: string
   authorId: string
-  authorUrl: string
-  description: string
-  viewCount: number
-  lengthSeconds: number
-  timeWatched: number
-  watchProgress: number
+  lengthSeconds: number | null
+  timeWatched: string
+  watchProgress: number | null
   isWatched: boolean
+  isLive: boolean
   lastViewedPlaylistId?: string
   lastViewedPlaylistType?: string
   lastViewedPlaylistItemId?: string
-  type: string
-  videoThumbnails: Array<{ url: string; width: number; height: number }>
 }
 
 export interface HistoryState {
