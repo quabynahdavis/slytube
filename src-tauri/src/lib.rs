@@ -132,6 +132,9 @@ pub fn run() {
             commands::invidious::invidious_get_community_post_comments,
             commands::invidious::invidious_get_community_post_comment_replies,
             commands::invidious::invidious_get_hashtag,
+            // Generic fetch command for frontend
+            commands::invidious::invidious_fetch,
+            commands::invidious::invidious_get_instances_list,
             // yt-dlp
             yt_dlp::yt_dlp_get_info,
             yt_dlp::yt_dlp_get_playback_info,

@@ -210,7 +210,7 @@ export const useSubscriptionsStore = defineStore('subscriptions', {
      * Immediately updates UI state, then calls the DB.
      * Rolls back on failure.
      */
-    async toggleSubscription(channelId: string, channelName: string): Promise<{ success: boolean; subscribed: boolean }> {
+    async toggleSubscription(channelId: string, _channelName: string): Promise<{ success: boolean; subscribed: boolean }> {
       const wasSubscribed = this.subscribedChannelIds.has(channelId)
 
       if (wasSubscribed) {

@@ -482,6 +482,53 @@ pub async fn invidious_get_hashtag(
     }).await
 }
 
+#[tauri::command]
+pub async fn invidious_fetch(
+    http_client: State<'_, SharedHttpClient>,
+    path: String,
+) -> Result<serde_json::Value, String> {
+    try_instances(&http_client, |instance| {
+        format!("{}/{}", instance, path.trim_start_matches('/'))
+    }).await
+}
+
+#[tauri::command]
+pub async fn invidious_get_instances_list(
+    http_client: State<'_, SharedHttpClient>,
+) -> Result<Vec<serde_json::Value>, String> {
+    let response = http_client.get_json(INSTANCES_API).await?;
+    let instances = response.as_array().ok_or("Invalid instances response")?;
+
+    let result: Vec<serde_json::Value> = instances
+        .iter()
+        .filter_map(|instance| {
+            let uri = instance.get(0)?.as_str()?;
+            let info = instance.get(1)?;
+            let api = info.get("api")?.as_bool()?;
+            let cors = info.get("cors")?.as_bool()?;
+            let instance_type = info.get("type")?.as_str()?;
+
+            if api && cors && instance_type == "https" && !uri.contains(".onion") && !uri.contains(".i2p") {
+                Some(serde_json::json!({
+                    "url": uri,
+                    "name": info.get("name").and_then(|n| n.as_str()).unwrap_or(uri),
+                    "health": info.get("health").and_then(|h| h.as_f64()).unwrap_or(0.0) as i64,
+                    "cors": cors,
+                    "api": api
+                }))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    if result.is_empty() {
+        Err("No suitable instances found".to_string())
+    } else {
+        Ok(result)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
