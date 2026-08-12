@@ -183,7 +183,6 @@ export const useSettingsStore = defineStore('settings', () => {
 │   if (gen !== generation) return          ← discard superseded result     │
 │   store.video = normalised                                                │
 │   on failure → try the other backend once (mirrors :2311 / :2543)         │
-│   invoke('history_upsert', entry)         ← record the view               │
 │                                                                           │
 │ WatchView.vue renders from useWatchStore()                                │
 │   VideoPlayer ← store.formats                                             │
@@ -213,7 +212,34 @@ export interface VideoInfo {
 
 `store/modules/invidious.js` (`:72`) picks an instance with `randomArrayItem` on every call — so a dead instance is re-picked repeatedly. Rust keeps a health score per instance (consecutive failures, last-success latency) in `AppState` and prefers healthy ones, falling back to the bundled `static/invidious-instances.json` when the remote list is unreachable (as `:60` does today).
 
-### 2.5 Parity checklist
+### 2.5 History recording
+
+Watch.vue records history on successful video load:
+
+```ts
+// Watch.vue — called inside load() after getVideo succeeds
+await historyStore.addToHistory({
+  videoId: video.value.id,
+  title: video.value.title,
+  author: video.value.author,
+  authorId: video.value.authorId,
+  lengthSeconds: video.value.lengthSeconds,
+  timeWatched: new Date().toISOString(),  // ISO-8601 string
+  watchProgress: 0,
+  isWatched: true,
+  isLive: video.value.isLive,
+})
+```
+
+Navigation between videos uses Vue's `watch(videoId, (newId, oldId) => { if (newId !== oldId) load() })` — when the route's videoId query/param changes, the component reloads.
+
+`historyStore` (`src/stores/history.ts`) is a Pinia store that:
+1. Updates `historyCacheSorted` / `historyCacheById` optimistically.
+2. Calls `invoke('db_history_upsert', { entry })` to persist.
+
+> **Note:** Unlike OpenTubeX, the like/dislike buttons have been replaced with **Add to playlist**, **Download**, and **Watch later** actions.
+
+### 2.6 Parity checklist
 
 - [ ] `loadGeneration` cancellation semantics preserved (all four call sites)
 - [ ] Bidirectional backend fallback preserved
@@ -245,53 +271,47 @@ export interface VideoInfo {
 
 Records persist to `userData/downloads.json` (last 200 non-active, `:151`). The renderer side is a 41-line Vuex module whose only job is `upsertYtDlpDownload` / `removeYtDlpDownload` / `clearFinishedYtDlpDownloads`.
 
-### 3.2 Slytube flow
+### 3.2 Slytube flow (Phase 1 implementation)
 
 ```
 ┌── START ──────────────────────────────────────────────────────────────────┐
-│ DownloadButton.vue → useDownloadsStore().start(request)                   │
-│   const channel = new Channel<DownloadStatus>()                           │
-│   channel.onmessage = s => store.upsert(s)                                │
-│   const id = await invoke('start_download', { payload: request,           │
-│                                               onProgress: channel })      │
+│ Watch.vue / DownloadButton → useDownloads().startDownload(args)           │
+│   const id = await invoke('yt_dlp_download', { args: downloadArgs })       │
 └───────────────────────────────────────────────────────────────────────────┘
-                                   │
-┌── RUST: commands/downloads.rs ────────────────────────────────────────────┐
-│ 1. resolve executable      ← resolveExecutable (ytDlp.js:242)             │
-│      managed missing? → download_managed_ytdlp() first  (§3.4)            │
-│ 2. build args              ← handleYtDlpDownload (:951+) + splitArguments │
-│      format/quality, --embed-thumbnail, --embed-metadata --embed-chapters,│
-│      --download-sections *START-END --force-keyframes-at-cuts,            │
-│      proxy arg, custom args, then URL(s):                                 │
-│        playlist  → /playlist?list=<id>                                    │
-│        multi     → N × /watch?v=<id>                                      │
-│        single    → /watch?v=<id>                                          │
-│ 3. id = state.dl_seq.fetch_add(1)                                         │
-│ 4. INSERT INTO downloads (…) VALUES (…)     ← replaces downloads.json     │
-│ 5. Command::new_sidecar("yt-dlp").args(args).spawn()                      │
-│ 6. tokio::spawn(async move {                                              │
-│      while let Some(ev) = rx.recv().await {                               │
-│        match ev {                                                         │
-│          Stdout(line) => { parse(line, &mut status); emit_throttled() }   │
-│          Stderr(line) => stderr_lines.push(line),                         │
-│          Terminated(p) => finalise(p.code, &stderr_lines),                │
-│          _ => {}                                                          │
-│        }                                                                  │
-│      }                                                                    │
-│    })                                                                     │
-│ 7. Ok(id)                                                                 │
+                                    │
+┌── RUST: yt_dlp/commands.rs::yt_dlp_download ──────────────────────────────┐
+│ 1. resolve executable      ← get_binary_path (binaries/ dir or sidecar)   │
+│ 2. build argv              ← YtDlpDownloadArgs → mode, quality, format,   │
+│      chapters, SponsorBlock, subtitles, thumbnail, metadata, custom args  │
+│ 3. download_id = state.download_counter.lock().await += 1                 │
+│ 4. INSERT INTO download_records (id, video_id, title, status, percent,    │
+│                                  destination, created_at)                 │
+│      VALUES (…, 'pending', 0.0, '', …)                                    │
+│ 5. spawn via tokio::process::Command (not Tauri sidecar in Phase 1)       │
+│ 6. state.active_downloads.lock().await.insert(id, child)                  │
+│ 7. tauri::async_runtime::spawn(monitor_download(id, …))                   │
+│ 8. Ok(download_id)  → returns u64, not a Channel                          │
 └───────────────────────────────────────────────────────────────────────────┘
-                                   │
+                                    │
 ┌── PROGRESS FAN-OUT ───────────────────────────────────────────────────────┐
-│ on_progress.send(&status)                    → initiating view (Channel)  │
-│ app.emit("downloads://status", &status)      → all other windows          │
-│ terminal state → UPDATE downloads SET … WHERE id = ?                      │
+│ monitor_download reads stdout via tokio::io::BufReader:                    │
+│   progress line  → app.emit("yt-dlp-progress", {id,percent,speed,eta})    │
+│                    + UPDATE download_records SET percent, status          │
+│   destination l. → app.emit("yt-dlp-destination", {id, destination})      │
+│                    + UPDATE download_records SET destination, title       │
+│   exit code 0    → app.emit("yt-dlp-complete", {id})                      │
+│                    + UPDATE download_records SET status='completed'       │
+│   non-zero exit  → app.emit("yt-dlp-error", {id, error})                  │
+│                    + UPDATE download_records SET status='failed'          │
+│ cancel           → app.emit("yt-dlp-cancelled", id)                       │
 └───────────────────────────────────────────────────────────────────────────┘
-                                   │
+                                    │
 ┌── UI ─────────────────────────────────────────────────────────────────────┐
-│ useDownloadsStore.items: Map<number, DownloadStatus>   ← the TODO in       │
-│                                                          downloads.js:1    │
-│ DownloadsView.vue renders active (Progress) then finished (Card)          │
+│ useDownloads() composable (src/composables/useData.ts):                   │
+│   downloads: Ref<DownloadStatus[]>                                        │
+│   loadDownloads() → invoke('yt_dlp_list') → Vec<DownloadStatus>           │
+│   listen('yt-dlp-*') → patch in-memory array by id                       │
+│ DownloadsView.vue renders from useDownloads()                             │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -752,7 +772,8 @@ This is a real improvement: the 39 `ipcRenderer.send` call sites in OpenTubeX ha
 |---|---|---|---|
 | Settings | SQLite → `get_settings` → Pinia | Optimistic → `settings_upsert` → SQLite | `settings://changed` |
 | Video info | youtubei.js (webview) / Invidious (Rust) → Pinia | — | — |
-| Downloads | SQLite → `get_downloads` → Pinia | `start_download` → sidecar | `Channel` + `downloads://status` |
+| Downloads | SQLite → `yt_dlp_list` → composable ref | `yt_dlp_download` → `tokio::process::Command` | `yt-dlp-*` events |
+| History | SQLite → `db_history_find_all` → Pinia | `db_history_upsert` → SQLite | — |
 | Sync | Server → Rust decrypt → SQLite → Pinia | Pinia dirty → Rust encrypt → server | `sync://*-changed` |
 | PoToken | Cache / hidden webview | — | `potoken://result` (internal) |
 | Tabs | SQLite → `tabs_get_state` → Pinia | Pinia → `tabs_persist_session` | `tabs://state-updated` |

@@ -25,8 +25,10 @@ Responsibilities split:
 | Layer | Owns |
 |---|---|
 | Vue | Queue UI, per-item progress bars, retry/cancel affordances |
-| Rust `DownloadManager` | Concurrency limit, process handles, cancellation, DB persistence, event emission |
+| Rust `YtDlpState` | Active process handles (`Arc<Mutex<HashMap<u64, Child>>>`), download counter, event emission |
 | yt-dlp child | Extraction, network I/O, muxing (via ffmpeg) |
+
+`YtDlpState` uses `tokio::sync::Mutex` (not `std::sync::Mutex`) because the guards are held across `.await` points.
 
 ---
 
@@ -436,7 +438,15 @@ pub struct DownloadProgress {
 | `download:failed` | `{ id, kind, message }` | Non-zero exit |
 | `download:cancelled` | `{ id }` | Cancellation |
 
-Events are emitted **per-window** via `app.emit()`. Throttling matters: yt-dlp can emit progress lines at >50 Hz on fast connections, and forwarding each one to the webview causes visible jank.
+Events are emitted **globally** via `app.emit()`. The frontend subscribes via `listen()` in `useDownloads.ts`. Each event name is prefixed `yt-dlp-`:
+
+| Event | Payload |
+|---|---|
+| `yt-dlp-progress` | `{ id, percent, speed, eta }` |
+| `yt-dlp-destination` | `{ id, destination }` |
+| `yt-dlp-complete` | `{ id }` |
+| `yt-dlp-error` | `{ id, error }` |
+| `yt-dlp-cancelled` | `id` (plain number) |
 
 ### 5.2 Stdout reader
 
@@ -558,53 +568,39 @@ Phase detection watches for `[Merger]`, `[ExtractAudio]`, `[EmbedSubtitle]`, `[M
 
 ### 6.1 Table
 
-```sql
-CREATE TABLE downloads (
-    id                TEXT    PRIMARY KEY,
-    video_id          TEXT,
-    url               TEXT    NOT NULL,
-    title             TEXT,
-    status            TEXT    NOT NULL          -- pending|running|completed|failed|cancelled|paused
-        CHECK (status IN ('pending','running','completed','failed','cancelled','paused')),
-    phase             TEXT,
-    percent           REAL    NOT NULL DEFAULT 0,
-    downloaded_bytes  INTEGER,
-    total_bytes       INTEGER,
-    quality           TEXT    NOT NULL,
-    container         TEXT    NOT NULL,
-    video_codec       TEXT,
-    audio_codec       TEXT,
-    output_dir        TEXT    NOT NULL,
-    output_path       TEXT,
-    error_kind        TEXT,
-    error_message     TEXT,
-    retry_count       INTEGER NOT NULL DEFAULT 0,
-    args_json         TEXT,                     -- effective argv, for reproducibility
-    created_at        INTEGER NOT NULL,
-    started_at        INTEGER,
-    completed_at      INTEGER
-) STRICT;
+The implementation uses `download_records` (not `downloads`). Defined in `src-tauri/migrations/001_initial_schema.sql`:
 
-CREATE INDEX idx_dl_status  ON downloads(status, created_at DESC);
-CREATE INDEX idx_dl_video   ON downloads(video_id);
-CREATE INDEX idx_dl_created ON downloads(created_at DESC);
+```sql
+CREATE TABLE IF NOT EXISTS download_records (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    video_id     TEXT    NOT NULL,
+    title        TEXT    NOT NULL,
+    status       TEXT    NOT NULL DEFAULT 'pending',
+    percent      REAL    NOT NULL DEFAULT 0.0,
+    destination  TEXT    NOT NULL DEFAULT '',
+    created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_download_records_status      ON download_records(status);
+CREATE INDEX IF NOT EXISTS idx_download_records_created_at  ON download_records(created_at DESC);
 ```
 
 ### 6.2 Write policy
 
-Writing every progress tick would hammer SQLite. Persistence checkpoints are:
-
 | Trigger | Written |
 |---|---|
-| Enqueue | Full row, `status = pending` |
-| Spawn | `status = running`, `started_at` |
-| Every 5 s **or** every 10% | `percent`, `downloaded_bytes`, `total_bytes`, `phase` |
-| Phase change | `phase` |
-| Terminate | Terminal `status`, `output_path` or error fields, `completed_at` |
+| `yt_dlp_download` command | Full row, `status = pending` |
+| Progress line parsed | `percent` and `status = 'downloading'` |
+| Destination line parsed | `destination`, `title` (derived from filename) |
+| Exit code 0 | `status = 'completed'`, `percent = 100.0` |
+| Non-zero exit | `status = 'failed'` (error event emitted separately) |
+| Cancel | `yt-dlp-cancelled` event emitted (DB update TBD) |
+
+> **Note:** Progress updates are applied per-line rather than on a 5 s / 10% batch. For typical download rates this is acceptable; batching can be added if write contention becomes measurable.
 
 ### 6.3 Crash recovery
 
-On startup any row left in `running` is reconciled: if `output_path` exists and its size matches `total_bytes`, it is promoted to `completed`; otherwise it becomes `failed` with `error_kind = 'interrupted'` and is offered for retry. Orphaned `.part` files older than 24 h are swept.
+Not yet implemented. A follow-up should reconcile rows left in `pending`/`downloading` on startup and sweep orphaned `.part` files.
 
 ---
 

@@ -95,3 +95,14 @@ pub fn system_get_window_size(app: AppHandle) -> Result<PhysicalSize<u32>, Strin
         Err("Main window not found".to_string())
     }
 }
+
+/// Get system information.
+#[tauri::command]
+pub fn get_system_info() -> serde_json::Value {
+    serde_json::json!({
+        "os": std::env::consts::OS,
+        "arch": std::env::consts::ARCH,
+        "family": std::env::consts::FAMILY,
+        "tauri_version": env!("CARGO_PKG_VERSION"),
+    })
+}
