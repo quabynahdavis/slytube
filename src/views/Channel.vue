@@ -295,15 +295,35 @@ function formatDuration(seconds: number): string {
             <PhLink :size="18" class="text-primary" />
             <h2 class="text-base font-semibold text-foreground">Popular Hashtags</h2>
           </div>
-          <div class="flex flex-wrap gap-2">
-            <span
-              v-for="hashtag in dummyHashtags"
-              :key="hashtag.tag"
-              class="px-3 py-1.5 rounded-full bg-muted text-sm text-muted-foreground hover:bg-accent cursor-pointer transition-colors"
-            >
-              {{ hashtag.tag }}
-              <span class="text-xs ml-1 opacity-60">{{ hashtag.count }}</span>
-            </span>
+          <div class="space-y-6">
+            <div v-for="hashtag in dummyHashtags" :key="hashtag.tag">
+              <div class="flex items-center justify-between mb-3">
+                <router-link to="#" class="text-sm font-medium text-foreground hover:text-primary flex items-center gap-2">
+                  {{ hashtag.tag }}
+                  <span class="text-xs text-muted-foreground">{{ hashtag.count }} videos</span>
+                </router-link>
+                <router-link to="#" class="text-xs text-primary hover:underline">See all</router-link>
+              </div>
+              <div class="space-y-3">
+                <router-link
+                  v-for="video in dummyVideos.slice(0, 2)"
+                  :key="`${hashtag.tag}-${video.id}`"
+                  :to="`/watch?v=${video.id}`"
+                  class="flex gap-4 p-3 rounded-xl hover:bg-muted/50 transition-colors group"
+                >
+                  <div class="relative w-40 shrink-0 aspect-video rounded-xl overflow-hidden bg-muted">
+                    <div class="absolute inset-0 flex items-center justify-center text-3xl opacity-30">🎬</div>
+                    <div class="absolute bottom-1 right-1 bg-black/80 text-white text-[10px] px-1 py-0.5 rounded">
+                      {{ formatDuration(video.lengthSeconds) }}
+                    </div>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <h3 class="text-sm font-medium text-foreground line-clamp-2 group-hover:text-primary">{{ video.title }}</h3>
+                    <p class="text-xs text-muted-foreground mt-1">{{ formatViews(video.viewCount) }} • {{ video.published }}</p>
+                  </div>
+                </router-link>
+              </div>
+            </div>
           </div>
         </section>
 
