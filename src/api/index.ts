@@ -43,7 +43,7 @@ function mapInvidiousVideo(v: any): Video {
     authorAvatar: proxyImageUrl(rawAuthorAvatar, videoId),
     description: v.description || '',
     thumbnail: proxyImageUrl(rawThumbnail, videoId),
-    viewCount: v.viewCount || 0,
+    viewCount: v.viewCount || parseInt(v.viewCountText) || 0,
     likeCount: v.likeCount || 0,
     lengthSeconds: v.lengthSeconds || 0,
     published: v.publishedText || '',
