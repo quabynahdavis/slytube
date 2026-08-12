@@ -2,6 +2,7 @@ import { ref, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import type { Video, Channel } from '../api/types'
+import { getCommentsInfo } from '../api'
 import * as api from '../api'
 import { getSegments, formatCategory } from '../api/sponsorblock'
 
@@ -67,6 +68,25 @@ export function useSearch() {
   }
 
   return { results, loading, error, search }
+}
+
+export function useComments(videoId: string) {
+  const comments = ref<any[]>([])
+  const loading = ref(false)
+
+  async function load() {
+    if (!videoId) return
+    loading.value = true
+    try {
+      comments.value = await getCommentsInfo(videoId)
+    } catch {
+      comments.value = []
+    } finally {
+      loading.value = false
+    }
+  }
+
+  return { comments, loading, load }
 }
 
 export function useSponsorBlock(videoId: string) {

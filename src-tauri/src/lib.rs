@@ -15,12 +15,6 @@ use tauri::{AppHandle, Manager};
 
 use crate::http_client::HttpClient;
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-calling-rust/
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
 /// Handle deep link URLs (opentubex://).
 #[tauri::command]
 fn system_deep_link(url: String, app: AppHandle) {
@@ -88,7 +82,6 @@ pub fn run() {
             // Handle window events if needed
         })
         .invoke_handler(tauri::generate_handler![
-            greet,
             system_deep_link,
             // YouTube InnerTube API
             commands::youtube::get_video_info,

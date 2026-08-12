@@ -587,6 +587,11 @@ export const useSettingsStore = defineStore('settings', {
             }
           }
         }
+        // Sync baseTheme from localStorage (single source of truth for applied theme)
+        const storedTheme = localStorage.getItem('theme')
+        if (storedTheme) {
+          this.baseTheme = storedTheme
+        }
       } catch {
         // Database unavailable, use defaults
       }

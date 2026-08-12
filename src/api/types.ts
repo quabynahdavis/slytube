@@ -42,6 +42,8 @@ export interface Channel {
   tabs: string[]
   videos: Video[]
   relatedChannels: Channel[]
+  playlists?: any[]
+  relatedPlaylists?: any[]
 }
 
 export interface Playlist {

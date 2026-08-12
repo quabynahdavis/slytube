@@ -3,7 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { PhHouse, PhCaretRight, PhPlus, PhDownload, PhClock } from '@phosphor-icons/vue'
 import { getVideo, getVideoPlaybackInfo } from '../api'
-import { useSponsorBlock, useDownloads } from '../composables/useData'
+import { useSponsorBlock, useDownloads, useComments } from '../composables/useData'
 import { getInvidiousManifestUrl } from '../api/manifest'
 import { useSubscriptionsStore } from '../stores/subscriptions'
 import { useHistoryStore } from '../stores/history'
@@ -28,6 +28,7 @@ const subscriptionsStore = useSubscriptionsStore()
 const historyStore = useHistoryStore()
 const playlistsStore = usePlaylistsStore()
 const { startDownload } = useDownloads()
+const comments = useComments(videoId.value)
 const sponsorBlock = useSponsorBlock(videoId.value)
 
 async function load() {
@@ -43,6 +44,7 @@ async function load() {
   try {
     video.value = await getVideo(videoId.value)
     await sponsorBlock.load()
+    comments.load()
 
     // Add to history when video loads successfully
     if (video.value) {
@@ -403,15 +405,41 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- Comments (Coming Soon) -->
+        <!-- Comments -->
         <div class="bg-card rounded-xl p-4">
-          <h3 class="text-sm font-semibold text-foreground mb-4">Comments</h3>
-          <div class="flex items-center gap-3 py-4 justify-center">
+          <h3 class="text-sm font-semibold text-foreground mb-4">Comments ({{ comments.comments.value.length }})</h3>
+          <div v-if="comments.loading.value" class="flex justify-center py-4">
+            <div class="size-5 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+          </div>
+          <div v-else-if="comments.comments.value.length > 0" class="space-y-4">
+            <div v-for="comment in comments.comments.value" :key="comment.id" class="flex gap-3">
+              <img
+                v-if="comment.authorAvatar"
+                :src="comment.authorAvatar"
+                :alt="comment.author"
+                class="size-8 rounded-full shrink-0"
+              />
+              <div v-else class="size-8 rounded-full bg-primary/20 shrink-0 flex items-center justify-center">
+                <span class="text-xs font-medium text-primary">{{ comment.author[0] }}</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium text-foreground">{{ comment.author }}</span>
+                  <span class="text-xs text-muted-foreground">{{ comment.published }}</span>
+                </div>
+                <p class="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{{ comment.content }}</p>
+                <div class="flex items-center gap-3 mt-1">
+                  <span class="text-xs text-muted-foreground">{{ comment.likeCount }} likes</span>
+                  <span v-if="comment.replyCount > 0" class="text-xs text-muted-foreground">{{ comment.replyCount }} replies</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="flex items-center gap-3 py-4 justify-center">
             <svg class="size-5 text-muted-foreground/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
             </svg>
-            <span class="text-sm text-muted-foreground/60">Comments coming soon</span>
-            <span class="px-1.5 py-0.5 bg-yellow-500/90 text-[10px] font-semibold text-black rounded">Soon</span>
+            <span class="text-sm text-muted-foreground/60">No comments available</span>
           </div>
         </div>
       </div>

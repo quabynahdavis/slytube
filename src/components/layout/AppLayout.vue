@@ -30,6 +30,7 @@ register('t', () => {
   const current = theme.value
   const next = current === 'dark' ? 'light' : 'dark'
   setTheme(next)
+  settingsStore.baseTheme = next
 })
 
 register('j', () => {
