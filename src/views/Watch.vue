@@ -45,7 +45,6 @@ const dummySegments = [
   { UUID: 'seg3', category: 'outro', segment: [540, 600] as [number, number], videoDuration: 600, actionType: 'skip' },
 ]
 
-// Dummy chapters for UI development
 const dummyChapters = [
   { title: 'Introduction', startSeconds: 0, thumbnail: '' },
   { title: 'Project Setup', startSeconds: 150, thumbnail: '' },
@@ -55,7 +54,6 @@ const dummyChapters = [
   { title: 'Conclusion', startSeconds: 3000, thumbnail: '' },
 ]
 
-// Dummy transcript for UI development
 const dummyTranscript = [
   { start: 0, duration: 4, text: 'Welcome to this comprehensive tutorial on building a modern YouTube client.' },
   { start: 4, duration: 5, text: 'Today we will be using Vue 3, TypeScript, and Tauri to create a desktop application.' },
@@ -108,7 +106,9 @@ Timestamps:
   related: dummyRelated,
 })
 
-const comments = dummyComments
+// Comments - not loaded automatically
+const comments = ref<typeof dummyComments>([])
+const commentsLoaded = ref(false)
 const sponsorBlockSegments = dummySegments
 const chapters = dummyChapters
 const transcript = dummyTranscript
@@ -121,15 +121,24 @@ function toggleDescription() {
   showFullDescription.value = !showFullDescription.value
 }
 
-// Truncated description
 const truncatedDescription = computed(() => {
   if (descriptionExpanded.value) return video.value.description
   const lines = video.value.description.split('\n')
   return lines.slice(0, 3).join('\n')
 })
 
-// Active tab for chapters/transcript/sponsorblock
+// Transcript/Chapters/SponsorBlock panel visibility
+const showInfoPanel = ref(false)
 const activeTab = ref<'chapters' | 'transcript' | 'sponsorblock'>('chapters')
+
+function toggleInfoPanel() {
+  showInfoPanel.value = !showInfoPanel.value
+}
+
+function loadComments() {
+  comments.value = dummyComments
+  commentsLoaded.value = true
+}
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600)
@@ -266,6 +275,14 @@ onMounted(() => {
                 <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
                 Watch Later
               </button>
+              <button
+                class="px-4 py-1.5 rounded-full text-sm flex items-center gap-2 transition-colors"
+                :class="showInfoPanel ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'"
+                @click="toggleInfoPanel"
+              >
+                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>
+                More
+              </button>
             </div>
           </div>
         </div>
@@ -282,8 +299,47 @@ onMounted(() => {
           </button>
         </div>
 
-        <!-- Chapters / Transcript / SponsorBlock Tabs -->
-        <div class="bg-card rounded-xl overflow-hidden">
+        <!-- Comments -->
+        <div class="bg-card rounded-xl p-4">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-foreground">Comments</h3>
+            <button
+              v-if="!commentsLoaded"
+              class="text-sm text-primary hover:underline"
+              @click="loadComments"
+            >
+              Load Comments
+            </button>
+          </div>
+          <div v-if="commentsLoaded">
+            <div v-if="comments.length > 0" class="space-y-4">
+              <div v-for="comment in comments" :key="comment.id" class="flex gap-3">
+                <div class="size-8 rounded-full bg-primary/20 shrink-0 flex items-center justify-center">
+                  <span class="text-xs font-medium text-primary">{{ comment.author[0] }}</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-medium text-foreground">{{ comment.author }}</span>
+                    <span class="text-xs text-muted-foreground">{{ comment.published }}</span>
+                  </div>
+                  <p class="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{{ comment.content }}</p>
+                  <div class="flex items-center gap-3 mt-1">
+                    <span class="text-xs text-muted-foreground">{{ comment.likeCount.toLocaleString() }} likes</span>
+                    <span v-if="comment.replyCount > 0" class="text-xs text-muted-foreground">{{ comment.replyCount }} replies</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p v-else class="text-sm text-muted-foreground text-center py-4">No comments available</p>
+          </div>
+          <p v-else class="text-sm text-muted-foreground text-center py-4">Click "Load Comments" to view comments</p>
+        </div>
+      </div>
+
+      <!-- Sidebar: Related Videos + Info Panel -->
+      <div class="space-y-4">
+        <!-- Transcript/Chapters/SponsorBlock Panel -->
+        <div v-if="showInfoPanel" class="bg-card rounded-xl overflow-hidden">
           <div class="flex border-b border-border">
             <button
               class="flex-1 px-4 py-3 text-sm font-medium transition-colors"
@@ -308,7 +364,7 @@ onMounted(() => {
             </button>
           </div>
 
-          <div class="p-4">
+          <div class="p-4 max-h-96 overflow-y-auto">
             <!-- Chapters Tab -->
             <div v-if="activeTab === 'chapters'">
               <div v-if="chapters.length > 0" class="space-y-2">
@@ -362,51 +418,27 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- Comments -->
-        <div class="bg-card rounded-xl p-4">
-          <h3 class="text-sm font-semibold text-foreground mb-4">Comments ({{ comments.length }})</h3>
-          <div v-if="comments.length > 0" class="space-y-4">
-            <div v-for="comment in comments" :key="comment.id" class="flex gap-3">
-              <div class="size-8 rounded-full bg-primary/20 shrink-0 flex items-center justify-center">
-                <span class="text-xs font-medium text-primary">{{ comment.author[0] }}</span>
-              </div>
+        <!-- Related Videos -->
+        <div>
+          <h3 class="text-sm font-semibold text-foreground mb-3">Related Videos</h3>
+          <div v-if="video.related.length > 0" class="space-y-3">
+            <div
+              v-for="rel in video.related"
+              :key="rel.id"
+              class="flex gap-3 cursor-pointer group rounded-lg p-2 transition-colors hover:bg-primary/8"
+            >
+              <router-link :to="`/watch?v=${rel.id}`" class="relative w-40 aspect-video rounded-lg overflow-hidden bg-muted shrink-0">
+                <img v-if="rel.thumbnail" :src="rel.thumbnail" :alt="rel.title" class="w-full h-full object-cover" />
+              </router-link>
               <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2">
-                  <span class="text-sm font-medium text-foreground">{{ comment.author }}</span>
-                  <span class="text-xs text-muted-foreground">{{ comment.published }}</span>
-                </div>
-                <p class="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{{ comment.content }}</p>
-                <div class="flex items-center gap-3 mt-1">
-                  <span class="text-xs text-muted-foreground">{{ comment.likeCount.toLocaleString() }} likes</span>
-                  <span v-if="comment.replyCount > 0" class="text-xs text-muted-foreground">{{ comment.replyCount }} replies</span>
-                </div>
+                <router-link :to="`/watch?v=${rel.id}`" class="text-sm font-medium text-foreground line-clamp-2">{{ rel.title }}</router-link>
+                <router-link :to="`/channel/${rel.authorId}`" class="text-xs text-muted-foreground mt-1 hover:text-foreground block">{{ rel.author }}</router-link>
+                <p class="text-xs text-muted-foreground">{{ formatViews(rel.viewCount) }}</p>
               </div>
             </div>
           </div>
-          <div v-else class="text-sm text-muted-foreground text-center py-4">No comments available</div>
+          <EmptyState v-else title="No related videos" />
         </div>
-      </div>
-
-      <!-- Related Videos Sidebar -->
-      <div class="space-y-4">
-        <h3 class="text-sm font-semibold text-foreground">Related Videos</h3>
-        <div v-if="video.related.length > 0" class="space-y-3">
-          <div
-            v-for="rel in video.related"
-            :key="rel.id"
-            class="flex gap-3 cursor-pointer group rounded-lg p-2 transition-colors hover:bg-primary/8"
-          >
-            <router-link :to="`/watch?v=${rel.id}`" class="relative w-40 aspect-video rounded-lg overflow-hidden bg-muted shrink-0">
-              <img v-if="rel.thumbnail" :src="rel.thumbnail" :alt="rel.title" class="w-full h-full object-cover" />
-            </router-link>
-            <div class="flex-1 min-w-0">
-              <router-link :to="`/watch?v=${rel.id}`" class="text-sm font-medium text-foreground line-clamp-2">{{ rel.title }}</router-link>
-              <router-link :to="`/channel/${rel.authorId}`" class="text-xs text-muted-foreground mt-1 hover:text-foreground block">{{ rel.author }}</router-link>
-              <p class="text-xs text-muted-foreground">{{ formatViews(rel.viewCount) }}</p>
-            </div>
-          </div>
-        </div>
-        <EmptyState v-else title="No related videos" />
       </div>
     </div>
   </div>

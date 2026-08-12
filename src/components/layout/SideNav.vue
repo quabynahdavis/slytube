@@ -26,6 +26,20 @@ const route = useRoute()
 const settingsStore = useSettingsStore()
 const subscriptionsStore = useSubscriptionsStore()
 
+const props = defineProps<{
+  mode?: 'normal' | 'overlay'
+}>()
+
+const emit = defineEmits<{
+  close: []
+}>()
+
+function handleNavigate() {
+  if (props.mode === 'overlay') {
+    emit('close')
+  }
+}
+
 interface NavItem {
   name: string
   icon: typeof PhHouse

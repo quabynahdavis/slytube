@@ -15,11 +15,25 @@ const route = useRoute()
 const { theme, setTheme } = useTheme()
 const { register } = useKeyboardShortcuts()
 
-const hideSideBarOnWatch = computed(() => settingsStore.hideSideBarOnWatchPages && route.path === '/watch')
+const isWatchPage = computed(() => route.path === '/watch')
+const hideSideBarOnWatch = computed(() => settingsStore.hideSideBarOnWatchPages && isWatchPage.value)
+const sidebarOverlayOpen = ref(false)
 
 const topNavRef = ref<InstanceType<typeof TopNav> | null>(null)
 const mainRef = ref<HTMLElement | null>(null)
 const commandPaletteOpen = ref(false)
+
+function toggleSidebar() {
+  if (isWatchPage.value) {
+    sidebarOverlayOpen.value = !sidebarOverlayOpen.value
+  } else {
+    settingsStore.updateSetting('expandSideBar', !settingsStore.expandSideBar)
+  }
+}
+
+function closeSidebarOverlay() {
+  sidebarOverlayOpen.value = false
+}
 
 // Register keyboard shortcuts
 register('/', () => {
@@ -46,7 +60,7 @@ register('k', () => {
 })
 
 register('escape', () => {
-  // Close any open dialogs by dispatching a global event
+  sidebarOverlayOpen.value = false
   window.dispatchEvent(new CustomEvent('close-dialogs'))
 })
 
@@ -58,13 +72,14 @@ register('mod+k', () => {
 <template>
   <div class="flex flex-col h-screen overflow-hidden bg-background">
     <!-- Top Navigation (full width, always) -->
-    <TopNav ref="topNavRef" />
+    <TopNav ref="topNavRef" @toggle-sidebar="toggleSidebar" />
 
     <!-- Below Header: Sidebar + Content -->
-    <div class="flex flex-1 overflow-hidden">
-      <!-- Side Navigation -->
+    <div class="flex flex-1 overflow-hidden relative">
+      <!-- Side Navigation: Normal mode (not watch page) -->
       <SideNav
         v-if="!hideSideBarOnWatch"
+        mode="normal"
       />
 
       <!-- Page Content -->
@@ -77,6 +92,25 @@ register('mod+k', () => {
         </router-view>
         </ErrorBoundary>
       </main>
+
+      <!-- Overlay Sidebar for Watch Page -->
+      <Transition name="slide">
+        <div
+          v-if="isWatchPage && sidebarOverlayOpen"
+          class="absolute inset-0 z-50 flex"
+        >
+          <!-- Backdrop -->
+          <div
+            class="absolute inset-0 bg-black/50"
+            @click="closeSidebarOverlay"
+          />
+          <!-- Sidebar -->
+          <SideNav
+            mode="overlay"
+            @close="closeSidebarOverlay"
+          />
+        </div>
+      </Transition>
     </div>
 
     <!-- Toast Notifications -->
@@ -95,6 +129,15 @@ register('mod+k', () => {
 
 .fade-enter-from,
 .fade-leave-to {
+  opacity: 0;
+}
+
+.slide-enter-active,
+.slide-leave-active {
+  transition: opacity 0.2s ease;
+}
+.slide-enter-from,
+.slide-leave-to {
   opacity: 0;
 }
 </style>
