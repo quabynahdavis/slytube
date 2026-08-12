@@ -7,6 +7,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '../components/ui/dropdown-menu'
 
 const props = defineProps<{
@@ -42,6 +43,27 @@ function addToQueue() {
       : [],
   }, true)
   toast.success(`Playing next: ${props.video.title}`)
+}
+
+function copyToClipboard(text: string, label: string) {
+  navigator.clipboard.writeText(text)
+  toast.success(`${label} copied`)
+}
+
+function copyYoutubeLink() {
+  copyToClipboard(`https://www.youtube.com/watch?v=${props.video.id}`, 'YouTube link')
+}
+
+function copyEmbedLink() {
+  copyToClipboard(`https://www.youtube.com/embed/${props.video.id}`, 'Embed link')
+}
+
+function copyInvidiousLink() {
+  copyToClipboard(`https://yewtu.be/watch?v=${props.video.id}`, 'Invidious link')
+}
+
+function openInYoutube() {
+  window.open(`https://www.youtube.com/watch?v=${props.video.id}`, '_blank')
 }
 
 function formatViews(count: number): string {
@@ -144,38 +166,79 @@ function timeAgo(published: string): string {
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
           <button
-            class="size-8 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 hover:bg-accent transition-all shrink-0"
+            class="size-8 flex items-center justify-center rounded-full hover:bg-accent transition-all shrink-0"
             @click.stop
           >
-            <svg class="size-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="1" />
-              <circle cx="12" cy="5" r="1" />
-              <circle cx="12" cy="19" r="1" />
+            <svg class="size-5 text-foreground" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="5" r="2" />
+              <circle cx="12" cy="12" r="2" />
+              <circle cx="12" cy="19" r="2" />
             </svg>
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" class="w-48">
+        <DropdownMenuContent align="end" class="w-52">
+          <DropdownMenuItem @click="addToQueue" class="gap-2">
+            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="5 3 19 12 5 21 5 3" />
+            </svg>
+            Add to Queue
+          </DropdownMenuItem>
           <DropdownMenuItem @click="addToWatchLater" class="gap-2">
             <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 16 14" />
             </svg>
-            Watch Later
+            Save to Watch Later
           </DropdownMenuItem>
-          <DropdownMenuItem @click="addToQueue" class="gap-2">
+          <DropdownMenuItem class="gap-2">
             <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
+              <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" />
             </svg>
-            Play Next
+            Save to Playlist
           </DropdownMenuItem>
-          <DropdownMenuItem class="gap-2" as-child>
-            <router-link :to="`/channel/${video.authorId}`" class="flex items-center gap-2 w-full">
-              <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              Go to Channel
-            </router-link>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem @click="copyYoutubeLink" class="gap-2">
+            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
+            </svg>
+            Copy YouTube Link
+          </DropdownMenuItem>
+          <DropdownMenuItem @click="copyEmbedLink" class="gap-2">
+            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="16 18 22 12 16 6" />
+              <polyline points="8 6 2 12 8 18" />
+            </svg>
+            Copy Embed Link
+          </DropdownMenuItem>
+          <DropdownMenuItem @click="copyInvidiousLink" class="gap-2">
+            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
+            </svg>
+            Copy Invidious Link
+          </DropdownMenuItem>
+          <DropdownMenuItem @click="openInYoutube" class="gap-2">
+            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+            Open in YouTube
+          </DropdownMenuItem>
+          <DropdownMenuItem class="gap-2 text-destructive">
+            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18.36 6.64a9 9 0 11-12.73 0" />
+              <line x1="12" y1="2" x2="12" y2="12" />
+            </svg>
+            Don't Recommend This Channel
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem class="gap-2">
+            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            Mark as Watched
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
