@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/stores/settings'
 import { useSubscriptionsStore } from '@/stores/subscriptions'
+import { getChannelInfo } from '@/api'
 import {
   PhHouse,
   PhTrendUp,
@@ -60,13 +61,42 @@ const isExpanded = computed(() => settingsStore.expandSideBar)
 
 const subscribedChannels = computed(() => subscriptionsStore.subscribedChannelIds)
 
+const channelInfoMap = ref<Record<string, { name: string; avatar: string }>>({})
+
 const subscribedChannelList = computed(() => {
   const channels: ChannelNavItem[] = []
   for (const channelId of Array.from(subscribedChannels.value).slice(0, 5)) {
-    channels.push({ id: channelId, name: channelId, avatar: '' })
+    const info = channelInfoMap.value[channelId]
+    channels.push({
+      id: channelId,
+      name: info?.name || channelId,
+      avatar: info?.avatar || '',
+    })
   }
   return channels
 })
+
+async function loadChannelInfo() {
+  const channelIds = Array.from(subscribedChannels.value).slice(0, 5)
+  for (const channelId of channelIds) {
+    if (!channelInfoMap.value[channelId]) {
+      try {
+        const channel = await getChannelInfo(channelId)
+        if (channel) {
+          channelInfoMap.value[channelId] = {
+            name: channel.name,
+            avatar: channel.avatar,
+          }
+        }
+      } catch {
+        // Keep default if fetch fails
+      }
+    }
+  }
+}
+
+onMounted(loadChannelInfo)
+watch(subscribedChannels, loadChannelInfo)
 </script>
 
 <template>
