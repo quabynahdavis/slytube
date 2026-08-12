@@ -157,7 +157,7 @@ watch(subscribedChannels, loadChannelInfo)
     <!-- Library Section -->
     <nav class="flex-1 overflow-y-auto py-2">
       <!-- Subscriptions Section -->
-      <div v-if="isExpanded" class="px-4 pb-2">
+      <div v-if="isExpanded || mode === 'overlay'" class="px-4 pb-2">
         <h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {{ t('nav.subscriptions') }}
         </h3>
@@ -176,9 +176,9 @@ watch(subscribedChannels, loadChannelInfo)
           >
             <div class="flex items-center gap-3 min-w-0">
               <PhWifiHigh :size="20" class="shrink-0" />
-              <span class="truncate">{{ t('nav.subscriptions') }}</span>
+              <span v-if="isExpanded || mode === 'overlay'" class="truncate">{{ t('nav.subscriptions') }}</span>
             </div>
-            <PhCaretRight :size="14" class="truncate shrink-0 text-muted-foreground" />
+            <PhCaretRight v-if="isExpanded || mode === 'overlay'" :size="14" class="shrink-0 text-muted-foreground" />
           </router-link>
         </li>
         <!-- Channel List -->
@@ -198,17 +198,17 @@ watch(subscribedChannels, loadChannelInfo)
               />
               <span v-else class="text-[10px] font-medium text-muted-foreground">{{ channel.name[0] || '?' }}</span>
             </div>
-            <span class="truncate text-xs">{{ channel.name }}</span>
+            <span v-if="isExpanded || mode === 'overlay'" class="truncate text-xs">{{ channel.name }}</span>
           </router-link>
         </li>
         <!-- Show All -->
-        <li v-if="subscribedChannels.size > 5">
+        <li v-if="(subscribedChannels.size > 5) && isExpanded && mode === 'overlay'">
           <button
             class="flex items-center gap-3 rounded-lg px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground w-full text-left"
             @click="handleNavigate"
           >
             <PhCaretRight :size="14" class="shrink-0" />
-            <span>{{ t('nav.showAll') }}</span>
+            <span v-if="isExpanded || mode === 'overlay'">{{ t('nav.showAll') }}</span>
           </button>
         </li>
       </ul>
@@ -217,7 +217,7 @@ watch(subscribedChannels, loadChannelInfo)
 
       <!-- Library Section -->
       <div class="px-4 pb-2 pt-1">
-        <h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <h3 v-if="isExpanded || mode === 'overlay'" class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {{ t('nav.library') }}
         </h3>
       </div>
