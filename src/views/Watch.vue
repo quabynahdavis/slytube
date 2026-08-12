@@ -451,14 +451,14 @@ onMounted(() => {
           <div
             v-for="rel in video!.related.slice(0, 10)"
             :key="rel.id"
-            class="flex gap-3 cursor-pointer group"
+            class="flex gap-3 cursor-pointer group rounded-lg p-2 transition-colors hover:bg-primary/6"
           >
-            <div class="relative w-40 aspect-video rounded-lg overflow-hidden bg-muted shrink-0">
+            <router-link :to="`/watch?v=${rel.id}`" class="relative w-40 aspect-video rounded-lg overflow-hidden bg-muted shrink-0">
               <img v-if="rel.thumbnail" :src="rel.thumbnail" :alt="rel.title" class="w-full h-full object-cover" />
-            </div>
+            </router-link>
             <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-foreground line-clamp-2 group-hover:text-primary">{{ rel.title }}</p>
-              <p class="text-xs text-muted-foreground mt-1">{{ rel.author }}</p>
+              <router-link :to="`/watch?v=${rel.id}`" class="text-sm font-medium text-foreground line-clamp-2">{{ rel.title }}</router-link>
+              <router-link :to="`/channel/${rel.authorId}`" class="text-xs text-muted-foreground mt-1 hover:text-foreground block">{{ rel.author }}</router-link>
               <p class="text-xs text-muted-foreground">{{ formatViews(rel.viewCount) }}</p>
             </div>
           </div>
