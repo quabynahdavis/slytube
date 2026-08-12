@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { cn } from '@/lib/utils'
-import { PhPlayCircle, PhList, PhHeart, PhShare } from '@phosphor-icons/vue'
+import { PhPlayCircle, PhList, PhHeart, PhShare, PhLink, PhSparkle } from '@phosphor-icons/vue'
 
 const activeTab = ref('home')
 
@@ -24,7 +24,17 @@ const channel = ref({
   isSubscribed: false,
 })
 
-const dummyVideos = Array.from({ length: 12 }, (_, i) => ({
+const pinnedVideo = ref({
+  id: 'pinned-1',
+  title: 'INTRODUCING OUR NEW CHANNEL - Make sure to subscribe!',
+  thumbnail: '',
+  viewCount: 2500000,
+  published: '2 weeks ago',
+  lengthSeconds: 420,
+  description: 'Welcome to our new channel! Here you will find all our latest content.',
+})
+
+const dummyVideos = Array.from({ length: 8 }, (_, i) => ({
   id: `video-${i}`,
   title: `Amazing Tech Review ${i + 1}: You Won't Believe What We Found!`,
   thumbnail: '',
@@ -33,7 +43,7 @@ const dummyVideos = Array.from({ length: 12 }, (_, i) => ({
   viewCount: Math.floor(Math.random() * 5000000) + 100000,
   published: `${Math.floor(Math.random() * 11) + 1} days ago`,
   lengthSeconds: Math.floor(Math.random() * 600) + 60,
-  description: 'This is a sample video description. In a real implementation, this would come from the API.',
+  description: 'This is a sample video description.',
 }))
 
 const dummyShorts = Array.from({ length: 6 }, (_, i) => ({
@@ -46,12 +56,28 @@ const dummyShorts = Array.from({ length: 6 }, (_, i) => ({
   lengthSeconds: Math.floor(Math.random() * 50) + 10,
 }))
 
-const dummyPlaylists = Array.from({ length: 4 }, (_, i) => ({
+const dummyPlaylists = Array.from({ length: 6 }, (_, i) => ({
   id: `playlist-${i}`,
   title: `Tech Series ${i + 1}: Complete Guide`,
   thumbnail: '',
   videoCount: Math.floor(Math.random() * 20) + 5,
 }))
+
+const dummyHashtags = [
+  { tag: '#TechReview', count: 128 },
+  { tag: '#PCBuild', count: 95 },
+  { tag: '#BudgetTech', count: 73 },
+  { tag: '#GamingSetup', count: 64 },
+  { tag: '#WorkFromHome', count: 52 },
+  { tag: '#ServerBuild', count: 41 },
+]
+
+const dummyCollaborations = [
+  { id: 'collab-1', name: 'TechLinked', avatar: '', subscribers: 1200000 },
+  { id: 'collab-2', name: 'ShortCircuit', avatar: '', subscribers: 890000 },
+  { id: 'collab-3', name: 'Techquickie', avatar: '', subscribers: 650000 },
+  { id: 'collab-4', name: 'ChannelSuperFun', avatar: '', subscribers: 420000 },
+]
 
 const dummyPosts = Array.from({ length: 3 }, (_, i) => ({
   id: `post-${i}`,
@@ -62,9 +88,9 @@ const dummyPosts = Array.from({ length: 3 }, (_, i) => ({
 }))
 
 function formatSubscribers(count: number): string {
-  if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M subscribers`
-  if (count >= 1000) return `${(count / 1000).toFixed(1)}K subscribers`
-  return `${count} subscribers`
+  if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`
+  if (count >= 1000) return `${(count / 1000).toFixed(1)}K`
+  return `${count}`
 }
 
 function formatViews(count: number): string {
@@ -94,14 +120,13 @@ function formatDuration(seconds: number): string {
       <div class="max-w-7xl mx-auto px-4 py-4">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div class="flex items-center gap-4">
-            <!-- Avatar -->
             <div class="size-20 -mt-10 rounded-full border-4 border-background bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center text-2xl text-white font-bold shrink-0">
               {{ channel.name[0] }}
             </div>
             <div>
               <h1 class="text-xl font-bold text-foreground">{{ channel.name }}</h1>
               <p class="text-sm text-muted-foreground">
-                {{ formatSubscribers(channel.subscriberCount) }} • {{ channel.videoCount.toLocaleString() }} videos
+                {{ formatSubscribers(channel.subscriberCount) }} subscribers • {{ channel.videoCount.toLocaleString() }} videos
               </p>
               <p class="text-xs text-muted-foreground mt-1 line-clamp-1 max-w-md">{{ channel.description }}</p>
             </div>
@@ -153,8 +178,161 @@ function formatDuration(seconds: number): string {
     <!-- Tab Content -->
     <div class="max-w-7xl mx-auto px-4 py-6">
 
-      <!-- Home / Videos Tab -->
-      <div v-if="activeTab === 'home' || activeTab === 'videos'">
+      <!-- ==================== HOME TAB ==================== -->
+      <div v-if="activeTab === 'home'" class="space-y-8">
+
+        <!-- Featured / Pinned Video -->
+        <section>
+          <div class="flex items-center gap-2 mb-4">
+            <PhSparkle :size="18" class="text-primary" />
+            <h2 class="text-base font-semibold text-foreground">Featured</h2>
+          </div>
+          <router-link
+            :to="`/watch?v=${pinnedVideo.id}`"
+            class="flex flex-col md:flex-row gap-4 group p-3 rounded-xl hover:bg-muted/50 transition-colors"
+          >
+            <div class="relative w-full md:w-80 shrink-0 aspect-video rounded-xl overflow-hidden bg-muted">
+              <div class="absolute inset-0 flex items-center justify-center text-4xl opacity-30">📌</div>
+              <div class="absolute bottom-1 right-1 bg-black/80 text-white text-[10px] px-1 py-0.5 rounded">
+                {{ formatDuration(pinnedVideo.lengthSeconds) }}
+              </div>
+            </div>
+            <div class="flex-1 min-w-0">
+              <h3 class="text-base font-medium text-foreground group-hover:text-primary">{{ pinnedVideo.title }}</h3>
+              <p class="text-sm text-muted-foreground mt-1">{{ formatViews(pinnedVideo.viewCount) }} • {{ pinnedVideo.published }}</p>
+              <p class="text-xs text-muted-foreground mt-2 line-clamp-2">{{ pinnedVideo.description }}</p>
+            </div>
+          </router-link>
+        </section>
+
+        <!-- Recent Videos -->
+        <section>
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-semibold text-foreground">Videos</h2>
+            <router-link to="#" class="text-sm text-primary hover:underline">See all</router-link>
+          </div>
+          <div class="space-y-3">
+            <router-link
+              v-for="video in dummyVideos.slice(0, 4)"
+              :key="video.id"
+              :to="`/watch?v=${video.id}`"
+              class="flex gap-4 p-3 rounded-xl hover:bg-muted/50 transition-colors group"
+            >
+              <div class="relative w-40 shrink-0 aspect-video rounded-xl overflow-hidden bg-muted">
+                <div class="absolute inset-0 flex items-center justify-center text-3xl opacity-30">🎬</div>
+                <div class="absolute bottom-1 right-1 bg-black/80 text-white text-[10px] px-1 py-0.5 rounded">
+                  {{ formatDuration(video.lengthSeconds) }}
+                </div>
+              </div>
+              <div class="flex-1 min-w-0">
+                <h3 class="text-sm font-medium text-foreground line-clamp-2 group-hover:text-primary">{{ video.title }}</h3>
+                <p class="text-xs text-muted-foreground mt-1">{{ formatViews(video.viewCount) }} • {{ video.published }}</p>
+                <p class="text-xs text-muted-foreground mt-1 line-clamp-1">{{ video.description }}</p>
+              </div>
+            </router-link>
+          </div>
+        </section>
+
+        <!-- Shorts -->
+        <section>
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <PhPlayCircle :size="18" class="text-primary" />
+              <h2 class="text-base font-semibold text-foreground">Shorts</h2>
+            </div>
+            <router-link to="#" class="text-sm text-primary hover:underline">See all</router-link>
+          </div>
+          <div class="flex gap-3 overflow-x-auto pb-4">
+            <router-link
+              v-for="short in dummyShorts"
+              :key="short.id"
+              :to="`/watch?v=${short.id}`"
+              class="shrink-0 w-36 group"
+            >
+              <div class="aspect-[9/16] rounded-xl overflow-hidden bg-muted mb-2 relative">
+                <div class="absolute inset-0 flex items-center justify-center text-2xl opacity-30">📱</div>
+                <div class="absolute bottom-1 right-1 bg-black/75 text-white text-[10px] px-1 rounded">
+                  {{ short.lengthSeconds }}s
+                </div>
+              </div>
+              <p class="text-xs font-medium text-foreground line-clamp-2 group-hover:text-primary">{{ short.title }}</p>
+            </router-link>
+          </div>
+        </section>
+
+        <!-- Playlists -->
+        <section>
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <PhList :size="18" class="text-primary" />
+              <h2 class="text-base font-semibold text-foreground">Playlists</h2>
+            </div>
+            <router-link to="#" class="text-sm text-primary hover:underline">See all</router-link>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div
+              v-for="playlist in dummyPlaylists.slice(0, 3)"
+              :key="playlist.id"
+              class="cursor-pointer group"
+            >
+              <div class="aspect-video rounded-xl overflow-hidden bg-muted relative">
+                <div class="absolute inset-0 flex items-center justify-center text-3xl opacity-30">📋</div>
+                <div class="absolute inset-0 bg-black/40 flex items-center justify-center">
+                  <span class="text-white text-sm font-medium flex items-center gap-1">
+                    <PhList :size="16" />
+                    {{ playlist.videoCount }} videos
+                  </span>
+                </div>
+              </div>
+              <p class="text-sm font-medium text-foreground mt-1 line-clamp-2 group-hover:text-primary">{{ playlist.title }}</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Hashtags -->
+        <section>
+          <div class="flex items-center gap-2 mb-4">
+            <PhLink :size="18" class="text-primary" />
+            <h2 class="text-base font-semibold text-foreground">Popular Hashtags</h2>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <span
+              v-for="hashtag in dummyHashtags"
+              :key="hashtag.tag"
+              class="px-3 py-1.5 rounded-full bg-muted text-sm text-muted-foreground hover:bg-accent cursor-pointer transition-colors"
+            >
+              {{ hashtag.tag }}
+              <span class="text-xs ml-1 opacity-60">{{ hashtag.count }}</span>
+            </span>
+          </div>
+        </section>
+
+        <!-- Collaborations -->
+        <section>
+          <div class="flex items-center gap-2 mb-4">
+            <h2 class="text-base font-semibold text-foreground">Collaborations</h2>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <router-link
+              v-for="collab in dummyCollaborations"
+              :key="collab.id"
+              :to="`/channel/${collab.id}`"
+              class="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-muted/50 transition-colors group"
+            >
+              <div class="size-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-sm text-white font-bold shrink-0">
+                {{ collab.name[0] }}
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-foreground group-hover:text-primary truncate">{{ collab.name }}</p>
+                <p class="text-xs text-muted-foreground">{{ formatSubscribers(collab.subscribers) }} subs</p>
+              </div>
+            </router-link>
+          </div>
+        </section>
+      </div>
+
+      <!-- ==================== VIDEOS TAB ==================== -->
+      <div v-else-if="activeTab === 'videos'">
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <router-link
             v-for="video in dummyVideos"
@@ -174,7 +352,7 @@ function formatDuration(seconds: number): string {
         </div>
       </div>
 
-      <!-- Shorts Tab -->
+      <!-- ==================== SHORTS TAB ==================== -->
       <div v-else-if="activeTab === 'shorts'">
         <div class="flex gap-3 overflow-x-auto pb-4">
           <router-link
@@ -195,7 +373,7 @@ function formatDuration(seconds: number): string {
         </div>
       </div>
 
-      <!-- Playlists Tab -->
+      <!-- ==================== PLAYLISTS TAB ==================== -->
       <div v-else-if="activeTab === 'playlists'">
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div
@@ -217,9 +395,9 @@ function formatDuration(seconds: number): string {
         </div>
       </div>
 
-      <!-- Community Tab -->
+      <!-- ==================== COMMUNITY TAB ==================== -->
       <div v-else-if="activeTab === 'community'">
-        <div class="max-w-2xl space-y-4">
+        <div class="max-w-3xl mx-auto space-y-4">
           <div
             v-for="post in dummyPosts"
             :key="post.id"

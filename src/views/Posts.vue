@@ -51,7 +51,7 @@ onMounted(loadPosts)
 </script>
 
 <template>
-  <div class="container mx-auto max-w-2xl px-4 py-6">
+  <div class="max-w-3xl mx-auto px-4 py-6">
     <div class="mb-6">
       <h1 class="text-2xl font-bold text-foreground">Posts</h1>
       <p class="text-sm text-muted-foreground mt-1">Community updates from channels you follow</p>
