@@ -667,6 +667,7 @@ Slytube's stack is already scaffolded: `shadcn-vue` ^2.8.2 on `reka-ui` ^2.10.1,
 | Comments | `CommentSection`, `FtCommunityPost`, `FtCommunityPoll` | Composed on `Card`, `Collapsible` |
 | Icons | `FtIcon`, `customIcons.js`, `fontawesome-minimal.js` | `@hugeicons/vue` (already a dependency) |
 | Scrolling | `AutoScrollWrapper`, `overlayScrollbars.js` | `ScrollArea` |
+| Tabs | `TabBar.vue` (orphaned) | **Removed** — was imported by nothing; channel tabs are inline in `Channel.vue` |
 
 ### 9.3 Rules for the port
 

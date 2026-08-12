@@ -38,3 +38,8 @@
 | 2026-08-11 | 8.1.0 | Tests: Vitest + 35 unit tests for settings, sync, search | Migration Team |
 | 2026-08-11 | 8.2.0 | Fix: move Invidious calls to frontend webview (instances block non-browser clients) | Migration Team |
 | 2026-08-11 | 8.3.0 | Fix: trending and homepage now load via frontend Invidious client | Migration Team |
+| 2026-08-12 | 9.0.0 | Comments section — loaded via `useComments` composable using `invidiousGetComments`; displays author avatar, content, like count, reply count | SlyTube Team |
+| 2026-08-12 | 9.1.0 | Channel tabs — Shorts tab uses `invidiousGetChannelShorts`; Live tab filters live videos from channel info; Playlists tab shows playlists from channel info response; Community tab uses `invidiousGetChannelCommunityPosts`; each tab has loading skeletons and empty states; tab data loads on demand via `watch(activeTab, ...)` | SlyTube Team |
+| 2026-08-12 | 9.2.0 | Theme unification — localStorage is single source of truth for applied theme; settings store syncs `baseTheme` from localStorage on load; theme shortcut updates both `useTheme` and settings store | SlyTube Team |
+| 2026-08-12 | 9.3.0 | Cleanup — removed orphaned `TabBar.vue` component; removed template `greet` command from `lib.rs`; `Channel` type now has optional `playlists` and `relatedPlaylists` fields | SlyTube Team |
+| 2026-08-12 | 9.4.0 | Docs: updated `06-theme-strategy.md`, `04-api-integration.md`, `02-component-mapping.md`; updated CHANGELOGs across decisions, frontend, architecture, and root domains | Docs Update |

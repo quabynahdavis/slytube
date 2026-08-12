@@ -515,7 +515,37 @@ async function requestWithRotation<T>(opts: InvidiousRequestOptions): Promise<T>
 Rotation is **opt-in per call site**. Video playback uses it; search does not
 (rotating mid-typing produces inconsistent results).
 
-### 4.2 Normalisation contract
+### 4.2 Channel tabs
+
+The Channel view (`src/views/Channel.vue`) supports six tabs: Home, Videos,
+Shorts, Live, Playlists, and Community. Each tab loads data on demand via
+`watch(activeTab, ...)` with loading skeletons and empty states:
+
+| Tab | Data source | API |
+|-----|-------------|-----|
+| Home / Videos | Channel info response | `getChannelInfo(channelId)` |
+| Shorts | Invidious channel shorts endpoint | `getChannelShorts(channelId)` → `invidiousGetChannelShorts` |
+| Live | Filtered from channel info videos | `channelLive = videos.filter(v => v.isLive)` |
+| Playlists | Channel info response | `channel.playlists \|\| channel.relatedPlaylists` |
+| Community | Invidious community posts endpoint | `getChannelCommunityPosts(channelId)` → `invidiousGetChannelCommunityPosts` |
+
+### 4.3 Comments
+
+Comments are loaded via the `useComments(videoId)` composable in
+`src/composables/useData.ts`, which calls `getCommentsInfo(videoId)` from
+`src/api/index.ts`. That in turn uses `invidiousGetComments(videoId)` from
+the Invidious client to fetch comments from the `/api/v1/comments/:id` endpoint.
+
+The `Comment` type (`src/api/types.ts`) includes:
+- `id`, `author`, `authorId`, `authorAvatar`
+- `content`, `likeCount`, `published`
+- `replyCount`, `replies` (nested `Comment[]`)
+
+The Watch view renders each comment with the author avatar (or a fallback initial),
+content text, like count, and reply count. A loading spinner shows while comments
+are being fetched, and an empty state is displayed when no comments are available.
+
+### 4.4 Normalisation contract
 
 Both backends must produce the identical `VideoInformation` shape, or the Watch
 view needs backend-aware branching. This is the single most important invariant

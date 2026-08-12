@@ -182,8 +182,15 @@ shadcn's model — they are our source, editable in place, not an opaque depende
 
 - [ ] Tokens are defined once as CSS variables in `src/style.css` and mapped into Tailwind via
       `@theme inline`. **Never hard-code a hex value in a component.**
-- [ ] Dark mode via the `.dark` class on `<html>`, toggled from a Pinia store and persisted
-      through the settings command; honour `prefers-color-scheme` on first run.
+- [ ] Dark mode via the `.dark` class on `<html>`, applied by `useTheme()` which reads the
+      theme from `localStorage` (single source of truth for the applied theme). The `useTheme`
+      composable watches the theme ref and applies it to the DOM + persists to `localStorage`.
+- [ ] The settings store (`src/stores/settings.ts`) syncs `baseTheme` from `localStorage`
+      on load (`loadSettings()`), keeping the Pinia store in sync with the applied theme.
+- [ ] The theme shortcut (`t` key) updates both `useTheme` and the settings store to keep
+      them consistent.
+- [ ] Honour `prefers-color-scheme` when theme is set to `system`; listen for system theme
+      changes via `window.matchMedia('(prefers-color-scheme: dark)')`.
 - [ ] `--radius` and spacing scale are tokens, so density/roundness are tunable globally.
 - [ ] Any future custom theme is an additional token block — the architecture must not require
       touching component code to add one.

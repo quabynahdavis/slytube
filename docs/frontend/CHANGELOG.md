@@ -12,6 +12,7 @@
 | 2026-08-12 | 1.2.0 | Database integration — subscriptions, history, playlists wired to Tauri SQLite backend | SlyTube Team |
 | 2026-08-12 | 1.2.0 | UI improvements — player shortcuts, progressive disclosure, sync status, optimistic updates, command palette, scroll animations, breadcrumbs | SlyTube Team |
 | 2026-08-12 | 1.3.0 | Updated `01-store-migration.md` — noted serde `camelCase` status per model (most done; `Profile` pending); clarified that frontend `DbPlaylist` already matches Rust model | Docs Update |
+| 2026-08-12 | 1.4.0 | Updated `04-api-integration.md` — added §4.2 Channel tabs (Shorts/Live/Playlists/Community data sources and APIs); added §4.3 Comments (`useComments` composable → `invidiousGetComments`); updated §4.4 Normalisation contract | Docs Update |
 
 ## Pending Actions
 
