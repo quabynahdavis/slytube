@@ -1,80 +1,65 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref } from 'vue'
 import { cn } from '@/lib/utils'
-import { useChannelLoader, useSubscriptions } from '../composables/useData'
-import { getChannelInfo, getChannelShorts, getChannelCommunityPosts } from '../api'
-import type { Video } from '../api/types'
-import VideoCard from '../components/VideoCard.vue'
-import ErrorState from '../components/ui/ErrorState.vue'
+import { PhPlayCircle, PhList, PhHeart, PhShare } from '@phosphor-icons/vue'
 
-const route = useRoute()
-const router = useRouter()
-
-const channelId = computed(() => route.params.id as string || '')
-const { channel, error, load } = useChannelLoader()
-const { loadSubscriptions, subscribe, unsubscribe, isSubscribed } = useSubscriptions()
-
-const isLoading = ref(true)
 const activeTab = ref('home')
-const channelVideos = ref<Video[]>([])
-const channelShorts = ref<Video[]>([])
-const channelLive = ref<Video[]>([])
-const channelPlaylists = ref<any[]>([])
-const channelCommunity = ref<any[]>([])
-const tabLoading = ref(false)
 
 const tabs = [
   { id: 'home', label: 'Home' },
   { id: 'videos', label: 'Videos' },
   { id: 'shorts', label: 'Shorts' },
-  { id: 'live', label: 'Live' },
   { id: 'playlists', label: 'Playlists' },
   { id: 'community', label: 'Community' },
 ]
 
-async function loadChannelData() {
-  if (!channelId.value) return
-  isLoading.value = true
-  try {
-    await load(channelId.value)
-    await loadSubscriptions()
-    // Fetch full channel info including videos
-    try {
-      const fullChannel = await getChannelInfo(channelId.value)
-      channelVideos.value = fullChannel.videos || []
-      channelLive.value = (fullChannel.videos || []).filter((v: Video) => v.isLive)
-      channelPlaylists.value = fullChannel.playlists || fullChannel.relatedPlaylists || []
-    } catch {
-      // Channel already loaded by useChannelLoader
-    }
-  } finally {
-    isLoading.value = false
-  }
-}
+const channel = ref({
+  id: 'UCXuqSBlHAE6Xw-yeJA0Tunw',
+  name: 'Linus Tech Tips',
+  avatar: '',
+  banner: '',
+  subscriberCount: 15600000,
+  videoCount: 6842,
+  description: 'We make entertaining videos about technology, including product reviews, build guides, and more. Subscribe for new videos every week!',
+  isSubscribed: false,
+})
 
-async function loadTabData(tab: string) {
-  if (!channelId.value) return
-  tabLoading.value = true
-  try {
-    if (tab === 'shorts' && channelShorts.value.length === 0) {
-      channelShorts.value = await getChannelShorts(channelId.value)
-    } else if (tab === 'live' && channelLive.value.length === 0) {
-      // Live videos are filtered from channel videos in loadChannelData
-    } else if (tab === 'community' && channelCommunity.value.length === 0) {
-      channelCommunity.value = await getChannelCommunityPosts(channelId.value)
-    }
-  } catch {
-    // Tab data unavailable
-  } finally {
-    tabLoading.value = false
-  }
-}
+const dummyVideos = Array.from({ length: 12 }, (_, i) => ({
+  id: `video-${i}`,
+  title: `Amazing Tech Review ${i + 1}: You Won't Believe What We Found!`,
+  thumbnail: '',
+  author: channel.value.name,
+  authorId: channel.value.id,
+  viewCount: Math.floor(Math.random() * 5000000) + 100000,
+  published: `${Math.floor(Math.random() * 11) + 1} days ago`,
+  lengthSeconds: Math.floor(Math.random() * 600) + 60,
+  description: 'This is a sample video description. In a real implementation, this would come from the API.',
+}))
 
-onMounted(loadChannelData)
+const dummyShorts = Array.from({ length: 6 }, (_, i) => ({
+  id: `short-${i}`,
+  title: `Quick Tech Tip #${i + 1}`,
+  thumbnail: '',
+  author: channel.value.name,
+  authorId: channel.value.id,
+  viewCount: Math.floor(Math.random() * 1000000) + 50000,
+  lengthSeconds: Math.floor(Math.random() * 50) + 10,
+}))
 
-watch(channelId, loadChannelData)
-watch(activeTab, (tab) => loadTabData(tab))
+const dummyPlaylists = Array.from({ length: 4 }, (_, i) => ({
+  id: `playlist-${i}`,
+  title: `Tech Series ${i + 1}: Complete Guide`,
+  thumbnail: '',
+  videoCount: Math.floor(Math.random() * 20) + 5,
+}))
+
+const dummyPosts = Array.from({ length: 3 }, (_, i) => ({
+  id: `post-${i}`,
+  content: `Hey everyone! We're working on something exciting for next week. Stay tuned! 🎉`,
+  published: `${i + 1} days ago`,
+  likeCount: Math.floor(Math.random() * 5000) + 100,
+  commentCount: Math.floor(Math.random() * 500) + 10,
+}))
 
 function formatSubscribers(count: number): string {
   if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M subscribers`
@@ -82,239 +67,187 @@ function formatSubscribers(count: number): string {
   return `${count} subscribers`
 }
 
-function toggleSubscription() {
-  if (!channel.value) return
-  if (isSubscribed(channel.value.id)) {
-    unsubscribe(channel.value.id)
-  } else {
-    subscribe(channel.value.id)
-  }
+function formatViews(count: number): string {
+  if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M views`
+  if (count >= 1000) return `${(count / 1000).toFixed(1)}K views`
+  return `${count} views`
+}
+
+function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m}:${s.toString().padStart(2, '0')}`
 }
 </script>
 
 <template>
   <div class="min-h-screen">
-    <!-- Loading State -->
-    <div v-if="isLoading" class="animate-pulse">
-      <div class="h-48 bg-muted" />
-      <div class="container mx-auto max-w-7xl px-4 py-4">
-        <div class="flex items-center ">
-          <div class="size-20 rounded-full bg-muted" />
-          <div class="space-y-2">
-            <div class="h-5 w-48 rounded bg-muted" />
-            <div class="h-4 w-32 rounded bg-muted" />
+    <!-- Banner -->
+    <div class="relative h-40 sm:h-48 md:h-56 bg-gradient-to-r from-blue-600/30 to-purple-600/30">
+      <div class="absolute inset-0 flex items-center justify-center">
+        <span class="text-6xl opacity-20">📺</span>
+      </div>
+    </div>
+
+    <!-- Channel Info Bar -->
+    <div class="border-b border-border">
+      <div class="max-w-7xl mx-auto px-4 py-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div class="flex items-center gap-4">
+            <!-- Avatar -->
+            <div class="size-20 -mt-10 rounded-full border-4 border-background bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center text-2xl text-white font-bold shrink-0">
+              {{ channel.name[0] }}
+            </div>
+            <div>
+              <h1 class="text-xl font-bold text-foreground">{{ channel.name }}</h1>
+              <p class="text-sm text-muted-foreground">
+                {{ formatSubscribers(channel.subscriberCount) }} • {{ channel.videoCount.toLocaleString() }} videos
+              </p>
+              <p class="text-xs text-muted-foreground mt-1 line-clamp-1 max-w-md">{{ channel.description }}</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              :class="cn(
+                'h-9 rounded-full px-6 text-sm font-medium transition-colors shrink-0',
+                channel.isSubscribed
+                  ? 'border border-border bg-muted text-foreground hover:bg-muted/80'
+                  : 'bg-primary text-primary-foreground hover:bg-primary/90'
+              )"
+              @click="channel.isSubscribed = !channel.isSubscribed"
+            >
+              {{ channel.isSubscribed ? 'Subscribed' : 'Subscribe' }}
+            </button>
+            <button class="size-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-muted/80 transition-colors">
+              <PhHeart :size="18" />
+            </button>
+            <button class="size-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-muted/80 transition-colors">
+              <PhShare :size="18" />
+            </button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Error State -->
-    <ErrorState v-else-if="error" :message="error" retryable @retry="loadChannelData" />
-
-    <template v-else-if="channel">
-      <!-- Channel Banner -->
-      <div class="relative h-48 bg-gradient-to-r from-primary/20 to-primary/5">
-        <img
-          v-if="channel.banner"
-          :src="channel.banner"
-          :alt="channel.name"
-          class="absolute inset-0 w-full h-full object-cover"
-        />
-        <div v-else class="absolute inset-0 flex items-center justify-center">
-          <svg class="size-16 text-muted-foreground/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-            <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" />
-            <line x1="7" y1="2" x2="7" y2="22" />
-            <line x1="17" y1="2" x2="17" y2="22" />
-            <line x1="2" y1="12" x2="22" y2="12" />
-          </svg>
-        </div>
-      </div>
-
-      <!-- Channel Info -->
-      <div class="container mx-auto max-w-7xl px-4 py-4">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between ">
-          <div class="flex items-center ">
-            <img
-              v-if="channel.avatar"
-              :src="channel.avatar"
-              :alt="channel.name"
-              class="size-20 -mt-10 rounded-full border-4 border-background object-cover shrink-0"
-            />
-            <div v-else class="size-20 -mt-10 rounded-full border-4 border-background bg-muted flex items-center justify-center shrink-0">
-              <svg class="size-10 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-            </div>
-            <div>
-              <h1 class="text-xl font-bold text-foreground">{{ channel.name }}</h1>
-              <p class="text-sm text-muted-foreground">
-                {{ formatSubscribers(channel.subscriberCount) }} &middot; {{ channel.videoCount || channelVideos.length }} videos
-              </p>
-              <p class="text-xs text-muted-foreground mt-1 line-clamp-1">{{ channel.description }}</p>
-            </div>
-          </div>
+    <!-- Tabs -->
+    <div class="sticky top-14 z-30 bg-background border-b border-border">
+      <div class="max-w-7xl mx-auto px-4">
+        <nav class="flex gap-6 overflow-x-auto">
           <button
+            v-for="tab in tabs"
+            :key="tab.id"
             :class="cn(
-              'h-9 rounded-full px-6 text-sm font-medium transition-colors shrink-0',
-              isSubscribed(channel.id)
-                ? 'border border-border bg-muted text-foreground hover:bg-muted/80'
-                : 'bg-primary text-primary-foreground hover:bg-primary/90'
+              'py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap',
+              activeTab === tab.id
+                ? 'border-primary text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
             )"
-            @click="toggleSubscription"
+            @click="activeTab = tab.id"
           >
-            {{ isSubscribed(channel.id) ? 'Subscribed' : 'Subscribe' }}
+            {{ tab.label }}
           </button>
+        </nav>
+      </div>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="max-w-7xl mx-auto px-4 py-6">
+
+      <!-- Home / Videos Tab -->
+      <div v-if="activeTab === 'home' || activeTab === 'videos'">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <router-link
+            v-for="video in dummyVideos"
+            :key="video.id"
+            :to="`/watch?v=${video.id}`"
+            class="group"
+          >
+            <div class="aspect-video rounded-xl overflow-hidden bg-muted mb-2 relative">
+              <div class="absolute inset-0 flex items-center justify-center text-4xl opacity-30">🎬</div>
+              <div class="absolute bottom-1 right-1 bg-black/80 text-white text-[10px] px-1 py-0.5 rounded">
+                {{ formatDuration(video.lengthSeconds) }}
+              </div>
+            </div>
+            <h3 class="text-sm font-medium text-foreground line-clamp-2 group-hover:text-primary">{{ video.title }}</h3>
+            <p class="text-xs text-muted-foreground mt-1">{{ formatViews(video.viewCount) }} • {{ video.published }}</p>
+          </router-link>
         </div>
+      </div>
 
-        <!-- Channel Tabs -->
-        <div class="mt-6 border-b border-border">
-          <nav class="flex gap-6 overflow-x-auto">
-            <button
-              v-for="tab in tabs"
-              :key="tab.id"
-              :class="cn(
-                'pb-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap',
-                activeTab === tab.id
-                  ? 'border-primary text-foreground'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
-              )"
-              @click="activeTab = tab.id"
-            >
-              {{ tab.label }}
-            </button>
-          </nav>
+      <!-- Shorts Tab -->
+      <div v-else-if="activeTab === 'shorts'">
+        <div class="flex gap-3 overflow-x-auto pb-4">
+          <router-link
+            v-for="short in dummyShorts"
+            :key="short.id"
+            :to="`/watch?v=${short.id}`"
+            class="shrink-0 w-40 group"
+          >
+            <div class="aspect-[9/16] rounded-xl overflow-hidden bg-muted mb-2 relative">
+              <div class="absolute inset-0 flex items-center justify-center text-3xl opacity-30">📱</div>
+              <div class="absolute bottom-1 right-1 bg-black/75 text-white text-[10px] px-1 rounded">
+                {{ short.lengthSeconds }}s
+              </div>
+            </div>
+            <p class="text-xs font-medium text-foreground line-clamp-2 group-hover:text-primary">{{ short.title }}</p>
+            <p class="text-[10px] text-muted-foreground">{{ formatViews(short.viewCount) }}</p>
+          </router-link>
         </div>
+      </div>
 
-        <!-- Tab Content -->
-        <div class="mt-6">
-          <!-- Home / Videos Tab -->
-          <div v-if="activeTab === 'home' || activeTab === 'videos'">
-            <div v-if="channelVideos.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3  ">
-              <VideoCard v-for="video in channelVideos" :key="video.id" :video="video" />
-            </div>
-            <div v-else class="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
-              <svg class="size-12 mx-auto mb-3 text-muted-foreground/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" />
-                <line x1="7" y1="2" x2="7" y2="22" />
-                <line x1="17" y1="2" x2="17" y2="22" />
-                <line x1="2" y1="12" x2="22" y2="12" />
-              </svg>
-              <p class="text-sm">No videos available</p>
-            </div>
-          </div>
-
-          <!-- Shorts Tab -->
-          <div v-else-if="activeTab === 'shorts'">
-            <div v-if="tabLoading" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 ">
-              <div v-for="n in 6" :key="n" class="aspect-[9/16] bg-muted rounded-lg animate-pulse" />
-            </div>
-            <div v-else-if="channelShorts.length > 0" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 ">
-              <div
-                v-for="short in channelShorts"
-                :key="short.id"
-                class="cursor-pointer group"
-                @click="router.push({ name: 'watch', query: { v: short.id } })"
-              >
-                <div class="aspect-[9/16] rounded-lg overflow-hidden bg-muted relative">
-                  <img v-if="short.thumbnail" :src="short.thumbnail" :alt="short.title" class="w-full h-full object-cover" />
-                  <div class="absolute bottom-1 right-1 bg-black/75 text-white text-[10px] px-1 rounded">
-                    {{ short.lengthSeconds }}s
-                  </div>
-                </div>
-                <p class="text-xs font-medium text-foreground mt-1 line-clamp-2 group-hover:text-primary">{{ short.title }}</p>
-                <p class="text-[10px] text-muted-foreground">{{ short.viewCount }} views</p>
+      <!-- Playlists Tab -->
+      <div v-else-if="activeTab === 'playlists'">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div
+            v-for="playlist in dummyPlaylists"
+            :key="playlist.id"
+            class="cursor-pointer group"
+          >
+            <div class="aspect-video rounded-xl overflow-hidden bg-muted relative">
+              <div class="absolute inset-0 flex items-center justify-center text-4xl opacity-30">📋</div>
+              <div class="absolute inset-0 bg-black/40 flex items-center justify-center">
+                <span class="text-white text-sm font-medium flex items-center gap-1">
+                  <PhList :size="16" />
+                  {{ playlist.videoCount }} videos
+                </span>
               </div>
             </div>
-            <div v-else class="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
-              <svg class="size-12 mx-auto mb-3 text-muted-foreground/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                <line x1="12" y1="19" x2="12" y2="23" />
-                <line x1="8" y1="23" x2="16" y2="23" />
-              </svg>
-              <p class="text-sm">No shorts available</p>
-            </div>
+            <p class="text-sm font-medium text-foreground mt-1 line-clamp-2 group-hover:text-primary">{{ playlist.title }}</p>
           </div>
+        </div>
+      </div>
 
-          <!-- Live Tab -->
-          <div v-else-if="activeTab === 'live'">
-            <div v-if="channelLive.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3  ">
-              <VideoCard v-for="video in channelLive" :key="video.id" :video="video" />
-            </div>
-            <div v-else class="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
-              <svg class="size-12 mx-auto mb-3 text-muted-foreground/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                <line x1="12" y1="19" x2="12" y2="23" />
-                <line x1="8" y1="23" x2="16" y2="23" />
-              </svg>
-              <p class="text-sm">No live streams available</p>
-            </div>
-          </div>
-
-          <!-- Playlists Tab -->
-          <div v-else-if="activeTab === 'playlists'">
-            <div v-if="channelPlaylists.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3  ">
-              <div
-                v-for="playlist in channelPlaylists"
-                :key="playlist.playlistId || playlist.id"
-                class="cursor-pointer group"
-                @click="router.push({ name: 'playlist', params: { id: playlist.playlistId || playlist.id } })"
-              >
-                <div class="aspect-video rounded-lg overflow-hidden bg-muted relative">
-                  <img v-if="playlist.playlistThumbnail || playlist.thumbnail" :src="playlist.playlistThumbnail || playlist.thumbnail" :alt="playlist.title" class="w-full h-full object-cover" />
-                  <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span class="text-white text-sm font-medium">{{ playlist.videoCount || 0 }} videos</span>
-                  </div>
-                </div>
-                <p class="text-sm font-medium text-foreground mt-1 line-clamp-2 group-hover:text-primary">{{ playlist.title }}</p>
+      <!-- Community Tab -->
+      <div v-else-if="activeTab === 'community'">
+        <div class="max-w-2xl space-y-4">
+          <div
+            v-for="post in dummyPosts"
+            :key="post.id"
+            class="rounded-xl border border-border bg-card p-4"
+          >
+            <div class="flex items-center gap-3 mb-3">
+              <div class="size-8 rounded-full bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center text-xs text-white font-bold">
+                {{ channel.name[0] }}
+              </div>
+              <div>
+                <span class="text-sm font-medium text-foreground">{{ channel.name }}</span>
+                <p class="text-xs text-muted-foreground">{{ post.published }}</p>
               </div>
             </div>
-            <div v-else class="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
-              <svg class="size-12 mx-auto mb-3 text-muted-foreground/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" />
-                <line x1="7" y1="2" x2="7" y2="22" />
-                <line x1="17" y1="2" x2="17" y2="22" />
-                <line x1="2" y1="12" x2="22" y2="12" />
-              </svg>
-              <p class="text-sm">No playlists available</p>
-            </div>
-          </div>
-
-          <!-- Community Tab -->
-          <div v-else-if="activeTab === 'community'">
-            <div v-if="channelCommunity.length > 0" class="space-y-4">
-              <div v-for="post in channelCommunity" :key="post.commentId || post.id" class="rounded-lg border border-border bg-card p-4">
-                <div class="flex items-start ">
-                  <img
-                    v-if="post.authorThumbnails?.[0]?.url"
-                    :src="post.authorThumbnails[0].url"
-                    :alt="post.author"
-                    class="size-8 rounded-full shrink-0"
-                  />
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2">
-                      <span class="text-sm font-medium text-foreground">{{ post.author }}</span>
-                      <span class="text-xs text-muted-foreground">{{ post.publishedText || post.timeText || '' }}</span>
-                    </div>
-                    <p class="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{{ post.content || post.comment }}</p>
-                    <div v-if="post.likeCount" class="flex items-center  mt-2">
-                      <span class="text-xs text-muted-foreground">{{ post.likeCount }} likes</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div v-else class="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
-              <svg class="size-12 mx-auto mb-3 text-muted-foreground/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-              <p class="text-sm">No community posts yet</p>
+            <p class="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{{ post.content }}</p>
+            <div class="flex items-center gap-4 mt-3 pt-3 border-t border-border">
+              <button class="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <PhHeart :size="16" />
+                {{ post.likeCount.toLocaleString() }}
+              </button>
+              <button class="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <PhPlayCircle :size="16" />
+                {{ post.commentCount }} comments
+              </button>
             </div>
           </div>
         </div>
       </div>
-    </template>
+    </div>
   </div>
 </template>
