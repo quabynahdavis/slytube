@@ -2,6 +2,12 @@
 import type { Video } from '../api/types'
 import { useWatchQueueStore } from '../stores/watch-queue'
 import { useToast } from '../composables/useToast'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu'
 
 const props = defineProps<{
   video: Video
@@ -74,7 +80,7 @@ function timeAgo(published: string): string {
 </script>
 
 <template>
-  <div class="group rounded-lg transition-colors duration-200 hover:bg-primary/5 p-4">
+  <div class="group relative rounded-lg transition-colors duration-200 hover:bg-primary/5 p-4">
     <!-- Video Thumbnail -->
     <router-link :to="`/watch?v=${video.id}`" class="block relative">
       <div class="relative aspect-video rounded-xl overflow-hidden bg-muted mb-2">
@@ -101,34 +107,11 @@ function timeAgo(published: string): string {
         <div v-if="video.isUpcoming" class="absolute bottom-2 right-2 bg-orange-500 text-white text-xs px-2 py-0.5 rounded font-medium">
           UPCOMING
         </div>
-        <!-- Hover Actions Overlay -->
-        <div class="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
-          <button
-            @click.prevent="addToWatchLater"
-            title="Watch Later"
-            class="size-7 flex items-center justify-center rounded bg-black/80 hover:bg-black text-white transition-colors"
-          >
-            <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-          </button>
-          <button
-            @click.prevent="addToQueue"
-            title="Add to Queue"
-            class="size-7 flex items-center justify-center rounded bg-black/80 hover:bg-black text-white transition-colors"
-          >
-            <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
-        </div>
       </div>
     </router-link>
 
     <!-- Metadata Row -->
-    <div class="flex gap-3 mt-1">
+    <div class="flex gap-3 mt-1 relative">
       <!-- Creator Avatar - Links to Channel -->
       <router-link
         :to="`/channel/${video.authorId}`"
@@ -156,6 +139,46 @@ function timeAgo(published: string): string {
           {{ formatViews(video.viewCount) }} &middot; {{ timeAgo(video.published) }}
         </p>
       </router-link>
+
+      <!-- Ellipsis Dropdown -->
+      <DropdownMenu>
+        <DropdownMenuTrigger as-child>
+          <button
+            class="size-8 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 hover:bg-accent transition-all shrink-0"
+            @click.stop
+          >
+            <svg class="size-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="1" />
+              <circle cx="12" cy="5" r="1" />
+              <circle cx="12" cy="19" r="1" />
+            </svg>
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" class="w-48">
+          <DropdownMenuItem @click="addToWatchLater" class="gap-2">
+            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            Watch Later
+          </DropdownMenuItem>
+          <DropdownMenuItem @click="addToQueue" class="gap-2">
+            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Play Next
+          </DropdownMenuItem>
+          <DropdownMenuItem class="gap-2" as-child>
+            <router-link :to="`/channel/${video.authorId}`" class="flex items-center gap-2 w-full">
+              <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              Go to Channel
+            </router-link>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   </div>
 </template>
