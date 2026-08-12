@@ -206,7 +206,7 @@ function timeAgo(published: string): string {
     </div>
 
     <!-- Filters -->
-    <div v-if="results.length > 0 || loading" class="flex flex-wrap gap-3 mb-6 pb-4 border-b border-border">
+    <div v-if="results.length > 0 || loading" class="flex flex-wrap  mb-6 pb-4 border-b border-border">
       <select v-model="sortBy" class="h-8 px-2 rounded-md border border-input bg-background text-sm">
         <option value="relevance">Relevance</option>
         <option value="date">Upload date</option>
@@ -251,7 +251,7 @@ function timeAgo(published: string): string {
           <PhPlayCircle :size="20" class="text-primary" />
           <h2 class="text-lg font-semibold text-foreground">Shorts</h2>
         </div>
-        <div class="flex gap-3 overflow-x-auto pb-4">
+        <div class="flex  overflow-x-auto pb-4">
           <router-link
             v-for="short in shortsResults"
             :key="short.id"

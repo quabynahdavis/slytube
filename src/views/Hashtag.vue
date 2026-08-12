@@ -36,7 +36,7 @@ watch(hashtag, loadHashtagVideos)
 <template>
   <div class="container mx-auto max-w-7xl px-3 py-4">
     <div class="mb-6">
-      <div class="flex items-center gap-3">
+      <div class="flex items-center ">
         <div class="size-12 rounded-full bg-primary/10 flex items-center justify-center">
           <svg class="size-6 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
         </div>
@@ -55,7 +55,7 @@ watch(hashtag, loadHashtagVideos)
       No videos found for #{{ hashtag }}
     </EmptyState>
 
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3  gap-3">
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3  ">
       <VideoCard v-for="video in videos" :key="video.id" :video="video" />
     </div>
   </div>

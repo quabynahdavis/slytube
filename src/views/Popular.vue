@@ -75,7 +75,7 @@ onMounted(loadPopular)
       Popular videos aren't available right now. Check back later or explore Trending.
     </EmptyState>
 
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3  gap-3">
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3  ">
       <VideoCard v-for="video in sortedVideos" :key="video.id" :video="video" />
     </div>
   </div>
