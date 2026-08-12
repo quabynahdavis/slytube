@@ -1,5 +1,6 @@
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import type { Video, Channel } from '../api/types'
 import * as api from '../api'
 import { getSegments, formatCategory } from '../api/sponsorblock'
@@ -102,9 +103,26 @@ export function useSponsorBlock(videoId: string) {
   return { segments, load, getColor, formatCategory }
 }
 
+interface DownloadStatus {
+  id: number
+  videoId: string
+  title: string
+  status: string
+  percent: number
+  speed: string | null
+  eta: string | null
+  destination: string | null
+  errorMessage: string | null
+}
+
 export function useDownloads() {
-  const downloads = ref<any[]>([])
+  const downloads = ref<DownloadStatus[]>([])
   const loading = ref(false)
+  let unlistenProgress: (() => void) | null = null
+  let unlistenDestination: (() => void) | null = null
+  let unlistenComplete: (() => void) | null = null
+  let unlistenError: (() => void) | null = null
+  let unlistenCancelled: (() => void) | null = null
 
   async function loadDownloads() {
     loading.value = true
@@ -115,11 +133,84 @@ export function useDownloads() {
     } finally {
       loading.value = false
     }
+    await setupListeners()
   }
+
+  async function setupListeners() {
+    // Clean up existing listeners
+    cleanupListeners()
+
+    unlistenProgress = await listen('yt-dlp-progress', (event: any) => {
+      const { id, percent, speed, eta } = event.payload
+      const idx = downloads.value.findIndex(d => d.id === id)
+      if (idx !== -1) {
+        downloads.value[idx].percent = percent
+        downloads.value[idx].speed = speed
+        downloads.value[idx].eta = eta
+        downloads.value[idx].status = 'downloading'
+      }
+    })
+
+    unlistenDestination = await listen('yt-dlp-destination', (event: any) => {
+      const { id, destination } = event.payload
+      const idx = downloads.value.findIndex(d => d.id === id)
+      if (idx !== -1) {
+        downloads.value[idx].destination = destination
+        downloads.value[idx].title = destination.split('/').pop()?.split('\\').pop() || destination
+      }
+    })
+
+    unlistenComplete = await listen('yt-dlp-complete', (event: any) => {
+      const { id } = event.payload
+      const idx = downloads.value.findIndex(d => d.id === id)
+      if (idx !== -1) {
+        downloads.value[idx].status = 'completed'
+        downloads.value[idx].percent = 100
+      }
+    })
+
+    unlistenError = await listen('yt-dlp-error', (event: any) => {
+      const { id, error } = event.payload
+      const idx = downloads.value.findIndex(d => d.id === id)
+      if (idx !== -1) {
+        downloads.value[idx].status = 'failed'
+        downloads.value[idx].errorMessage = error
+      }
+    })
+
+    unlistenCancelled = await listen('yt-dlp-cancelled', (event: any) => {
+      const id = event.payload
+      const idx = downloads.value.findIndex(d => d.id === id)
+      if (idx !== -1) {
+        downloads.value[idx].status = 'cancelled'
+      }
+    })
+  }
+
+  function cleanupListeners() {
+    if (unlistenProgress) { unlistenProgress(); unlistenProgress = null }
+    if (unlistenDestination) { unlistenDestination(); unlistenDestination = null }
+    if (unlistenComplete) { unlistenComplete(); unlistenComplete = null }
+    if (unlistenError) { unlistenError(); unlistenError = null }
+    if (unlistenCancelled) { unlistenCancelled(); unlistenCancelled = null }
+  }
+
+  onUnmounted(cleanupListeners)
 
   async function startDownload(args: any) {
     try {
-      const id = await invoke('yt_dlp_download', { args })
+      // Map legacy {url, format} to new {videoId, mode} format
+      let downloadArgs = args
+      if (args.url && !args.videoId) {
+        // Extract videoId from YouTube URL
+        const urlMatch = args.url.match(/[?&]v=([^&]+)/) || args.url.match(/youtu\.be\/([^?&]+)/)
+        downloadArgs = {
+          videoId: urlMatch ? urlMatch[1] : args.url,
+          mode: args.format === 'audio' ? 'audio' : 'video',
+          quality: args.quality,
+        }
+      }
+      const id = await invoke('yt_dlp_download', { args: downloadArgs })
       return id
     } catch (e: any) {
       throw new Error(e)

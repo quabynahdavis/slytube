@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { PhHouse, PhCaretRight } from '@phosphor-icons/vue'
+import { PhHouse, PhCaretRight, PhPlus, PhDownload, PhClock } from '@phosphor-icons/vue'
 import { getVideo, getVideoPlaybackInfo } from '../api'
-import { useSponsorBlock } from '../composables/useData'
+import { useSponsorBlock, useDownloads } from '../composables/useData'
 import { getInvidiousManifestUrl } from '../api/manifest'
 import { useSubscriptionsStore } from '../stores/subscriptions'
+import { useHistoryStore } from '../stores/history'
+import { usePlaylistsStore } from '../stores/playlists'
 import type { Video } from '../api/types'
 import type { SponsorBlockSegment } from '../api/sponsorblock'
 import ErrorState from '../components/ui/ErrorState.vue'
@@ -23,12 +25,10 @@ const manifestUrl = ref<string>('')
 const selectedFormatUrl = ref<string>('')
 
 const subscriptionsStore = useSubscriptionsStore()
+const historyStore = useHistoryStore()
+const playlistsStore = usePlaylistsStore()
+const { startDownload } = useDownloads()
 const sponsorBlock = useSponsorBlock(videoId.value)
-
-// Optimistic like state
-const optimisticLikeCount = ref<number | null>(null)
-const userLikeState = ref<'liked' | 'disliked' | 'none'>('none')
-const likeLoading = ref(false)
 
 async function load() {
   if (!videoId.value) {
@@ -43,6 +43,21 @@ async function load() {
   try {
     video.value = await getVideo(videoId.value)
     await sponsorBlock.load()
+
+    // Add to history when video loads successfully
+    if (video.value) {
+      await historyStore.addToHistory({
+        videoId: video.value.id,
+        title: video.value.title,
+        author: video.value.author,
+        authorId: video.value.authorId,
+        lengthSeconds: video.value.lengthSeconds,
+        timeWatched: new Date().toISOString(),
+        watchProgress: 0,
+        isWatched: true,
+        isLive: video.value.isLive,
+      })
+    }
 
     const playbackInfo = await getVideoPlaybackInfo(videoId.value)
 
@@ -73,6 +88,13 @@ async function load() {
     loading.value = false
   }
 }
+
+// Reload when videoId changes (navigation between videos)
+watch(videoId, (newId, oldId) => {
+  if (newId !== oldId) {
+    load()
+  }
+})
 
 function formatViews(count: number): string {
   if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M views`
@@ -142,12 +164,6 @@ const breadcrumbTitle = computed(() => {
   return title.length > 50 ? title.slice(0, 47) + '...' : title
 })
 
-// Like count display (optimistic or actual)
-const displayLikeCount = computed(() => {
-  if (optimisticLikeCount.value !== null) return optimisticLikeCount.value
-  return video.value?.likeCount ?? 0
-})
-
 /**
  * Handle subscribe button click with optimistic update.
  * Immediately toggles visual state, calls API in background,
@@ -167,94 +183,54 @@ async function handleSubscribe() {
 }
 
 /**
- * Handle like button click with optimistic update.
- * Immediately updates visual state, calls API in background,
- * and rolls back on failure.
+ * Add video to quick bookmark playlist (Favorites)
  */
-async function handleLike() {
-  if (!video.value || likeLoading.value) return
-
-  const previousState = userLikeState.value
-  const previousCount = video.value.likeCount
-
-  // Determine new state
-  if (previousState === 'liked') {
-    // Unlike
-    userLikeState.value = 'none'
-    optimisticLikeCount.value = previousCount - 1
-  } else {
-    // Like (remove dislike if present)
-    userLikeState.value = 'liked'
-    const countAdjustment = previousState === 'disliked' ? 1 : 0
-    optimisticLikeCount.value = previousCount + 1 + countAdjustment
-  }
-
-  likeLoading.value = true
-
-  try {
-    // Simulate API call - replace with real API when backend is ready
-    await performLikeApiCall(video.value.id, userLikeState.value)
-  } catch (error) {
-    // Rollback on failure
-    userLikeState.value = previousState
-    optimisticLikeCount.value = previousCount
-    console.error('Like failed:', error)
-  } finally {
-    likeLoading.value = false
+async function addToQuickBookmark() {
+  if (!video.value) return
+  const playlist = await playlistsStore.getQuickBookmarkPlaylist()
+  if (playlist) {
+    await playlistsStore.addToPlaylist(playlist._id, video.value.id)
   }
 }
 
 /**
- * Handle dislike button click with optimistic update.
+ * Download the current video
  */
-async function handleDislike() {
-  if (!video.value || likeLoading.value) return
-
-  const previousState = userLikeState.value
-  const previousCount = video.value.likeCount
-
-  // Determine new state
-  if (previousState === 'disliked') {
-    // Remove dislike
-    userLikeState.value = 'none'
-    optimisticLikeCount.value = previousCount
-  } else {
-    // Dislike (remove like if present)
-    userLikeState.value = 'disliked'
-    const countAdjustment = previousState === 'liked' ? -1 : 0
-    optimisticLikeCount.value = previousCount + countAdjustment
-  }
-
-  likeLoading.value = true
-
+async function downloadVideo() {
+  if (!video.value) return
   try {
-    await performLikeApiCall(video.value.id, userLikeState.value)
+    await startDownload({
+      videoId: video.value.id,
+      mode: 'video',
+    })
   } catch (error) {
-    // Rollback on failure
-    userLikeState.value = previousState
-    optimisticLikeCount.value = previousCount
-    console.error('Dislike failed:', error)
-  } finally {
-    likeLoading.value = false
+    console.error('Download failed:', error)
   }
 }
 
 /**
- * Placeholder for the actual like/dislike API call.
+ * Save video to watch later playlist
  */
-async function performLikeApiCall(_videoId: string, _state: 'liked' | 'disliked' | 'none'): Promise<void> {
-  // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 300))
-  // TODO: Replace with real API call:
-  // await invoke('rate_video', { videoId, rating: state })
+async function saveToWatchLater() {
+  if (!video.value) return
+  try {
+    // Find or create "Watch later" playlist
+    let watchLaterPlaylist = playlistsStore.playlists.find(
+      (p) => p.playlistName === 'Watch later'
+    )
+    if (!watchLaterPlaylist) {
+      watchLaterPlaylist = await playlistsStore.createPlaylist('Watch later', 'Watch later playlist')
+    }
+    if (watchLaterPlaylist) {
+      await playlistsStore.addToPlaylist(watchLaterPlaylist._id, video.value.id)
+    }
+  } catch (error) {
+    console.error('Save to watch later failed:', error)
+  }
 }
 
 onMounted(() => {
   load()
-  // Initialize optimistic like count from video data
-  if (video.value) {
-    optimisticLikeCount.value = video.value.likeCount
-  }
 })
 </script>
 
@@ -352,60 +328,44 @@ onMounted(() => {
                 </span>
               </button>
             </div>
-            <div class="flex gap-2">
-              <!-- Like button with optimistic update -->
+<div class="flex gap-2">
+              <!-- Add to playlist (quick bookmark / Favorites) -->
               <button
-                class="px-4 py-1.5 rounded-full text-sm flex items-center gap-2 transition-all duration-200 ease-in-out"
-                :class="userLikeState === 'liked'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'"
-                :disabled="likeLoading"
-                @click="handleLike"
+                class="px-4 py-1.5 rounded-full text-sm flex items-center gap-2 transition-all duration-200 ease-in-out bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                @click="addToQuickBookmark"
               >
-                <svg
-                  class="size-4 transition-transform duration-200"
-                  :class="{ 'scale-110': userLikeState === 'liked' }"
-                  :fill="userLikeState === 'liked' ? 'currentColor' : 'none'"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
-                </svg>
-                <span class="transition-all duration-200">{{ displayLikeCount }}</span>
+                <PhPlus class="size-4" />
+                <span>Add to playlist</span>
               </button>
-              <!-- Dislike button with optimistic update -->
+              <!-- Download -->
               <button
-                class="px-4 py-1.5 rounded-full text-sm flex items-center gap-2 transition-all duration-200 ease-in-out"
-                :class="userLikeState === 'disliked'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'"
-                :disabled="likeLoading"
-                @click="handleDislike"
+                class="px-4 py-1.5 rounded-full text-sm flex items-center gap-2 transition-all duration-200 ease-in-out bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                @click="downloadVideo"
               >
-                <svg
-                  class="size-4 transition-transform duration-200"
-                  :class="{ 'scale-110': userLikeState === 'disliked' }"
-                  :fill="userLikeState === 'disliked' ? 'currentColor' : 'none'"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018c.163 0 .326.02.485.06L17 4m-7 10v5a2 2 0 002 2h.095c.5 0 .905-.405.905-.905 0-.714.211-1.412.608-2.006L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
-                </svg>
+                <PhDownload class="size-4" />
+                <span>Download</span>
               </button>
-              <!-- Download button (Coming Soon) -->
-              <div class="relative group" title="Download — Coming Soon">
+              <!-- Save to watch later -->
+              <button
+                class="px-4 py-1.5 rounded-full text-sm flex items-center gap-2 transition-all duration-200 ease-in-out bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                @click="saveToWatchLater"
+              >
+                <PhClock class="size-4" />
+                <span>Watch later</span>
+              </button>
+              <!-- Share button (Coming Soon) -->
+              <div class="relative group" title="Share — Coming Soon">
                 <button
                   class="px-4 py-1.5 bg-secondary/60 text-secondary-foreground/50 rounded-full text-sm cursor-not-allowed"
                   disabled
                 >
-                  Download
+                  Share
                 </button>
                 <span class="absolute -top-6 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-yellow-500/90 text-[9px] font-semibold text-black rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                   Soon
                 </span>
               </div>
+            </div>
               <!-- Share button (Coming Soon) -->
               <div class="relative group" title="Share — Coming Soon">
                 <button
@@ -459,9 +419,9 @@ onMounted(() => {
       <!-- Related Videos Sidebar -->
       <div class="space-y-4">
         <h3 class="text-sm font-semibold text-foreground">Related Videos</h3>
-        <div v-if="video.related.length > 0" class="space-y-3">
+        <div v-if="video!.related.length > 0" class="space-y-3">
           <div
-            v-for="rel in video.related.slice(0, 10)"
+            v-for="rel in video!.related.slice(0, 10)"
             :key="rel.id"
             class="flex gap-3 cursor-pointer group"
           >
@@ -477,6 +437,5 @@ onMounted(() => {
         </div>
         <EmptyState v-else title="No related videos" />
       </div>
-    </div>
   </div>
 </template>
