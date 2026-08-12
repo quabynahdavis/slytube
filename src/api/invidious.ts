@@ -81,8 +81,24 @@ export async function invidiousGetVideo(videoId: string): Promise<any> {
   return invidiousFetch(`/api/v1/videos/${videoId}`)
 }
 
-export async function invidiousSearch(query: string, page = 1): Promise<any> {
-  return invidiousFetch(`/api/v1/search?q=${encodeURIComponent(query)}&page=${page}`)
+export async function invidiousSearch(
+  query: string,
+  page = 1,
+  filters?: {
+    sort?: string
+    type?: string
+    duration?: string
+    date?: string
+  }
+): Promise<any> {
+  const params = new URLSearchParams()
+  params.set('q', query)
+  params.set('page', String(page))
+  if (filters?.sort && filters.sort !== 'relevance') params.set('sort', filters.sort)
+  if (filters?.type && filters.type !== 'all') params.set('type', filters.type)
+  if (filters?.duration && filters.duration !== 'all') params.set('duration', filters.duration)
+  if (filters?.date && filters.date !== 'all') params.set('date', filters.date)
+  return invidiousFetch(`/api/v1/search?${params.toString()}`)
 }
 
 export async function invidiousGetTrending(type = 'default'): Promise<any> {

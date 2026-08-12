@@ -239,12 +239,20 @@ export async function getVideoPlaybackInfo(videoId: string): Promise<{
   return { dashUrl, formatStreams, manifestXml }
 }
 
-export async function search(query: string): Promise<Video[]> {
+export async function search(
+  query: string,
+  filters?: {
+    sort?: string
+    type?: string
+    duration?: string
+    date?: string
+  }
+): Promise<Video[]> {
   try {
     const result = await invoke('search_videos', { query })
     return mapYouTubeSearchResults(result as any)
   } catch {
-    const result = await invidiousSearch(query)
+    const result = await invidiousSearch(query, 1, filters)
     return (result || []).filter((i: any) => i.type === 'video').map(mapInvidiousVideo)
   }
 }
