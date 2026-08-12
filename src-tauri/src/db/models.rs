@@ -1,6 +1,7 @@
 use sqlx::FromRow;
 
 #[derive(Debug, Clone, FromRow, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Setting {
     pub id: String,
     pub value: String,
@@ -22,6 +23,7 @@ pub struct ProfileSubscription {
 }
 
 #[derive(Debug, Clone, FromRow, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Playlist {
     pub id: String,
     pub profile_id: String,
@@ -31,6 +33,7 @@ pub struct Playlist {
 }
 
 #[derive(Debug, Clone, FromRow, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PlaylistVideo {
     pub playlist_id: String,
     pub video_id: String,
@@ -38,6 +41,7 @@ pub struct PlaylistVideo {
 }
 
 #[derive(Debug, Clone, FromRow, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct HistoryEntry {
     pub video_id: String,
     pub title: String,
@@ -51,6 +55,7 @@ pub struct HistoryEntry {
 }
 
 #[derive(Debug, Clone, FromRow, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WatchStat {
     pub id: i64,
     pub video_id: String,
@@ -59,6 +64,7 @@ pub struct WatchStat {
 }
 
 #[derive(Debug, Clone, FromRow, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SearchEntry {
     pub id: i64,
     pub query: String,
@@ -66,6 +72,7 @@ pub struct SearchEntry {
 }
 
 #[derive(Debug, Clone, FromRow, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SubscriptionCacheEntry {
     pub channel_id: String,
     pub data: String,
@@ -73,6 +80,7 @@ pub struct SubscriptionCacheEntry {
 }
 
 #[derive(Debug, Clone, FromRow, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TabSession {
     pub id: i64,
     pub data: String,
@@ -80,6 +88,7 @@ pub struct TabSession {
 }
 
 #[derive(Debug, Clone, FromRow, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DownloadRecord {
     pub id: i64,
     pub video_id: String,
@@ -91,6 +100,7 @@ pub struct DownloadRecord {
 }
 
 #[derive(Debug, Clone, FromRow, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SyncState {
     pub key: String,
     pub value: String,
