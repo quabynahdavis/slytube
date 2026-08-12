@@ -381,7 +381,7 @@ export const settingsConfig: SettingsCategory[] = [
             description: 'settings.downloads.subtitleLangDesc',
             synonyms: ['subtitle', 'language', 'locale', 'caption'],
             options: [
-              { value: '', label: 'None' },
+              { value: 'none', label: 'None' },
               { value: 'en', label: 'English' },
               { value: 'es', label: 'Spanish' },
               { value: 'fr', label: 'French' },
@@ -420,7 +420,7 @@ export const settingsConfig: SettingsCategory[] = [
             description: 'settings.privacy.retentionDesc',
             synonyms: ['history', 'retention', 'days', 'keep', 'duration', 'auto-delete'],
             options: [
-              { value: '', label: 'Forever' },
+              { value: 'forever', label: 'Forever' },
               { value: '30', label: '30 days' },
               { value: '90', label: '90 days' },
               { value: '180', label: '180 days' },
