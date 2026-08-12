@@ -130,7 +130,7 @@ function formatDuration(seconds: number): string {
     </div>
 
     <!-- Tabs -->
-    <div class="sticky top-14 z-30 bg-background border-b border-border">
+    <div class="sticky top-0 z-30 bg-background border-b border-border">
       <div class="max-w-7xl mx-auto px-4">
         <nav class="flex gap-6 overflow-x-auto">
           <button
