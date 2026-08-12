@@ -22,6 +22,53 @@ New contributors should read in numeric order — each document builds on the pr
 3. **03** sequences the work using 01 and 02 as prerequisites.
 4. **04** defines the data layer the Watch/Channel/Search views consume.
 
+## Navigation Structure
+
+The sidebar navigation follows a YouTube-like layout:
+
+### Main Navigation
+| Route | View | Icon | Description |
+|-------|------|------|-------------|
+| `/` | Home | `PhHouse` | "For You" personalized feed (subscriptions + trending) |
+| `/trending` | Trending | `PhTrendUp` | Trending videos by category |
+| `/shorts` | Shorts | `PhPlayCircle` | Vertical scroll shorts feed |
+| `/posts` | Posts | `PhNewspaper` | Community posts from subscribed channels |
+
+### Library Section
+| Route | View | Icon | Description |
+|-------|------|------|-------------|
+| `/subscriptions` | Subscriptions | `PhWifiHigh` | Subscription feed with Videos/Live tabs |
+| — | Channel List | — | First 5 subscribed channels with avatars |
+| `/history` | History | `PhClockCounterClockwise` | Watch history |
+| `/playlists` | Playlists | `PhPlaylist` | User-created playlists |
+| `/downloads` | Downloads | `PhDownloadSimple` | yt-dlp download manager |
+| `/playlist/watch-later` | Playlist | `PhClock` | Watch Later playlist |
+
+### Bottom Navigation
+| Route | View | Icon | Description |
+|-------|------|------|-------------|
+| `/settings` | Settings | `PhGear` | Settings hub with sidebar navigation |
+| `/about` | About | `PhInfo` | App info and shortcuts |
+
+### "For You" Algorithm
+The Home page ("For You") is a curated feed using existing data — no ML required:
+1. **Subscriptions-first** — Recent shorts/videos from subscribed channels
+2. **Trending fallback** — Popular videos when subscription content is sparse
+3. **Deduplication** — Videos tracked by ID to avoid repeats
+
+Data sources: `subscriptionsStore.subscribedChannelIds`, `historyStore`, Invidious API.
+
+## Settings Categories
+| Category | Route | Sections |
+|----------|-------|----------|
+| General | `/settings/general` | Startup, Behavior |
+| Appearance | `/settings/appearance` | Theme, Display |
+| Player | `/settings/player` | Playback, Features |
+| Downloads | `/settings/downloads` | General, Subtitles |
+| Privacy | `/settings/privacy` | History, Proxy |
+| Sync | `/settings/sync` | Server |
+| Advanced | `/settings/advanced` | Backend, Stats, Content Filters |
+
 ## Key Decisions
 
 | Decision | Choice | Document |
@@ -30,8 +77,8 @@ New contributors should read in numeric order — each document builds on the pr
 | Store count | 14 stores, 1:1 with legacy Vuex modules | 01 |
 | Settings typing | Single typed record + generic `updateSetting<K>` | 01 |
 | Component library | shadcn-vue, **New York** style, `neutral` base | 02 |
-| Icons | Hugeicons (`@hugeicons/vue`) | 02 |
-| Theming | CSS variables on `[data-theme]`, 5 themes | 02 |
+| Icons | Phosphor Icons (`@phosphor-icons/vue`) | — |
+| Theming | CSS variables on `[data-theme]`, light/dark/system | 02 |
 | Kept components | 9 domain-specific (player, list cards, nav shell) | 02 |
 | First view | Settings (unlocks all form primitives) | 03 |
 | Highest-risk view | Watch (Shaka in webview, 3 platforms) | 03 |
@@ -39,6 +86,8 @@ New contributors should read in numeric order — each document builds on the pr
 | Forbidden headers | Rust `proxy_fetch` command via `reqwest` | 04 |
 | Backend fallback | local → Invidious, error-code gated | 04 |
 | PoToken | Rust hidden webview via `get_potoken` | 04 |
+| Navigation style | YouTube-like sidebar with subscriptions in Library | — |
+| "For You" approach | Curated feed (no ML) from subscriptions + trending | — |
 
 ## Related Domains
 - [../architecture/](../architecture/) - Electron → Tauri component mapping and data flow
