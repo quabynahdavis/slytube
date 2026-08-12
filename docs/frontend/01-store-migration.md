@@ -230,10 +230,7 @@ export interface Video {
 }
 ```
 
-> **Casing:** Rust uses `snake_case`; all `serde` structs carry
-> `#[serde(rename_all = "camelCase")]` so the frontend never converts casing
-> manually. Command *arguments* are the exception — Tauri converts the JS
-> `camelCase` argument object to Rust `snake_case` parameters automatically.
+> **Casing:** Rust uses `snake_case`; all `serde` structs in `src-tauri/src/db/models.rs` carry `#[serde(rename_all = "camelCase")]` so the frontend never converts casing manually. **Phase 1 status:** Most structs already have the attribute (`HistoryEntry`, `Playlist`, `PlaylistVideo`, `WatchStat`, `SearchEntry`, `SubscriptionCacheEntry`, `TabSession`, `DownloadRecord`, `SyncState`, `Setting`). `Profile` and `ProfileSubscription` still use default serde names and will be updated when the profiles feature is wired up. The frontend `DbPlaylist` interface in `playlists.ts` already uses camelCase, matching the Rust model without a translation layer.
 
 ### 3.2 Typing state
 

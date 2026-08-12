@@ -30,6 +30,8 @@ Responsibilities split:
 
 `YtDlpState` uses `tokio::sync::Mutex` (not `std::sync::Mutex`) because the guards are held across `.await` points.
 
+`YtDlpState` uses `tokio::sync::Mutex` (not `std::sync::Mutex`) because the guards are held across `.await` points.
+
 ---
 
 ## 2. Sidecar Binary Configuration
@@ -186,178 +188,166 @@ fn base_args(app: &AppHandle, cfg: &DownloadConfig) -> Vec<String> {
 
 ## 4. Commands
 
-Registered as `ytdlp_*` and exposed to the frontend as `ytdlp.download()`, etc.
+Registered as `yt_dlp_*` in `src-tauri/src/yt_dlp/commands.rs` and exposed to the frontend as `ytDlp.*` via `invoke()`.
 
 | Command | Signature | Purpose |
 |---|---|---|
-| `ytdlp_download` | `(req: DownloadRequest) -> string` | Enqueue a download, returns `downloadId` |
-| `ytdlp_cancel` | `(downloadId: string) -> void` | Kill the child and mark the record cancelled |
-| `ytdlp_list` | `(filter?: DownloadFilter) -> DownloadRecord[]` | Query persisted download records |
-| `ytdlp_get_info` | `(url: string, opts?) -> VideoInfo` | `--dump-single-json` metadata fetch |
-| `ytdlp_get_playback_info` | `(videoId: string, opts?) -> PlaybackInfo` | Resolve direct stream URLs for the in-app player |
-| `ytdlp_download_binary` | `(opts?: { channel?: string }) -> string` | Fetch/refresh the yt-dlp binary itself |
+| `yt_dlp_get_info` | `(url: string) -> serde_json::Value` | `--dump-json --no-download` metadata fetch |
+| `yt_dlp_get_playback_info` | `(url: string) -> serde_json::Value` | `--dump-json --no-download --no-warnings` for stream formats |
+| `yt_dlp_download` | `(args: YtDlpDownloadArgs) -> u64` | Spawn download, return numeric `downloadId` |
+| `yt_dlp_cancel` | `(id: u64) -> void` | Kill child, emit `yt-dlp-cancelled` |
+| `yt_dlp_list` | `() -> Vec<DownloadStatus>` | Merge DB records with in-memory active downloads |
 
-### 4.1 `ytdlp_download`
+> **Phase 1 status:** No `yt_dlp_download_binary` command yet — binary management is out of scope for the initial implementation. No semaphore-based concurrency limiting; downloads are spawned directly.
+
+### 4.1 `yt_dlp_download` (continued)
 
 ```rust
-#[derive(Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DownloadRequest {
-    pub url: String,
-    pub video_id: Option<String>,
-    pub title: Option<String>,
-    pub output_dir: Option<String>,
-    pub filename_template: Option<String>,  // default '%(title)s [%(id)s].%(ext)s'
-    pub quality: String,                    // 'best' | '2160p' | '1440p' | '1080p' | '720p' | '480p' | '360p' | 'audio'
-    pub container: String,                  // 'mp4' | 'webm' | 'mkv' | 'm4a' | 'mp3' | 'opus'
-    pub video_codec: Option<String>,        // 'h264' | 'vp9' | 'av1' | 'any'
-    pub audio_codec: Option<String>,        // 'aac' | 'opus' | 'any'
-    pub embed_subs: bool,
+pub struct YtDlpDownloadArgs {
+    pub video_id: String,
+    #[serde(default)]
+    pub video_ids: Option<Vec<String>>,
+    #[serde(default)]
+    pub playlist_id: Option<String>,
+    pub mode: DownloadMode,                // 'video' | 'audio' | 'custom'
+    #[serde(default)]
+    pub quality: Option<String>,
+    #[serde(default)]
+    pub video_format: Option<String>,
+    #[serde(default)]
+    pub audio_format: Option<String>,
+    #[serde(default)]
+    pub video_codec: Option<String>,
+    #[serde(default)]
+    pub filename_template: Option<String>,
+    #[serde(default)]
+    pub start_time: Option<String>,
+    #[serde(default)]
+    pub end_time: Option<String>,
+    #[serde(default)]
+    pub split_chapters: bool,
+    #[serde(default)]
+    pub remove_sponsorblock: bool,
+    #[serde(default)]
+    pub sponsor_block_categories: Vec<String>,
+    #[serde(default)]
+    pub include_subtitles: bool,
+    #[serde(default)]
+    pub embed_subtitles: bool,
+    #[serde(default)]
+    pub subtitle_languages: Option<String>,
+    #[serde(default)]
     pub embed_thumbnail: bool,
+    #[serde(default)]
     pub embed_metadata: bool,
-    pub sponsorblock: Option<Vec<String>>,  // categories to remove
-    pub proxy_url: Option<String>,
-    pub custom_args: Option<Vec<String>>,
-}
-
-#[tauri::command]
-pub async fn download(
-    app: AppHandle,
-    state: State<'_, AppState>,
-    req: DownloadRequest,
-) -> Result<String, AppError> {
-    validate_url(&req.url)?;
-    let extra = validate_custom_args(req.custom_args.as_deref().unwrap_or(&[]))?;
-
-    let id = uuid::Uuid::new_v4().to_string();
-    let out_dir = resolve_output_dir(&app, req.output_dir.as_deref()).await?;
-
-    // Persist BEFORE spawning so a crash mid-spawn leaves a recoverable record.
-    db::downloads::insert(&state.pool, &DownloadRecord::queued(&id, &req, &out_dir)).await?;
-
-    state.downloads.enqueue(app, id.clone(), req, out_dir, extra).await?;
-    Ok(id)
+    #[serde(default)]
+    pub custom_args: Option<String>,
 }
 ```
 
-Concurrency is bounded by a `tokio::sync::Semaphore` (default 3 permits, configurable 1–8). Queued items sit in `pending` until a permit frees.
+Command flow:
 
-### 4.2 `ytdlp_cancel`
+1. Build argv from args (output template, format selection, chapters, SponsorBlock, subtitles, thumbnail, metadata, custom args).
+2. Increment `state.download_counter` to get a numeric `download_id`.
+3. `INSERT INTO download_records` with `status = 'pending'`.
+4. Spawn child via `tokio::process::Command`.
+5. Insert child into `state.active_downloads`.
+6. Spawn `monitor_download` task for stdout parsing.
+7. Return `download_id` as `u64`.
+
+### 4.2 `yt_dlp_cancel` (continued)
 
 ```rust
 #[tauri::command]
-pub async fn cancel(
-    state: State<'_, AppState>,
-    download_id: String,
-) -> Result<(), AppError> {
-    state.downloads.cancel(&download_id).await?;
-    db::downloads::set_status(&state.pool, &download_id, "cancelled", None).await?;
+pub async fn yt_dlp_cancel(
+    app_handle: AppHandle,
+    id: u64,
+    state: State<'_, YtDlpState>,
+) -> Result<(), String> {
+    let child = {
+        let mut active = state.active_downloads.lock().await;
+        active.remove(&id)
+    };
+    if let Some(mut child) = child {
+        child.kill().await.map_err(|e| format!("Failed to kill process: {}", e))?;
+        let _ = app_handle.emit("yt-dlp-cancelled", id);
+    }
     Ok(())
 }
 ```
 
-Cancellation path:
-
-1. Trip the `CancellationToken` for that id.
-2. The reader task stops consuming stdout.
-3. `child.kill()` sends `SIGKILL` (Unix) / `TerminateProcess` (Windows).
-4. Partial artefacts (`*.part`, `*.ytdl`, `*.f###.*`) are swept from the output directory.
-5. Status → `cancelled`; a `download:cancelled` event fires.
-
-If the item is still `pending`, it is simply removed from the queue and no process is ever spawned.
-
-### 4.3 `ytdlp_list`
+### 4.3 `yt_dlp_list` (continued)
 
 ```rust
-#[derive(Deserialize, Default)]
+pub async fn yt_dlp_list(
+    pool: State<'_, DbPool>,
+    state: State<'_, YtDlpState>,
+) -> Result<Vec<DownloadStatus>, String>
+```
+
+Returns `Vec<DownloadStatus>` — **not** `Vec<u64>` as the original design implied. Merges two sources:
+
+1. Query `SELECT ... FROM download_records ORDER BY created_at DESC` and map rows to `DownloadStatus`.
+2. Add any entries from `state.active_downloads` not yet present in the DB result (covers the brief window between spawn and first DB read).
+
+`DownloadStatus` struct:
+
+```rust
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DownloadFilter {
-    pub status: Option<Vec<String>>,
-    pub video_id: Option<String>,
-    pub limit: Option<i64>,
-    pub offset: Option<i64>,
+pub struct DownloadStatus {
+    pub id: u64,
+    pub video_id: String,
+    pub title: String,
+    pub status: String,
+    pub percent: f64,
+    pub speed: Option<String>,
+    pub eta: Option<String>,
+    pub destination: Option<String>,
+    pub error_message: Option<String>,
 }
 ```
 
-Returns `DownloadRecord[]` ordered by `created_at DESC`. Live progress is merged in from the in-memory manager so a UI refresh mid-download shows the real percentage rather than the last-persisted checkpoint.
-
-### 4.4 `ytdlp_get_info`
+### 4.4 `yt_dlp_get_info` (continued)
 
 ```rust
 #[tauri::command]
-pub async fn get_info(
-    app: AppHandle,
+pub async fn yt_dlp_get_info(
+    app_handle: AppHandle,
     url: String,
-    proxy_url: Option<String>,
-) -> Result<VideoInfo, AppError> {
-    validate_url(&url)?;
+) -> Result<serde_json::Value, String> {
+    let binary_path = get_binary_path(&app_handle)?;
+    let output = Command::new(&binary_path)
+        .args(["--dump-json", "--no-download", &url])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run yt-dlp: {}", e))?;
 
-    let mut args = vec![
-        "--dump-single-json".to_string(),
-        "--no-warnings".to_string(),
-        "--no-playlist".to_string(),
-        "--skip-download".to_string(),
-        "--ignore-config".to_string(),
-    ];
-    if let Some(p) = proxy_url { args.push("--proxy".into()); args.push(p); }
-    args.push(url);
-
-    let out = tokio::time::timeout(
-        std::time::Duration::from_secs(45),
-        app.shell().sidecar("yt-dlp")?.args(args).output(),
-    )
-    .await
-    .map_err(|_| AppError::Sidecar("get_info timed out".into()))?
-    .map_err(|e| AppError::Sidecar(e.to_string()))?;
-
-    if !out.status.success() {
-        return Err(AppError::Sidecar(classify_stderr(&String::from_utf8_lossy(&out.stderr))));
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("yt-dlp error: {}", stderr));
     }
 
-    serde_json::from_slice(&out.stdout).map_err(|e| AppError::Sidecar(e.to_string()))
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(&stdout)
+        .map_err(|e| format!("Failed to parse yt-dlp output: {}", e))?;
+    Ok(json)
 }
 ```
 
-`VideoInfo` deserialises only the fields the app uses (`id`, `title`, `description`, `duration`, `uploader`, `channel_id`, `thumbnails`, `formats`, `is_live`, `availability`, `chapters`, `subtitles`), keeping the payload crossing the IPC boundary small — a raw yt-dlp JSON dump can exceed 1 MB.
+Returns the full `--dump-json` output as `serde_json::Value` — not a trimmed `VideoInfo` struct. The frontend selects the fields it needs.
 
-### 4.5 `ytdlp_get_playback_info`
+### 4.5 `yt_dlp_get_playback_info`
 
-Powers in-app playback without downloading. Returns pre-signed CDN URLs plus their expiry.
+Identical to `yt_dlp_get_info` but adds `--no-warnings` to stderr. Returns the same `serde_json::Value` shape.
 
-```rust
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PlaybackInfo {
-    pub video_id: String,
-    pub title: String,
-    pub duration: Option<f64>,
-    pub is_live: bool,
-    pub streams: Vec<Stream>,
-    pub audio_only: Vec<Stream>,
-    pub subtitles: Vec<SubtitleTrack>,
-    pub expires_at: Option<i64>,   // parsed from the URL 'expire' param
-}
+### 4.6 `yt_dlp_download_binary`
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Stream {
-    pub format_id: String,
-    pub url: String,
-    pub ext: String,
-    pub width: Option<u32>,
-    pub height: Option<u32>,
-    pub fps: Option<f64>,
-    pub tbr: Option<f64>,
-    pub vcodec: Option<String>,
-    pub acodec: Option<String>,
-    pub filesize: Option<i64>,
-    pub protocol: String,          // 'https' | 'm3u8_native' | 'dash'
-}
-```
-
-Implementation uses `-J --skip-download` with `--extractor-args "youtube:player_client=web_safari,web"`, then partitions formats into muxed / video-only / audio-only. Results are cached in memory keyed by `video_id` and evicted at `expires_at - 60s`. Because these URLs are IP-bound, a proxy change invalidates the whole cache.
-
-### 4.6 `ytdlp_download_binary`
+**Not yet implemented.** Binary management (self-update, checksum verification) is out of scope for Phase 1.
 
 Self-updates the sidecar without shipping a new app build.
 
@@ -427,16 +417,6 @@ pub struct DownloadProgress {
     pub fragment: Option<(u32, u32)>,
 }
 ```
-
-| Event | Payload | Emitted |
-|---|---|---|
-| `download:queued` | `DownloadRecord` | On enqueue |
-| `download:started` | `{ id, pid }` | Child spawned |
-| `download:progress` | `DownloadProgress` | Throttled to 4 Hz per item |
-| `download:phase` | `{ id, phase }` | Phase transitions |
-| `download:completed` | `DownloadRecord` | Exit code 0 |
-| `download:failed` | `{ id, kind, message }` | Non-zero exit |
-| `download:cancelled` | `{ id }` | Cancellation |
 
 Events are emitted **globally** via `app.emit()`. The frontend subscribes via `listen()` in `useDownloads.ts`. Each event name is prefixed `yt-dlp-`:
 

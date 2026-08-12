@@ -23,7 +23,9 @@ shortcuts     → shortcuts_register, shortcuts_unregister
 
 ### 1.2 Serialisation contract
 
-Every payload struct derives `Serialize`/`Deserialize` with `#[serde(rename_all = "camelCase")]`, so Rust `time_watched` becomes TS `timeWatched`. Tauri passes command *arguments* as camelCase automatically; return types must opt in explicitly.
+All db model structs in `src-tauri/src/db/models.rs` derive `Serialize`/`Deserialize` with `#[serde(rename_all = "camelCase")]`, so Rust `time_watched` becomes TS `timeWatched`. Tauri passes command *arguments* as camelCase automatically; return types opt in explicitly via the derive.
+
+> **Phase 1 status:** `Setting`, `Playlist`, `PlaylistVideo`, `HistoryEntry`, `WatchStat`, `SearchEntry`, `SubscriptionCacheEntry`, `TabSession`, `DownloadRecord`, and `SyncState` all carry the attribute. `Profile` and `ProfileSubscription` still use default serde field names and will be updated when the profiles feature is wired up. The frontend `DbPlaylist` interface in `playlists.ts` already uses camelCase (`createdAt`), matching the Rust model without a translation layer.
 
 ### 1.3 Error model
 
@@ -472,55 +474,54 @@ Backing table: [`history`](01-database-schema.md#44-history).
 
 | Command | Signature | Behaviour |
 |---|---|---|
-| `db_history_find` | `(limit?: number, offset?: number, query?: string) -> HistoryEntry[]` | Newest first; `query` does a `LIKE` on `title COLLATE NOCASE`. Default `limit` 100, hard cap 1000 |
-| `db_history_upsert` | `(entry: HistoryEntry) -> void` | `ON CONFLICT(video_id) DO UPDATE`; sets `time_watched` server-side if omitted |
-| `db_history_update_watch_progress` | `(videoId: string, progress: number) -> void` | Hot path — single-column update, called every ~5 s during playback |
-| `db_history_overwrite` | `(entries: HistoryEntry[]) -> void` | Destructive full replace used by *import*; `DELETE FROM history` then batch insert, one transaction |
+| `db_history_find_all` | `(limit?: number) -> HistoryEntry[]` | Newest first; default limit 100 |
+| `db_history_upsert` | `(entry: HistoryEntry) -> void` | `ON CONFLICT(video_id) DO UPDATE` |
 | `db_history_delete` | `(videoId: string) -> void` | Removes one entry |
-| `db_history_delete_all` | `() -> void` | Clears the table |
-| `db_history_delete_older_than` | `(cutoffMs: number) -> number` | Returns rows deleted; backs the "auto-clear history after N days" setting |
-| `db_history_apply_sync` | `(entries: HistoryEntry[], mode: 'merge' \| 'replace') -> void` | Sync entry point |
+| `db_history_clear` | `() -> void` | Clears the table |
+
+**HistoryEntry model** (`src-tauri/src/db/models.rs`):
 
 ```rust
-#[tauri::command]
-pub async fn apply_sync(
-    state: State<'_, AppState>,
-    entries: Vec<HistoryEntry>,
-    mode: String,
-) -> Result<(), AppError> {
-    let mut tx = state.pool.begin().await?;
-
-    if mode == "replace" {
-        sqlx::query("DELETE FROM history").execute(&mut *tx).await?;
-    }
-
-    for e in &entries {
-        // Merge: keep whichever view is more recent, and the furthest progress.
-        sqlx::query(
-            r#"INSERT INTO history (video_id,title,author,author_id,length_secs,published,
-                                    watch_progress,time_watched,is_live,paused,
-                                    last_viewed_playlist_id,type,synced_at)
-               VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)
-               ON CONFLICT(video_id) DO UPDATE SET
-                 title          = excluded.title,
-                 watch_progress = MAX(history.watch_progress, excluded.watch_progress),
-                 time_watched   = MAX(history.time_watched,   excluded.time_watched),
-                 synced_at      = excluded.synced_at
-               WHERE excluded.time_watched >= history.time_watched"#,
-        )
-        .bind(&e.video_id).bind(&e.title).bind(&e.author).bind(&e.author_id)
-        .bind(e.length_secs).bind(e.published).bind(e.watch_progress)
-        .bind(e.time_watched).bind(e.is_live).bind(e.paused)
-        .bind(&e.last_viewed_playlist_id).bind(&e.r#type).bind(now_ms())
-        .execute(&mut *tx).await?;
-    }
-
-    tx.commit().await?;
-    Ok(())
+#[derive(Debug, Clone, FromRow, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HistoryEntry {
+    pub video_id: String,
+    pub title: String,
+    pub author: String,
+    pub author_id: String,
+    pub length_seconds: Option<i64>,
+    pub watch_progress: Option<f64>,
+    pub time_watched: String,          // ISO-8601 timestamp (UTC)
+    pub is_watched: bool,
+    pub is_live: bool,
 }
 ```
 
-`delete_older_than` is scheduled by a Tokio interval task at startup (daily tick) as well as being callable on demand.
+Key differences from the original design spec:
+- `time_watched` is a `String` (ISO-8601), not epoch milliseconds — matches JS `Date.toISOString()` directly.
+- `watch_progress` and `length_seconds` are `Option<T>`, not defaulted scalars.
+- No `paused`, `type`, `last_viewed_playlist_id`, or `synced_at` columns yet (follow-up migration when sync lands).
+
+The frontend interface in `src/stores/history.ts` mirrors this exactly:
+
+```ts
+export interface HistoryEntry {
+  videoId: string
+  title: string
+  author: string
+  authorId: string
+  lengthSeconds: number | null
+  timeWatched: string             // ISO timestamp
+  watchProgress: number | null
+  isWatched: boolean
+  isLive: boolean
+  lastViewedPlaylistId?: string   // UI-only, not yet persisted
+  lastViewedPlaylistType?: string
+  lastViewedPlaylistItemId?: string
+}
+```
+
+> **Phase 1 note:** `update_watch_progress`, `overwrite`, `delete_older_than`, and `apply_sync` commands are not yet implemented. `HistoryRepository::delete_older_than(days)` and `clear_all()` exist in the repository layer but lack Tauri command wrappers. These will land when the sync feature is built.
 
 ---
 

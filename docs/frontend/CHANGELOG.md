@@ -11,6 +11,7 @@
 | 2026-08-12 | 1.2.0 | Navigation restructure — YouTube-like sidebar with Shorts, Posts, Subscriptions in Library; "For You" curated feed; Phosphor icons; settings sidebar layout | SlyTube Team |
 | 2026-08-12 | 1.2.0 | Database integration — subscriptions, history, playlists wired to Tauri SQLite backend | SlyTube Team |
 | 2026-08-12 | 1.2.0 | UI improvements — player shortcuts, progressive disclosure, sync status, optimistic updates, command palette, scroll animations, breadcrumbs | SlyTube Team |
+| 2026-08-12 | 1.3.0 | Updated `01-store-migration.md` — noted serde `camelCase` status per model (most done; `Profile` pending); clarified that frontend `DbPlaylist` already matches Rust model | Docs Update |
 
 ## Pending Actions
 

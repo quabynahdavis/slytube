@@ -508,7 +508,28 @@ CREATE INDEX idx_sc_expires ON subscription_cache(expires_at);
 
 The four feed arrays stay as JSON blobs: they are always read and written whole, are bounded (~60 entries per channel), and normalising them would create a hot write path for no query benefit.
 
-### 4.8 `tab_sessions`
+### 4.8 `download_records`
+
+Tracks yt-dlp download history and active downloads. Records are inserted at spawn time and updated on progress, destination discovery, completion, or failure.
+
+```sql
+CREATE TABLE IF NOT EXISTS download_records (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    video_id     TEXT    NOT NULL,
+    title        TEXT    NOT NULL,
+    status       TEXT    NOT NULL DEFAULT 'pending',
+    percent      REAL    NOT NULL DEFAULT 0.0,
+    destination  TEXT    NOT NULL DEFAULT '',
+    created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_download_records_status      ON download_records(status);
+CREATE INDEX IF NOT EXISTS idx_download_records_created_at  ON download_records(created_at DESC);
+```
+
+> **Note:** This is a simplified schema compared to the design spec in [`03-yt-dlp-sidecar.md`](03-yt-dlp-sidecar.md). The initial implementation persists only the fields needed for listing and basic progress tracking. Columns for `error_message`, `output_path`, `started_at`, `completed_at`, and `args_json` can be added in a follow-up migration when the richer tracking is required.
+
+### 4.9 `tab_sessions`
 
 ```sql
 CREATE TABLE tab_sessions (
