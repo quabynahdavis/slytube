@@ -1,28 +1,26 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { PhHouse, PhCaretRight, PhPlus, PhDownload, PhClock } from '@phosphor-icons/vue'
 import { useDownloads } from '../composables/useData'
 import { useSubscriptionsStore } from '../stores/subscriptions'
 import { usePlaylistsStore } from '../stores/playlists'
 import type { Video } from '../api/types'
 import type { SponsorBlockSegment } from '../api/sponsorblock'
-import ErrorState from '../components/ui/ErrorState.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
 import ShakaPlayer from '../components/player/ShakaPlayer.vue'
 
-const route = useRoute()
-const router = useRouter()
-const videoId = computed(() => route.query.v as string || route.params.id as string || '')
 const loading = ref(false)
 const error = ref<string | null>(null)
 const playerError = ref<string | null>(null)
-const manifestUrl = ref<string>('')
-const selectedFormatUrl = ref<string>('')
 
 const subscriptionsStore = useSubscriptionsStore()
 const playlistsStore = usePlaylistsStore()
 const { startDownload } = useDownloads()
+
+// Test video ID - using the provided YouTube link
+const testVideoId = '7zuv5KMQFj8'
+
+// Invidious DASH manifest URL for the test video
+const manifestUrl = `https://yewtu.be/api/manifest/dash/id/${testVideoId}?local=true`
 
 // Dummy data for UI development
 const dummyComments = [
@@ -47,8 +45,28 @@ const dummySegments = [
   { UUID: 'seg3', category: 'outro', segment: [540, 600] as [number, number], videoDuration: 600, actionType: 'skip' },
 ]
 
+// Dummy chapters for UI development
+const dummyChapters = [
+  { title: 'Introduction', startSeconds: 0, thumbnail: '' },
+  { title: 'Project Setup', startSeconds: 150, thumbnail: '' },
+  { title: 'API Integration', startSeconds: 495, thumbnail: '' },
+  { title: 'Video Player', startSeconds: 940, thumbnail: '' },
+  { title: 'State Management', startSeconds: 2120, thumbnail: '' },
+  { title: 'Conclusion', startSeconds: 3000, thumbnail: '' },
+]
+
+// Dummy transcript for UI development
+const dummyTranscript = [
+  { start: 0, duration: 4, text: 'Welcome to this comprehensive tutorial on building a modern YouTube client.' },
+  { start: 4, duration: 5, text: 'Today we will be using Vue 3, TypeScript, and Tauri to create a desktop application.' },
+  { start: 9, duration: 4, text: 'Let us start by setting up our development environment.' },
+  { start: 13, duration: 6, text: 'First, make sure you have Node.js version 18 or higher installed on your system.' },
+  { start: 19, duration: 5, text: 'We will also need Rust and Cargo installed for the Tauri backend.' },
+  { start: 24, duration: 4, text: 'Once everything is set up, we can create our project.' },
+]
+
 const video = ref<Video>({
-  id: 'dQw4w9WgXcQ',
+  id: testVideoId,
   title: 'Building a Modern YouTube Client with Vue 3 and Tauri - Complete Tutorial',
   author: 'TechChannel',
   authorId: 'UCtech123',
@@ -85,25 +103,33 @@ Timestamps:
   isLive: false,
   isUpcoming: false,
   isShort: false,
-  chapters: [],
+  chapters: dummyChapters,
   captions: [],
   related: dummyRelated,
 })
 
 const comments = dummyComments
 const sponsorBlockSegments = dummySegments
+const chapters = dummyChapters
+const transcript = dummyTranscript
 
-async function load() {
-  // Dummy load for UI development
-  loading.value = false
-  error.value = null
+// Description expand/collapse
+const showFullDescription = ref(false)
+const descriptionExpanded = computed(() => showFullDescription.value || video.value.description.length < 200)
+
+function toggleDescription() {
+  showFullDescription.value = !showFullDescription.value
 }
 
-function formatViews(count: number): string {
-  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M views`
-  if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K views`
-  return `${count} views`
-}
+// Truncated description
+const truncatedDescription = computed(() => {
+  if (descriptionExpanded.value) return video.value.description
+  const lines = video.value.description.split('\n')
+  return lines.slice(0, 3).join('\n')
+})
+
+// Active tab for chapters/transcript/sponsorblock
+const activeTab = ref<'chapters' | 'transcript' | 'sponsorblock'>('chapters')
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600)
@@ -113,114 +139,47 @@ function formatDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
+function formatViews(count: number): string {
+  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M views`
+  if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K views`
+  return `${count} views`
+}
+
 const segments = computed(() => sponsorBlockSegments as SponsorBlockSegment[])
 
-// Safely derive related videos, handling potential null/undefined at runtime
-const relatedVideos = computed(() => video.value?.related?.slice(0, 10) || [])
-
-// Subscription computed state for current video's channel
 const isSubscribed = computed(() =>
-  video.value ? subscriptionsStore.isSubscribed(video.value.authorId) : false
+  subscriptionsStore.isSubscribed(video.value.authorId)
 )
 const isSubscribePending = computed(() =>
-  video.value ? subscriptionsStore.isPending(video.value.authorId) : false
+  subscriptionsStore.isPending(video.value.authorId)
 )
 
-/**
- * Derives a category label from the referrer route.
- * Maps known route names to display labels, defaults to "Videos".
- */
-const breadcrumbCategory = computed(() => {
-  const ref = route.query.ref as string | undefined
-  if (!ref) return 'Videos'
-  const map: Record<string, string> = {
-    trending: 'Trending',
-    subscriptions: 'Subscriptions',
-    history: 'History',
-    search: 'Search Results',
-    channel: 'Channel',
-    hashtag: 'Hashtag',
-    popular: 'Popular',
-    playlists: 'Playlists',
-    playlist: 'Playlist',
-  }
-  return map[ref] || 'Videos'
-})
-
-/** Route to navigate to when clicking the category breadcrumb. */
-const breadcrumbCategoryRoute = computed(() => {
-  const ref = route.query.ref as string | undefined
-  if (!ref) return null
-  // Map ref names that have corresponding routes
-  const routeMap: Record<string, string> = {
-    trending: '/trending',
-    subscriptions: '/subscriptions',
-    history: '/history',
-    search: '/search',
-    popular: '/popular',
-    playlists: '/playlists',
-  }
-  return routeMap[ref] || null
-})
-
-/** Truncated video title for breadcrumb display (max 50 chars). */
-const breadcrumbTitle = computed(() => {
-  if (!video.value) return ''
-  const title = video.value.title
-  return title.length > 50 ? title.slice(0, 47) + '...' : title
-})
-
-/**
- * Handle subscribe button click with optimistic update.
- * Immediately toggles visual state, calls API in background,
- * and rolls back on failure.
- */
 async function handleSubscribe() {
-  if (!video.value) return
   const channelId = video.value.authorId
   const channelName = video.value.author
-
   const result = await subscriptionsStore.toggleSubscription(channelId, channelName)
-
   if (!result.success) {
-    // Show user feedback on failure (could be a toast/notification)
     console.warn('Failed to update subscription')
   }
 }
 
-/**
- * Add video to quick bookmark playlist (Favorites)
- */
 async function addToQuickBookmark() {
-  if (!video.value) return
   const playlist = await playlistsStore.getQuickBookmarkPlaylist()
   if (playlist) {
     await playlistsStore.addToPlaylist(playlist._id, video.value.id)
   }
 }
 
-/**
- * Download the current video
- */
 async function downloadVideo() {
-  if (!video.value) return
   try {
-    await startDownload({
-      videoId: video.value.id,
-      mode: 'video',
-    })
+    await startDownload({ videoId: video.value.id, mode: 'video' })
   } catch (error) {
     console.error('Download failed:', error)
   }
 }
 
-/**
- * Save video to watch later playlist
- */
 async function saveToWatchLater() {
-  if (!video.value) return
   try {
-    // Find or create "Watch later" playlist
     let watchLaterPlaylist = playlistsStore.playlists.find(
       (p) => p.playlistName === 'Watch later'
     )
@@ -236,162 +195,169 @@ async function saveToWatchLater() {
 }
 
 onMounted(() => {
-  load()
+  loading.value = false
+  error.value = null
 })
 </script>
 
 <template>
-  <div class="p-6">
-    <template v-if="loading">
-      <div class="aspect-video bg-muted rounded-xl mb-4 animate-pulse"></div>
-      <div class="h-6 bg-muted rounded w-2/3 mb-2 animate-pulse"></div>
-      <div class="h-4 bg-muted rounded w-1/3 animate-pulse"></div>
-    </template>
-
-    <ErrorState v-else-if="error" :message="error" retryable @retry="load" />
-
-    <div v-else-if="video" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="p-4">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Main Content -->
       <div class="lg:col-span-2 space-y-4">
-        <!-- Shaka Player (DASH) -->
+        <!-- Shaka Player -->
         <ShakaPlayer
-          v-if="manifestUrl"
           :manifest-url="manifestUrl"
-          :video-id="videoId"
+          :video-id="testVideoId"
           :title="video.title"
           :segments="segments"
           :chapters="video.chapters"
           @error="playerError = $event"
         />
 
-        <!-- Direct Video Fallback -->
-        <video
-          v-else-if="selectedFormatUrl"
-          :src="selectedFormatUrl"
-          controls
-          class="w-full aspect-video bg-black rounded-xl"
-          @error="playerError = 'Failed to load video stream'"
-        />
-
         <!-- Player Error Fallback -->
         <div v-if="playerError" class="bg-destructive/10 border border-destructive/20 rounded-xl p-4">
           <p class="text-sm text-destructive font-medium">Player Error: {{ playerError }}</p>
           <p class="text-xs text-muted-foreground mt-1">The video may be unavailable or require authentication.</p>
-          <div v-if="selectedFormatUrl" class="mt-3">
-            <a :href="selectedFormatUrl" target="_blank" class="text-sm text-primary hover:underline">
-              Open stream in new tab
-            </a>
-          </div>
         </div>
-
-        <!-- Breadcrumb Navigation -->
-        <nav class="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <button
-            class="flex items-center gap-1 hover:text-foreground transition-colors"
-            @click="router.push('/')"
-          >
-            <PhHouse :size="14" weight="regular" />
-            <span>Home</span>
-          </button>
-          <PhCaretRight :size="12" class="shrink-0" />
-          <button
-            v-if="breadcrumbCategoryRoute"
-            class="hover:text-foreground transition-colors"
-            @click="router.push(breadcrumbCategoryRoute)"
-          >
-            {{ breadcrumbCategory }}
-          </button>
-          <span v-else class="text-muted-foreground">{{ breadcrumbCategory }}</span>
-          <PhCaretRight :size="12" class="shrink-0" />
-          <span class="text-foreground truncate">{{ breadcrumbTitle }}</span>
-        </nav>
 
         <!-- Video Info -->
         <div>
           <h1 class="text-xl font-bold text-foreground mb-2">{{ video.title }}</h1>
           <div class="flex items-center justify-between flex-wrap gap-4">
             <div class="flex items-center gap-3">
-              <div class="size-10 rounded-full bg-primary/20 flex items-center justify-center">
+              <router-link :to="`/channel/${video.authorId}`" class="size-10 rounded-full bg-primary/20 flex items-center justify-center hover:ring-2 hover:ring-primary/30 transition-all">
                 <span class="text-sm font-medium text-primary">{{ video.author[0] }}</span>
-              </div>
+              </router-link>
               <div>
-                <p class="text-sm font-medium text-foreground">{{ video.author }}</p>
-                <p class="text-xs text-muted-foreground">{{ formatViews(video.viewCount) }}</p>
+                <router-link :to="`/channel/${video.authorId}`" class="text-sm font-medium text-foreground hover:underline">{{ video.author }}</router-link>
+                <p class="text-xs text-muted-foreground">{{ formatViews(video.viewCount) }} &middot; {{ video.published }}</p>
               </div>
               <button
-                class="px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ease-in-out"
+                class="px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200"
                 :class="isSubscribed
                   ? 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
                   : 'bg-primary text-primary-foreground hover:bg-primary/90'"
                 :disabled="isSubscribePending"
                 @click="handleSubscribe"
               >
-                <span
-                  class="inline-block transition-all duration-200"
-                  :class="{ 'opacity-50': isSubscribePending }"
-                >
-                  {{ isSubscribePending ? '...' : isSubscribed ? 'Subscribed' : 'Subscribe' }}
-                </span>
+                {{ isSubscribePending ? '...' : isSubscribed ? 'Subscribed' : 'Subscribe' }}
               </button>
             </div>
-<div class="flex gap-2">
-              <!-- Add to playlist (quick bookmark / Favorites) -->
+            <div class="flex gap-2">
               <button
-                class="px-4 py-1.5 rounded-full text-sm flex items-center gap-2 transition-all duration-200 ease-in-out bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                class="px-4 py-1.5 rounded-full text-sm flex items-center gap-2 bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
                 @click="addToQuickBookmark"
               >
-                <PhPlus class="size-4" />
-                <span>Add to playlist</span>
+                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" /></svg>
+                Save
               </button>
-              <!-- Download -->
               <button
-                class="px-4 py-1.5 rounded-full text-sm flex items-center gap-2 transition-all duration-200 ease-in-out bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                class="px-4 py-1.5 rounded-full text-sm flex items-center gap-2 bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
                 @click="downloadVideo"
               >
-                <PhDownload class="size-4" />
-                <span>Download</span>
+                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+                Download
               </button>
-              <!-- Save to watch later -->
               <button
-                class="px-4 py-1.5 rounded-full text-sm flex items-center gap-2 transition-all duration-200 ease-in-out bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                class="px-4 py-1.5 rounded-full text-sm flex items-center gap-2 bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
                 @click="saveToWatchLater"
               >
-                <PhClock class="size-4" />
-                <span>Watch later</span>
+                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                Watch Later
               </button>
-              <!-- Share button (Coming Soon) -->
-              <div class="relative group" title="Share — Coming Soon">
-                <button
-                  class="px-4 py-1.5 bg-secondary/60 text-secondary-foreground/50 rounded-full text-sm cursor-not-allowed"
-                  disabled
-                >
-                  Share
-                </button>
-                <span class="absolute -top-6 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-yellow-500/90 text-[9px] font-semibold text-black rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                  Soon
-                </span>
-              </div>
             </div>
           </div>
         </div>
 
-        <!-- Description -->
+        <!-- Description with Show More -->
         <div class="bg-card rounded-xl p-4">
-          <p class="text-sm text-muted-foreground whitespace-pre-wrap">{{ video.description }}</p>
+          <p class="text-sm text-muted-foreground whitespace-pre-wrap">{{ truncatedDescription }}</p>
+          <button
+            v-if="video.description.length >= 200"
+            class="text-sm font-medium text-foreground mt-2 hover:underline"
+            @click="toggleDescription"
+          >
+            {{ descriptionExpanded ? 'Show less' : 'Show more' }}
+          </button>
         </div>
 
-        <!-- SponsorBlock Segments -->
-        <div v-if="sponsorBlockSegments.length > 0" class="bg-card rounded-xl p-4">
-          <h3 class="text-sm font-semibold text-foreground mb-3">SponsorBlock Segments</h3>
-          <div class="space-y-2">
-            <div
-              v-for="seg in sponsorBlockSegments"
-              :key="seg.UUID"
-              class="flex items-center gap-3"
+        <!-- Chapters / Transcript / SponsorBlock Tabs -->
+        <div class="bg-card rounded-xl overflow-hidden">
+          <div class="flex border-b border-border">
+            <button
+              class="flex-1 px-4 py-3 text-sm font-medium transition-colors"
+              :class="activeTab === 'chapters' ? 'text-foreground border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'"
+              @click="activeTab = 'chapters'"
             >
-              <div class="size-3 rounded" :style="{ backgroundColor: seg.category === 'sponsor' ? '#00d400' : seg.category === 'intro' ? '#00ffff' : '#0202ed' }"></div>
-              <span class="text-sm text-foreground">{{ seg.category.charAt(0).toUpperCase() + seg.category.slice(1) }}</span>
-              <span class="text-xs text-muted-foreground">{{ formatDuration(seg.segment[0]) }} - {{ formatDuration(seg.segment[1]) }}</span>
+              Chapters
+            </button>
+            <button
+              class="flex-1 px-4 py-3 text-sm font-medium transition-colors"
+              :class="activeTab === 'transcript' ? 'text-foreground border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'"
+              @click="activeTab = 'transcript'"
+            >
+              Transcript
+            </button>
+            <button
+              class="flex-1 px-4 py-3 text-sm font-medium transition-colors"
+              :class="activeTab === 'sponsorblock' ? 'text-foreground border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'"
+              @click="activeTab = 'sponsorblock'"
+            >
+              SponsorBlock
+            </button>
+          </div>
+
+          <div class="p-4">
+            <!-- Chapters Tab -->
+            <div v-if="activeTab === 'chapters'">
+              <div v-if="chapters.length > 0" class="space-y-2">
+                <div
+                  v-for="(chapter, idx) in chapters"
+                  :key="idx"
+                  class="flex items-center gap-3 p-2 rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
+                >
+                  <div class="size-12 rounded bg-muted flex items-center justify-center shrink-0">
+                    <svg class="size-4 text-muted-foreground" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-foreground">{{ chapter.title }}</p>
+                    <p class="text-xs text-muted-foreground">{{ formatDuration(chapter.startSeconds) }}</p>
+                  </div>
+                </div>
+              </div>
+              <p v-else class="text-sm text-muted-foreground text-center py-4">No chapters available</p>
+            </div>
+
+            <!-- Transcript Tab -->
+            <div v-else-if="activeTab === 'transcript'">
+              <div v-if="transcript.length > 0" class="space-y-2">
+                <div
+                  v-for="(line, idx) in transcript"
+                  :key="idx"
+                  class="flex gap-3 p-2 rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
+                >
+                  <span class="text-xs text-primary font-mono shrink-0 w-12 text-right pt-0.5">{{ formatDuration(line.start) }}</span>
+                  <p class="text-sm text-foreground">{{ line.text }}</p>
+                </div>
+              </div>
+              <p v-else class="text-sm text-muted-foreground text-center py-4">No transcript available</p>
+            </div>
+
+            <!-- SponsorBlock Tab -->
+            <div v-else-if="activeTab === 'sponsorblock'">
+              <div v-if="sponsorBlockSegments.length > 0" class="space-y-2">
+                <div
+                  v-for="seg in sponsorBlockSegments"
+                  :key="seg.UUID"
+                  class="flex items-center gap-3 p-2 rounded-lg hover:bg-accent/50"
+                >
+                  <div class="size-3 rounded" :style="{ backgroundColor: seg.category === 'sponsor' ? '#00d400' : seg.category === 'intro' ? '#00ffff' : '#0202ed' }" />
+                  <span class="text-sm text-foreground flex-1">{{ seg.category.charAt(0).toUpperCase() + seg.category.slice(1) }}</span>
+                  <span class="text-xs text-muted-foreground">{{ formatDuration(seg.segment[0]) }} - {{ formatDuration(seg.segment[1]) }}</span>
+                </div>
+              </div>
+              <p v-else class="text-sm text-muted-foreground text-center py-4">No SponsorBlock segments</p>
             </div>
           </div>
         </div>
@@ -401,13 +367,7 @@ onMounted(() => {
           <h3 class="text-sm font-semibold text-foreground mb-4">Comments ({{ comments.length }})</h3>
           <div v-if="comments.length > 0" class="space-y-4">
             <div v-for="comment in comments" :key="comment.id" class="flex gap-3">
-              <img
-                v-if="comment.authorAvatar"
-                :src="comment.authorAvatar"
-                :alt="comment.author"
-                class="size-8 rounded-full shrink-0"
-              />
-              <div v-else class="size-8 rounded-full bg-primary/20 shrink-0 flex items-center justify-center">
+              <div class="size-8 rounded-full bg-primary/20 shrink-0 flex items-center justify-center">
                 <span class="text-xs font-medium text-primary">{{ comment.author[0] }}</span>
               </div>
               <div class="flex-1 min-w-0">
@@ -423,23 +383,18 @@ onMounted(() => {
               </div>
             </div>
           </div>
-          <div v-else class="flex items-center gap-3 py-4 justify-center">
-            <svg class="size-5 text-muted-foreground/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
-            </svg>
-            <span class="text-sm text-muted-foreground/60">No comments available</span>
-          </div>
+          <div v-else class="text-sm text-muted-foreground text-center py-4">No comments available</div>
         </div>
       </div>
 
       <!-- Related Videos Sidebar -->
       <div class="space-y-4">
         <h3 class="text-sm font-semibold text-foreground">Related Videos</h3>
-        <div v-if="relatedVideos.length > 0" class="space-y-3">
+        <div v-if="video.related.length > 0" class="space-y-3">
           <div
-            v-for="rel in relatedVideos"
+            v-for="rel in video.related"
             :key="rel.id"
-            class="flex gap-3 cursor-pointer group rounded-lg p-1.5 transition-colors hover:bg-primary/8"
+            class="flex gap-3 cursor-pointer group rounded-lg p-2 transition-colors hover:bg-primary/8"
           >
             <router-link :to="`/watch?v=${rel.id}`" class="relative w-40 aspect-video rounded-lg overflow-hidden bg-muted shrink-0">
               <img v-if="rel.thumbnail" :src="rel.thumbnail" :alt="rel.title" class="w-full h-full object-cover" />
