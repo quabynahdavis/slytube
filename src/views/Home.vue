@@ -61,7 +61,7 @@ onMounted(loadForYouFeed)
     <EmptyState v-else-if="videos.length === 0" :title="t('emptyStates.noTrendingVideos')" icon="trending">
       Subscribe to channels and watch videos to get personalized recommendations.
     </EmptyState>
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3  gap-3">
       <VideoCard
         v-for="video in videos"
         :key="video.id"

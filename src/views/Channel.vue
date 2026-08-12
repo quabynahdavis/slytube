@@ -190,7 +190,7 @@ function toggleSubscription() {
         <div class="mt-6">
           <!-- Home / Videos Tab -->
           <div v-if="activeTab === 'home' || activeTab === 'videos'">
-            <div v-if="channelVideos.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div v-if="channelVideos.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3  gap-3">
               <VideoCard v-for="video in channelVideos" :key="video.id" :video="video" />
             </div>
             <div v-else class="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
@@ -239,7 +239,7 @@ function toggleSubscription() {
 
           <!-- Live Tab -->
           <div v-else-if="activeTab === 'live'">
-            <div v-if="channelLive.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div v-if="channelLive.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3  gap-3">
               <VideoCard v-for="video in channelLive" :key="video.id" :video="video" />
             </div>
             <div v-else class="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
@@ -255,7 +255,7 @@ function toggleSubscription() {
 
           <!-- Playlists Tab -->
           <div v-else-if="activeTab === 'playlists'">
-            <div v-if="channelPlaylists.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div v-if="channelPlaylists.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3  gap-3">
               <div
                 v-for="playlist in channelPlaylists"
                 :key="playlist.playlistId || playlist.id"
