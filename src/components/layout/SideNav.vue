@@ -116,12 +116,24 @@ watch(subscribedChannels, loadChannelInfo)
 <template>
   <aside
     :class="cn(
-      'flex flex-col h-full bg-card border-r border-border transition-all duration-200 z-30',
-      isExpanded ? 'w-56' : 'w-16'
+      'flex flex-col h-full bg-card border-border transition-all duration-200 z-30',
+      mode === 'overlay' ? 'w-56 border-r shadow-2xl' : (isExpanded ? 'w-56 border-r' : 'w-16 border-r')
     )"
   >
     <!-- Main Navigation -->
     <nav class="py-2">
+      <div v-if="mode === 'overlay'" class="flex items-center justify-between px-3 pb-2 mb-2 border-b border-border">
+        <span class="text-sm font-semibold text-foreground">Menu</span>
+        <button
+          class="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors"
+          @click="emit('close')"
+        >
+          <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
       <ul class="space-y-0.5 px-2">
         <li v-for="item in mainNavItems" :key="item.route">
           <router-link
@@ -131,9 +143,10 @@ watch(subscribedChannels, loadChannelInfo)
               route.path === item.route && 'bg-accent text-accent-foreground'
             )"
             :title="item.name"
+            @click="handleNavigate"
           >
             <component :is="item.icon" :size="20" class="shrink-0" />
-            <span v-if="isExpanded" class="truncate">{{ item.name }}</span>
+            <span v-if="isExpanded || mode === 'overlay'" class="truncate">{{ item.name }}</span>
           </router-link>
         </li>
       </ul>
@@ -159,12 +172,13 @@ watch(subscribedChannels, loadChannelInfo)
               route.path === '/subscriptions' && 'bg-accent text-accent-foreground'
             )"
             :title="t('nav.subscriptions')"
+            @click="handleNavigate"
           >
             <div class="flex items-center gap-3 min-w-0">
               <PhWifiHigh :size="20" class="shrink-0" />
               <span class="truncate">{{ t('nav.subscriptions') }}</span>
             </div>
-            <PhCaretRight :size="14" v-if="isExpanded" class="truncate shrink-0 text-muted-foreground" />
+            <PhCaretRight :size="14" class="truncate shrink-0 text-muted-foreground" />
           </router-link>
         </li>
         <!-- Channel List -->
@@ -173,6 +187,7 @@ watch(subscribedChannels, loadChannelInfo)
             :to="`/channel/${channel.id}`"
             class="flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
             :title="channel.name"
+            @click="handleNavigate"
           >
             <div class="size-6 rounded-full bg-muted flex items-center justify-center shrink-0 overflow-hidden">
               <img
@@ -183,16 +198,17 @@ watch(subscribedChannels, loadChannelInfo)
               />
               <span v-else class="text-[10px] font-medium text-muted-foreground">{{ channel.name[0] || '?' }}</span>
             </div>
-            <span v-if="isExpanded" class="truncate text-xs">{{ channel.name }}</span>
+            <span class="truncate text-xs">{{ channel.name }}</span>
           </router-link>
         </li>
         <!-- Show All -->
         <li v-if="subscribedChannels.size > 5">
           <button
             class="flex items-center gap-3 rounded-lg px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground w-full text-left"
+            @click="handleNavigate"
           >
             <PhCaretRight :size="14" class="shrink-0" />
-            <span v-if="isExpanded">{{ t('nav.showAll') }}</span>
+            <span>{{ t('nav.showAll') }}</span>
           </button>
         </li>
       </ul>
@@ -200,7 +216,7 @@ watch(subscribedChannels, loadChannelInfo)
       <div class="my-2 border-t border-border mx-2" />
 
       <!-- Library Section -->
-      <div v-if="isExpanded" class="px-4 pb-2 pt-1">
+      <div class="px-4 pb-2 pt-1">
         <h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {{ t('nav.library') }}
         </h3>
@@ -214,9 +230,10 @@ watch(subscribedChannels, loadChannelInfo)
               route.path === item.route && 'bg-accent text-accent-foreground'
             )"
             :title="item.name"
+            @click="handleNavigate"
           >
             <component :is="item.icon" :size="20" class="shrink-0" />
-            <span v-if="isExpanded" class="truncate">{{ item.name }}</span>
+            <span class="truncate">{{ item.name }}</span>
           </router-link>
         </li>
       </ul>
@@ -233,9 +250,10 @@ watch(subscribedChannels, loadChannelInfo)
               route.path === item.route && 'bg-accent text-accent-foreground'
             )"
             :title="item.name"
+            @click="handleNavigate"
           >
             <component :is="item.icon" :size="20" class="shrink-0" />
-            <span v-if="isExpanded" class="truncate">{{ item.name }}</span>
+            <span class="truncate">{{ item.name }}</span>
           </router-link>
         </li>
       </ul>

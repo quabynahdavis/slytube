@@ -92,9 +92,9 @@ const syncStatusTooltip = computed(() => {
   return 'Sync idle'
 })
 
-function toggleSidebar() {
-  settingsStore.updateSetting('expandSideBar', !settingsStore.expandSideBar)
-}
+const emit = defineEmits<{
+  toggleSidebar: []
+}>()
 
 defineExpose({
   focusSearch: () => {
@@ -102,6 +102,10 @@ defineExpose({
     input?.focus()
   }
 })
+
+function toggleSidebar() {
+  emit('toggleSidebar')
+}
 </script>
 
 <template>
