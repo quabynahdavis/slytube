@@ -125,7 +125,7 @@ function clearAllHistory() {
       <div
         v-for="entry in filteredHistory"
         :key="entry.videoId"
-        class="flex gap-3 rounded-lg border border-border bg-card p-2 group transition-colors hover:bg-accent/50"
+        class="flex gap-3 rounded-lg border border-border bg-card p-2 group transition-colors hover:bg-primary/8"
       >
         <router-link
           :to="`/watch?v=${entry.videoId}`"

@@ -451,7 +451,7 @@ onMounted(() => {
           <div
             v-for="rel in video!.related.slice(0, 10)"
             :key="rel.id"
-            class="flex gap-3 cursor-pointer group rounded-lg p-2 transition-colors hover:bg-primary/6"
+            class="flex gap-3 cursor-pointer group rounded-lg p-1.5 transition-colors hover:bg-primary/8"
           >
             <router-link :to="`/watch?v=${rel.id}`" class="relative w-40 aspect-video rounded-lg overflow-hidden bg-muted shrink-0">
               <img v-if="rel.thumbnail" :src="rel.thumbnail" :alt="rel.title" class="w-full h-full object-cover" />

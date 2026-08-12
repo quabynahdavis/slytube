@@ -74,7 +74,7 @@ function timeAgo(published: string): string {
 </script>
 
 <template>
-  <div class="group rounded-lg transition-colors duration-200 hover:bg-primary/5 p-2">
+  <div class="group rounded-lg transition-colors duration-200 hover:bg-primary/8 p-3">
     <!-- Video Thumbnail -->
     <router-link :to="`/watch?v=${video.id}`" class="block relative">
       <div class="relative aspect-video rounded-xl overflow-hidden bg-muted mb-2">

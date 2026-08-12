@@ -113,7 +113,7 @@ function removeFromPlaylist(videoId: string) {
           v-for="(video, index) in videos"
           :key="video.id"
           :class="cn(
-            'flex items-center gap-3 rounded-lg border border-border bg-card p-2 group transition-colors hover:bg-accent/50',
+            'flex items-center gap-3 rounded-lg border border-border bg-card p-2 group transition-colors hover:bg-primary/8',
             isReordering && 'border-dashed'
           )"
         >
