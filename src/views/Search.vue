@@ -134,7 +134,7 @@ function timeAgo(published: string): string {
 </script>
 
 <template>
-  <div class="p-6 max-w-5xl mx-auto">
+  <div class="p-4 max-w-5xl mx-auto">
     <!-- Search Bar -->
     <div class="relative mb-6">
       <form @submit.prevent="doSearch" class="flex gap-2">

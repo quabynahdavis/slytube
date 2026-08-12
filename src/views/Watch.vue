@@ -114,6 +114,9 @@ function formatDuration(seconds: number): string {
 
 const segments = computed(() => sponsorBlock.segments.value as SponsorBlockSegment[])
 
+// Safely derive related videos, handling potential null/undefined at runtime
+const relatedVideos = computed(() => video.value?.related?.slice(0, 10) || [])
+
 // Subscription computed state for current video's channel
 const isSubscribed = computed(() =>
   video.value ? subscriptionsStore.isSubscribed(video.value.authorId) : false
@@ -368,19 +371,6 @@ onMounted(() => {
                 </span>
               </div>
             </div>
-              <!-- Share button (Coming Soon) -->
-              <div class="relative group" title="Share — Coming Soon">
-                <button
-                  class="px-4 py-1.5 bg-secondary/60 text-secondary-foreground/50 rounded-full text-sm cursor-not-allowed"
-                  disabled
-                >
-                  Share
-                </button>
-                <span class="absolute -top-6 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-yellow-500/90 text-[9px] font-semibold text-black rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                  Soon
-                </span>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -447,9 +437,9 @@ onMounted(() => {
       <!-- Related Videos Sidebar -->
       <div class="space-y-4">
         <h3 class="text-sm font-semibold text-foreground">Related Videos</h3>
-        <div v-if="video!.related.length > 0" class="space-y-3">
+        <div v-if="relatedVideos.length > 0" class="space-y-3">
           <div
-            v-for="rel in video!.related.slice(0, 10)"
+            v-for="rel in relatedVideos"
             :key="rel.id"
             class="flex gap-3 cursor-pointer group rounded-lg p-1.5 transition-colors hover:bg-primary/8"
           >
@@ -465,5 +455,6 @@ onMounted(() => {
         </div>
         <EmptyState v-else title="No related videos" />
       </div>
+    </div>
   </div>
 </template>

@@ -79,7 +79,7 @@ onMounted(loadFeed)
 </script>
 
 <template>
-  <div class="container mx-auto max-w-7xl px-4 py-6">
+  <div class="container mx-auto max-w-7xl px-3 py-4">
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
@@ -138,7 +138,7 @@ onMounted(loadFeed)
       <EmptyState v-else-if="feedVideos.length === 0" title="No videos from your subscriptions">
         Your subscribed channels haven't posted yet. Check back later or explore more channels.
       </EmptyState>
-      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         <VideoCard
           v-for="video in feedVideos"
           :key="video.id"

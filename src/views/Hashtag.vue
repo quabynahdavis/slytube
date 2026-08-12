@@ -34,7 +34,7 @@ watch(hashtag, loadHashtagVideos)
 </script>
 
 <template>
-  <div class="container mx-auto max-w-7xl px-4 py-6">
+  <div class="container mx-auto max-w-7xl px-3 py-4">
     <div class="mb-6">
       <div class="flex items-center gap-3">
         <div class="size-12 rounded-full bg-primary/10 flex items-center justify-center">
@@ -55,7 +55,7 @@ watch(hashtag, loadHashtagVideos)
       No videos found for #{{ hashtag }}
     </EmptyState>
 
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
       <VideoCard v-for="video in videos" :key="video.id" :video="video" />
     </div>
   </div>

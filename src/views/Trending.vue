@@ -46,7 +46,7 @@ onMounted(loadTrending)
 </script>
 
 <template>
-  <div class="container mx-auto max-w-7xl px-4 py-6">
+  <div class="container mx-auto max-w-7xl px-3 py-4">
     <div class="mb-6">
       <h1 class="text-2xl font-bold text-foreground">Trending</h1>
       <p class="text-sm text-muted-foreground mt-1">What's popular right now</p>
@@ -64,7 +64,7 @@ onMounted(loadTrending)
       Trending videos aren't available right now. Check back later or explore Popular videos.
     </EmptyState>
 
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
       <VideoCard
         v-for="video in filteredVideos"
         :key="video.id"

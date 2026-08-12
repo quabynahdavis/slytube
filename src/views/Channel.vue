@@ -98,7 +98,7 @@ function toggleSubscription() {
     <div v-if="isLoading" class="animate-pulse">
       <div class="h-48 bg-muted" />
       <div class="container mx-auto max-w-7xl px-4 py-4">
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-3">
           <div class="size-20 rounded-full bg-muted" />
           <div class="space-y-2">
             <div class="h-5 w-48 rounded bg-muted" />
@@ -132,8 +132,8 @@ function toggleSubscription() {
 
       <!-- Channel Info -->
       <div class="container mx-auto max-w-7xl px-4 py-4">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div class="flex items-center gap-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div class="flex items-center gap-3">
             <img
               v-if="channel.avatar"
               :src="channel.avatar"
@@ -190,7 +190,7 @@ function toggleSubscription() {
         <div class="mt-6">
           <!-- Home / Videos Tab -->
           <div v-if="activeTab === 'home' || activeTab === 'videos'">
-            <div v-if="channelVideos.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div v-if="channelVideos.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               <VideoCard v-for="video in channelVideos" :key="video.id" :video="video" />
             </div>
             <div v-else class="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
@@ -206,10 +206,10 @@ function toggleSubscription() {
 
           <!-- Shorts Tab -->
           <div v-else-if="activeTab === 'shorts'">
-            <div v-if="tabLoading" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <div v-if="tabLoading" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
               <div v-for="n in 6" :key="n" class="aspect-[9/16] bg-muted rounded-lg animate-pulse" />
             </div>
-            <div v-else-if="channelShorts.length > 0" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <div v-else-if="channelShorts.length > 0" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
               <div
                 v-for="short in channelShorts"
                 :key="short.id"
@@ -239,7 +239,7 @@ function toggleSubscription() {
 
           <!-- Live Tab -->
           <div v-else-if="activeTab === 'live'">
-            <div v-if="channelLive.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div v-if="channelLive.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               <VideoCard v-for="video in channelLive" :key="video.id" :video="video" />
             </div>
             <div v-else class="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
@@ -255,7 +255,7 @@ function toggleSubscription() {
 
           <!-- Playlists Tab -->
           <div v-else-if="activeTab === 'playlists'">
-            <div v-if="channelPlaylists.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div v-if="channelPlaylists.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               <div
                 v-for="playlist in channelPlaylists"
                 :key="playlist.playlistId || playlist.id"

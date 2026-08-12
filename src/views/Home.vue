@@ -50,7 +50,7 @@ onMounted(loadForYouFeed)
 </script>
 
 <template>
-  <div class="p-6">
+  <div class="p-4">
     <div class="mb-6">
       <h1 class="text-2xl font-bold text-foreground">{{ t('nav.home') }}</h1>
       <p class="text-sm text-muted-foreground mt-1">Personalized picks based on what you watch and subscribe to</p>
@@ -61,7 +61,7 @@ onMounted(loadForYouFeed)
     <EmptyState v-else-if="videos.length === 0" :title="t('emptyStates.noTrendingVideos')" icon="trending">
       Subscribe to channels and watch videos to get personalized recommendations.
     </EmptyState>
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
       <VideoCard
         v-for="video in videos"
         :key="video.id"
