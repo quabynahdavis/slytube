@@ -7,7 +7,7 @@ import i18n from './i18n'
 import { loadInstances } from './api/invidious'
 import { scrollAnimationPlugin } from './composables/useScrollAnimation'
 
-loadInstances()
+await loadInstances()
 
 const app = createApp(App)
 app.use(pinia)

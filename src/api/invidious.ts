@@ -42,15 +42,29 @@ export async function loadInstances(): Promise<void> {
   }
 }
 
-export function proxyImageUrl(url: string): string {
-  if (!url) return ''
+export function proxyImageUrl(url: string, videoId?: string): string {
+  if (!url) {
+    if (videoId) return getThumbnailUrl(videoId, 'hqdefault')
+    return ''
+  }
   const instance = getCurrentInstanceUrl()
+
+  if (url.includes(instance)) {
+    return url
+  }
+
+  const videoIdFromUrl = url.match(/\/vi\/([^\/]+)\//)?.[1]
+  const id = videoId || videoIdFromUrl
+  if (id) {
+    return getThumbnailUrl(id, 'hqdefault')
+  }
+
   return url
-    .replace('https://i.ytimg.com', `${instance}`)
-    .replace('https://i1.ytimg.com', `${instance}`)
-    .replace('https://i2.ytimg.com', `${instance}`)
-    .replace('https://i3.ytimg.com', `${instance}`)
-    .replace('https://i4.ytimg.com', `${instance}`)
+    .replace('https://i.ytimg.com', instance)
+    .replace('https://i1.ytimg.com', instance)
+    .replace('https://i2.ytimg.com', instance)
+    .replace('https://i3.ytimg.com', instance)
+    .replace('https://i4.ytimg.com', instance)
     .replace('https://yt3.ggpht.com', `${instance}/ggpht`)
     .replace('https://yt3.googleusercontent.com', `${instance}/ggpht`)
 }
