@@ -1,12 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { PhHouse, PhCaretRight, PhPlus, PhDownload, PhClock } from '@phosphor-icons/vue'
-import { getVideo, getVideoPlaybackInfo } from '../api'
-import { useSponsorBlock, useDownloads, useComments } from '../composables/useData'
-import { getInvidiousManifestUrl } from '../api/manifest'
+import { useDownloads } from '../composables/useData'
 import { useSubscriptionsStore } from '../stores/subscriptions'
-import { useHistoryStore } from '../stores/history'
 import { usePlaylistsStore } from '../stores/playlists'
 import type { Video } from '../api/types'
 import type { SponsorBlockSegment } from '../api/sponsorblock'
@@ -17,86 +14,90 @@ import ShakaPlayer from '../components/player/ShakaPlayer.vue'
 const route = useRoute()
 const router = useRouter()
 const videoId = computed(() => route.query.v as string || route.params.id as string || '')
-const video = ref<Video | null>(null)
-const loading = ref(true)
+const loading = ref(false)
 const error = ref<string | null>(null)
 const playerError = ref<string | null>(null)
 const manifestUrl = ref<string>('')
 const selectedFormatUrl = ref<string>('')
 
 const subscriptionsStore = useSubscriptionsStore()
-const historyStore = useHistoryStore()
 const playlistsStore = usePlaylistsStore()
 const { startDownload } = useDownloads()
-const comments = useComments(videoId.value)
-const sponsorBlock = useSponsorBlock(videoId.value)
+
+// Dummy data for UI development
+const dummyComments = [
+  { id: '1', author: 'TechReviewer', authorAvatar: '', content: 'This is an amazing video! Really well explained and the production quality is top notch.', published: '2 days ago', likeCount: 1240, replyCount: 45 },
+  { id: '2', author: 'CodeMaster', authorAvatar: '', content: 'Great tutorial! I learned so much from this. Can you make more content like this?', published: '5 days ago', likeCount: 890, replyCount: 23 },
+  { id: '3', author: 'DevEnthusiast', authorAvatar: '', content: 'The part about architecture patterns was incredibly helpful. Thanks for sharing your knowledge!', published: '1 week ago', likeCount: 567, replyCount: 12 },
+  { id: '4', author: 'NewbieCoder', authorAvatar: '', content: 'Can someone explain the part at 5:30? I did not quite understand that concept.', published: '2 weeks ago', likeCount: 234, replyCount: 8 },
+  { id: '5', author: 'SeniorDev', authorAvatar: '', content: 'Finally someone explaining this properly. Subscribed immediately!', published: '3 weeks ago', likeCount: 1890, replyCount: 67 },
+]
+
+const dummyRelated = [
+  { id: 'abc123', title: 'Building Scalable Applications with Modern Architecture', author: 'TechChannel', authorId: 'UCtech', authorUrl: '/channel/UCtech', authorAvatar: '', description: '', thumbnail: '', viewCount: 1200000, likeCount: 45000, lengthSeconds: 1245, published: '1 month ago', isLive: false, isUpcoming: false, isShort: false, chapters: [], captions: [], related: [] },
+  { id: 'def456', title: 'Understanding Design Patterns in 10 Minutes', author: 'CodeSimplified', authorId: 'UCcode', authorUrl: '/channel/UCcode', authorAvatar: '', description: '', thumbnail: '', viewCount: 890000, likeCount: 32000, lengthSeconds: 623, published: '2 months ago', isLive: false, isUpcoming: false, isShort: false, chapters: [], captions: [], related: [] },
+  { id: 'ghi789', title: 'The Future of Web Development - What You Need to Know', author: 'WebDevPro', authorId: 'UCweb', authorUrl: '/channel/UCweb', authorAvatar: '', description: '', thumbnail: '', viewCount: 2100000, likeCount: 78000, lengthSeconds: 1834, published: '3 weeks ago', isLive: false, isUpcoming: false, isShort: false, chapters: [], captions: [], related: [] },
+  { id: 'jkl012', title: 'Advanced TypeScript Tips and Tricks', author: 'TypeScriptMaster', authorId: 'UCts', authorUrl: '/channel/UCts', authorAvatar: '', description: '', thumbnail: '', viewCount: 560000, likeCount: 21000, lengthSeconds: 892, published: '1 month ago', isLive: false, isUpcoming: false, isShort: false, chapters: [], captions: [], related: [] },
+  { id: 'mno345', title: 'Why You Should Start Using Rust in 2026', author: 'Rustacean', authorId: 'UCrust', authorUrl: '/channel/UCrust', authorAvatar: '', description: '', thumbnail: '', viewCount: 780000, likeCount: 29000, lengthSeconds: 1456, published: '2 months ago', isLive: false, isUpcoming: false, isShort: false, chapters: [], captions: [], related: [] },
+]
+
+const dummySegments = [
+  { UUID: 'seg1', category: 'sponsor', segment: [45, 78] as [number, number], videoDuration: 600, actionType: 'skip' },
+  { UUID: 'seg2', category: 'intro', segment: [0, 25] as [number, number], videoDuration: 600, actionType: 'skip' },
+  { UUID: 'seg3', category: 'outro', segment: [540, 600] as [number, number], videoDuration: 600, actionType: 'skip' },
+]
+
+const video = ref<Video>({
+  id: 'dQw4w9WgXcQ',
+  title: 'Building a Modern YouTube Client with Vue 3 and Tauri - Complete Tutorial',
+  author: 'TechChannel',
+  authorId: 'UCtech123',
+  authorUrl: '/channel/UCtech123',
+  authorAvatar: '',
+  description: `In this comprehensive tutorial, we build a full-featured YouTube client from scratch using Vue 3, TypeScript, and Tauri.
+
+We cover:
+- Setting up the Tauri project with Vue 3
+- Integrating with the Invidious API for video data
+- Implementing DASH video playback with Shaka Player
+- Managing state with Pinia
+- Building a responsive UI with Tailwind CSS
+- Adding SponsorBlock integration
+- Implementing subscription management
+- Cross-device sync with a sync server
+
+This is the first part of a multi-part series. Stay tuned for more!
+
+Timestamps:
+0:00 - Introduction
+2:30 - Project Setup
+8:15 - API Integration
+15:40 - Video Player Setup
+24:50 - UI Components
+35:20 - State Management
+42:10 - SponsorBlock Integration
+50:00 - Conclusion`,
+  thumbnail: '',
+  viewCount: 1250000,
+  likeCount: 45000,
+  lengthSeconds: 3420,
+  published: '2 weeks ago',
+  isLive: false,
+  isUpcoming: false,
+  isShort: false,
+  chapters: [],
+  captions: [],
+  related: dummyRelated,
+})
+
+const comments = dummyComments
+const sponsorBlockSegments = dummySegments
 
 async function load() {
-  if (!videoId.value) {
-    error.value = 'No video ID provided'
-    loading.value = false
-    return
-  }
-  loading.value = true
+  // Dummy load for UI development
+  loading.value = false
   error.value = null
-  selectedFormatUrl.value = ''
-
-  try {
-    video.value = await getVideo(videoId.value)
-    await sponsorBlock.load()
-    comments.load()
-
-    // Add to history when video loads successfully
-    if (video.value) {
-      await historyStore.addToHistory({
-        videoId: video.value.id,
-        title: video.value.title,
-        author: video.value.author,
-        authorId: video.value.authorId,
-        lengthSeconds: video.value.lengthSeconds,
-        timeWatched: new Date().toISOString(),
-        watchProgress: 0,
-        isWatched: true,
-        isLive: video.value.isLive,
-      })
-    }
-
-    const playbackInfo = await getVideoPlaybackInfo(videoId.value)
-
-    if (playbackInfo.dashUrl) {
-      manifestUrl.value = playbackInfo.dashUrl
-    } else if (playbackInfo.manifestXml) {
-      manifestUrl.value = `data:application/dash+xml;charset=UTF-8,${encodeURIComponent(playbackInfo.manifestXml)}`
-    } else if (playbackInfo.formatStreams.length > 0) {
-      const bestFormat = playbackInfo.formatStreams
-        .filter((f: any) => f.qualityLabel)
-        .sort((a: any, b: any) => {
-          const aHeight = parseInt(a.qualityLabel) || 0
-          const bHeight = parseInt(b.qualityLabel) || 0
-          return bHeight - aHeight
-        })[0]
-      if (bestFormat?.url) {
-        selectedFormatUrl.value = bestFormat.url
-        manifestUrl.value = ''
-      } else {
-        manifestUrl.value = getInvidiousManifestUrl(videoId.value)
-      }
-    } else {
-      manifestUrl.value = getInvidiousManifestUrl(videoId.value)
-    }
-  } catch (e: any) {
-    error.value = e.message || 'Failed to load video'
-  } finally {
-    loading.value = false
-  }
 }
-
-// Reload when videoId changes (navigation between videos)
-watch(videoId, (newId, oldId) => {
-  if (newId !== oldId) {
-    load()
-  }
-})
 
 function formatViews(count: number): string {
   if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M views`
@@ -112,7 +113,7 @@ function formatDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-const segments = computed(() => sponsorBlock.segments.value as SponsorBlockSegment[])
+const segments = computed(() => sponsorBlockSegments as SponsorBlockSegment[])
 
 // Safely derive related videos, handling potential null/undefined at runtime
 const relatedVideos = computed(() => video.value?.related?.slice(0, 10) || [])
@@ -380,16 +381,16 @@ onMounted(() => {
         </div>
 
         <!-- SponsorBlock Segments -->
-        <div v-if="sponsorBlock.segments.value.length > 0" class="bg-card rounded-xl p-4">
+        <div v-if="sponsorBlockSegments.length > 0" class="bg-card rounded-xl p-4">
           <h3 class="text-sm font-semibold text-foreground mb-3">SponsorBlock Segments</h3>
           <div class="space-y-2">
             <div
-              v-for="seg in sponsorBlock.segments.value"
+              v-for="seg in sponsorBlockSegments"
               :key="seg.UUID"
               class="flex items-center gap-3"
             >
-              <div class="size-3 rounded" :style="{ backgroundColor: sponsorBlock.getColor(seg.category) }"></div>
-              <span class="text-sm text-foreground">{{ sponsorBlock.formatCategory(seg.category) }}</span>
+              <div class="size-3 rounded" :style="{ backgroundColor: seg.category === 'sponsor' ? '#00d400' : seg.category === 'intro' ? '#00ffff' : '#0202ed' }"></div>
+              <span class="text-sm text-foreground">{{ seg.category.charAt(0).toUpperCase() + seg.category.slice(1) }}</span>
               <span class="text-xs text-muted-foreground">{{ formatDuration(seg.segment[0]) }} - {{ formatDuration(seg.segment[1]) }}</span>
             </div>
           </div>
@@ -397,12 +398,9 @@ onMounted(() => {
 
         <!-- Comments -->
         <div class="bg-card rounded-xl p-4">
-          <h3 class="text-sm font-semibold text-foreground mb-4">Comments ({{ comments.comments.value.length }})</h3>
-          <div v-if="comments.loading.value" class="flex justify-center py-4">
-            <div class="size-5 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-          </div>
-          <div v-else-if="comments.comments.value.length > 0" class="space-y-4">
-            <div v-for="comment in comments.comments.value" :key="comment.id" class="flex gap-3">
+          <h3 class="text-sm font-semibold text-foreground mb-4">Comments ({{ comments.length }})</h3>
+          <div v-if="comments.length > 0" class="space-y-4">
+            <div v-for="comment in comments" :key="comment.id" class="flex gap-3">
               <img
                 v-if="comment.authorAvatar"
                 :src="comment.authorAvatar"
@@ -419,7 +417,7 @@ onMounted(() => {
                 </div>
                 <p class="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{{ comment.content }}</p>
                 <div class="flex items-center gap-3 mt-1">
-                  <span class="text-xs text-muted-foreground">{{ comment.likeCount }} likes</span>
+                  <span class="text-xs text-muted-foreground">{{ comment.likeCount.toLocaleString() }} likes</span>
                   <span v-if="comment.replyCount > 0" class="text-xs text-muted-foreground">{{ comment.replyCount }} replies</span>
                 </div>
               </div>
