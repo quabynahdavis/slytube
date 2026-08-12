@@ -173,9 +173,16 @@ async function handleSubscribe() {
 }
 
 async function addToQuickBookmark() {
-  const playlist = await playlistsStore.getQuickBookmarkPlaylist()
-  if (playlist) {
-    await playlistsStore.addToPlaylist(playlist._id, video.value.id)
+  try {
+    let playlist = playlistsStore.playlists.find((p) => p.playlistName === 'Favorites')
+    if (!playlist) {
+      playlist = await playlistsStore.createPlaylist('Favorites', 'Quick bookmark playlist')
+    }
+    if (playlist) {
+      await playlistsStore.addToPlaylist(playlist._id, video.value.id)
+    }
+  } catch {
+    console.error('Failed to add to quick bookmark')
   }
 }
 
