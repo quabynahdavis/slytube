@@ -19,7 +19,7 @@ use tauri::http::{Request, Response};
 use thiserror::Error;
 use urlencoding;
 
-use crate::http_client::{HttpClient, SharedHttpClient};
+use crate::http_client::HttpClient;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -345,6 +345,39 @@ fn not_found_response() -> Response<Cow<'static, [u8]>> {
         .unwrap_or_else(|_| Response::builder().status(404).body(Cow::Owned(vec![])).unwrap())
 }
 
+/// Blocking image fetch for the synchronous protocol handler.
+fn fetch_image_blocking(url: &str) -> Result<(Vec<u8>, String), ImageCacheError> {
+    use reqwest::blocking::Client;
+
+    let client = Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()?;
+
+    let mut req = client.get(url);
+
+    // Apply YouTube hardening headers
+    if url.contains("youtube.com") || url.contains("googleusercontent.com") || url.contains("ggpht.com") || url.contains("ytimg.com") {
+        req = req
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+            .header("Referer", "https://www.youtube.com/")
+            .header("Origin", "https://www.youtube.com");
+    }
+
+    let response = req.send()
+        ?;
+
+    if !response.status().is_success() {
+        return Err(ImageCacheError::BadStatus(response.status().as_u16()));
+    }
+
+    let mime = extract_mime(response.headers());
+    let data = response.bytes()
+        ?
+        .to_vec();
+
+    Ok((data, mime))
+}
+
 /// Handles an `imgcache://` request.
 ///
 /// Extracts the original image URL from the request URI, fetches it through the
@@ -354,7 +387,6 @@ pub fn handle_protocol_request(
     request: &Request<Vec<u8>>,
 ) -> Response<Cow<'static, [u8]>> {
     let cache = app.state::<ImageCache>();
-    let http = app.state::<SharedHttpClient>();
 
     // The URI is `imgcache://<encoded-url>` — strip the scheme prefix.
     let uri_str = request.uri().to_string();
@@ -372,17 +404,30 @@ pub fn handle_protocol_request(
         return not_found_response();
     }
 
-    // Fetch (blocking inside the sync protocol handler).
-    let result = tauri::async_runtime::block_on(async {
-        cache.get_image_bytes(&original_url, &http).await
-    });
-
-    match result {
-        Ok((data, mime)) => Response::builder()
+    // Check cache first
+    if let Ok(Some(entry)) = cache.peek(&original_url) {
+        return Response::builder()
             .status(200)
-            .header("Content-Type", &mime)
-            .body(Cow::Owned(data))
-            .unwrap_or_else(|_| not_found_response()),
+            .header("Content-Type", &entry.mime)
+            .body(Cow::Owned(entry.data))
+            .unwrap_or_else(|_| not_found_response());
+    }
+
+    // Fetch synchronously using a blocking client
+    match fetch_image_blocking(&original_url) {
+        Ok((data, mime)) => {
+            // Update the cache for future requests
+            let _ = cache.put(original_url, CacheEntry {
+                data: data.clone(),
+                mime: mime.clone(),
+                expiry: Instant::now() + DEFAULT_TTL,
+            });
+            Response::builder()
+                .status(200)
+                .header("Content-Type", &mime)
+                .body(Cow::Owned(data))
+                .unwrap_or_else(|_| not_found_response())
+        }
         Err(e) => {
             tracing::warn!("Image cache fetch failed for {original_url}: {e}");
             not_found_response()
