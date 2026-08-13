@@ -6,6 +6,7 @@ import './style.css'
 import i18n from './i18n'
 import { loadInstances } from './api/invidious'
 import { scrollAnimationPlugin } from './composables/useScrollAnimation'
+import { useTabsStore, startTabSessionPersistence } from './stores/tabs'
 
 await loadInstances()
 
@@ -14,4 +15,10 @@ app.use(pinia)
 app.use(router)
 app.use(i18n)
 app.use(scrollAnimationPlugin)
+
+// Restore persisted tab session and start debounced persistence
+const tabsStore = useTabsStore()
+await tabsStore.restoreTabs()
+startTabSessionPersistence()
+
 app.mount('#app')

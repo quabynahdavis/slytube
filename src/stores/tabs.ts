@@ -1,4 +1,6 @@
 import { defineStore } from 'pinia'
+import { invoke } from '@tauri-apps/api/core'
+import { watchDebounced } from '@vueuse/core'
 
 export interface TabHistoryEntry {
   route: {
@@ -51,9 +53,71 @@ export interface TabsState {
   currentWatchTimestamps: Record<string, number>
 }
 
+// =============================================================================
+// Persisted session JSON schema
+// =============================================================================
+
+export interface PersistedTab {
+  id: string
+  url: string
+  title: string
+  isPinned: boolean
+  color: string | null
+}
+
+export interface PersistedTabSession {
+  tabs: PersistedTab[]
+  activeTabId: string | null
+  updatedAt: number
+}
+
 const MAX_LOGICAL_HISTORY_ENTRIES = 100
 const NAV_HISTORY_DISPLAY_LIMIT = 15
 const HALF_NAV_HISTORY_DISPLAY_LIMIT = Math.trunc(NAV_HISTORY_DISPLAY_LIMIT / 2)
+
+// =============================================================================
+// Persistence helpers
+// =============================================================================
+
+function tabToPersisted(tab: Tab): PersistedTab {
+  return {
+    id: tab.id,
+    url: tab.route.fullPath,
+    title: tab.contentTitle || tab.history[tab.historyIndex]?.title || tab.route.fullPath,
+    isPinned: tab.isPinned,
+    color: tab.color,
+  }
+}
+
+function serializeSession(tabs: Tab[], activeTabId: string | null): string {
+  const session: PersistedTabSession = {
+    tabs: tabs.map(tabToPersisted),
+    activeTabId,
+    updatedAt: Date.now(),
+  }
+  return JSON.stringify(session)
+}
+
+function deserializeSession(json: string): PersistedTabSession | null {
+  try {
+    const parsed = JSON.parse(json)
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      Array.isArray(parsed.tabs) &&
+      typeof parsed.updatedAt === 'number'
+    ) {
+      return parsed as PersistedTabSession
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+// =============================================================================
+// Store
+// =============================================================================
 
 export const useTabsStore = defineStore('tabs', {
   state: (): TabsState => ({
@@ -232,5 +296,95 @@ export const useTabsStore = defineStore('tabs', {
         delete this.currentWatchTimestamps[tabId]
       }
     },
+
+    // =============================================================================
+    // Tab session persistence
+    // =============================================================================
+
+    /**
+     * Restore tabs from the most recent session in the database.
+     * Creates tabs with enough state to navigate to their saved URLs.
+     */
+    async restoreTabs() {
+      try {
+        const session = await invoke<{ data: string }>('db_tab_sessions_get_latest')
+        if (!session?.data) return
+
+        const parsed = deserializeSession(session.data)
+        if (!parsed || parsed.tabs.length === 0) return
+
+        const restoredTabs: Tab[] = []
+        for (const saved of parsed.tabs) {
+          const route = {
+            name: null,
+            path: saved.url || '/',
+            params: {},
+            query: {},
+            hash: '',
+            fullPath: saved.url || '/',
+          }
+          const tab: Tab = {
+            id: saved.id,
+            route,
+            history: [{ route, title: saved.title || saved.url || '/', titlePending: false, scroll: { left: 0, top: 0 } }],
+            historyIndex: 0,
+            contentTitle: saved.title,
+            pendingReloadRoute: null,
+            refreshKey: 0,
+            isLoading: false,
+            isPinned: saved.isPinned,
+            color: saved.color,
+          }
+          restoredTabs.push(tab)
+        }
+
+        this.tabs = restoredTabs
+        this.activeTabId = parsed.activeTabId && restoredTabs.some((t) => t.id === parsed.activeTabId)
+          ? parsed.activeTabId
+          : (restoredTabs[0]?.id ?? null)
+        this.containerIds = restoredTabs.map((t) => t.id)
+        this.selectedTabIds = []
+      } catch {
+        // Database unavailable — start with empty tab state
+      }
+    },
+
+    /**
+     * Save the current tab session to the database.
+     * Called internally by the debounced watcher.
+     */
+    async saveTabs() {
+      try {
+        const payload = serializeSession(this.tabs, this.activeTabId)
+        await invoke('db_tab_sessions_save', { data: payload })
+      } catch {
+        // Database unavailable — session not persisted
+      }
+    },
   },
 })
+
+// =============================================================================
+// Debounced persistence watcher (module-level, runs once)
+// =============================================================================
+
+let persistenceWatcherStarted = false
+
+/**
+ * Start watching tab state and debounce-saving to the database.
+ * Safe to call multiple times — the watcher is only created once.
+ */
+export function startTabSessionPersistence() {
+  if (persistenceWatcherStarted) return
+  persistenceWatcherStarted = true
+
+  const store = useTabsStore()
+
+  watchDebounced(
+    () => [store.tabs.map((t) => ({ id: t.id, url: t.route.fullPath, isPinned: t.isPinned, color: t.color })), store.activeTabId],
+    () => {
+      store.saveTabs()
+    },
+    { debounce: 1000 },
+  )
+}
