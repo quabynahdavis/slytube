@@ -58,25 +58,28 @@ function formatPublished(timestamp: number): string {
 function mapExtractedVideo(v: any): Video {
   if (!v) return { id: '', title: 'Unknown', author: 'Unknown', authorId: '', authorUrl: '', authorAvatar: '', description: '', thumbnail: '', viewCount: 0, likeCount: 0, lengthSeconds: 0, published: '', isLive: false, isUpcoming: false, isShort: false, chapters: [], captions: [], related: [] }
 
-
-  const {viewCount, viewCountText} = v
-  console.log({viewCount, viewCountText})
-
   const videoId = v.id || ''
+
+  const authorAvatarUrl = v.authorAvatar ||
+    v.authorThumbnail ||
+    (v.author?.thumbnails?.[0]?.url) ||
+    (v.authorThumbnails?.[0]?.url) ||
+    ''
+
   return {
     id: videoId,
     title: v.title || 'Unknown',
-    author: v.author || 'Unknown',
-    authorId: v.authorId || '',
+    author: v.author?.name || v.author || 'Unknown',
+    authorId: v.authorId || v.author?.channelId || '',
     authorUrl: `/channel/${v.authorId || ''}`,
-    authorAvatar: cacheImageUrl(proxyAvatarUrl(v.authorAvatar || '')),
+    authorAvatar: cacheImageUrl(proxyAvatarUrl(authorAvatarUrl)),
     description: v.description || '',
     thumbnail: cacheImageUrl(proxyImageUrl(v.thumbnail) || getThumbnailUrl(videoId, 'hqdefault')),
-    viewCount: v.viewCount || 0,
-    likeCount: v.likeCount || 0,
-    lengthSeconds: v.lengthSeconds || 0,
+    viewCount: Number(v.viewCount) || parseInt(String(v.viewCountText || '').replace(/[^0-9]/g, '')) || 0,
+    likeCount: Number(v.likeCount) || 0,
+    lengthSeconds: Number(v.lengthSeconds) || 0,
     published: v.published || '',
-    isLive: v.isLive || false,
+    isLive: v.liveNow || v.isLive || false,
     isUpcoming: v.isUpcoming || false,
     isShort: v.isShort || false,
     chapters: v.chapters || [],
@@ -142,9 +145,6 @@ function mapInvidiousVideo(v: any): Video {
 
   const rawThumbnail = getBestThumbnail(v.videoThumbnails)
   const rawAuthorAvatar = getAuthorAvatar(v.authorThumbnails)
-
-  const {viewCount, viewCountText, lengthSeconds} = v
-  console.log({viewCount, viewCountText, lengthSeconds})
 
   return {
     id: videoId,

@@ -105,8 +105,10 @@ function timeAgo(published: string): string {
 
 <template>
   <div
-    class="group relative rounded-xl transition-colors duration-200 hover:bg-[var(--card-hover)] p-3"
+    class="group relative rounded-xl transition-colors duration-200 p-3"
     :style="{ '--card-hover': getColor(video.thumbnail) }"
+    @mouseover="$el.style.backgroundColor = getColor(video.thumbnail)"
+    @mouseleave="$el.style.backgroundColor = ''"
   >
     <!-- Video Thumbnail -->
     <router-link :to="`/watch?v=${video.id}`" class="block relative">
