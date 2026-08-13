@@ -344,7 +344,7 @@ function formatDuration(seconds: number): string {
               :key="collab.id"
               :to="`/channel/${collab.id}`"
               class="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-[var(--card-hover)] transition-colors group"
-              :style="{ '--card-hover': 'rgba(142, 142, 142, 0.05)' }"
+              :style="{ '--card-hover': 'rgba(142, 142, 142, 0.25)' }"
             >
               <div class="size-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-sm text-white font-bold shrink-0">
                 {{ collab.name[0] }}
