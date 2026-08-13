@@ -49,3 +49,4 @@
 | 2026-08-13 | 12.0.0 | **Phase 3 complete**: Network hardening — domain-based header injection for YouTube/Invidious/sync requests. 91 total tests passing. | Migration Team |
 | 2026-08-13 | 13.0.0 | **Phase 4 complete**: SponsorBlock, DeArrow, Return YouTube Dislike Rust clients. 131 total tests passing. | Migration Team |
 | 2026-08-13 | 14.0.0 | **All backend phases complete**: Image caching, tab persistence, yt-dlp binary management, datastore CRUD. 219 total tests passing. | Migration Team |
+| 2026-08-13 | 15.0.0 | Fixed LockupView VIDEO/SHORT parsing in extractor main.ts — duration now read from ThumbnailBottomOverlayView badge, view count from regex search across metadata parts, author from structural detection. Matches OpenTubeX parseLockupView approach. | Migration Team |

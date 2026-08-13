@@ -141,6 +141,20 @@ cargo test --features integration
 PROPTEST_CASES=10000 cargo test proptest
 ```
 
+### 3.4 Extractor (src/extractor/main.ts)
+
+Tests verify parsing of all youtubei.js node types:
+- `Video` nodes (watch page, search results)
+- `GridVideo` nodes (channel pages, playlists)
+- `LockupView` nodes (feed/home/search shelves) — VIDEO and SHORT content types
+- `Movie` nodes (movie/PMV results)
+
+Helper function tests cover:
+- `parseDurationText` — "HH:MM:SS" → seconds
+- `parseSubscriberCount` — "1.2M views" → 1200000
+- `calculatePublishedDate` — "2 days ago" → ISO timestamp
+- `extractNumberFromString` — "1,234,567" → 1234567
+
 ---
 
 ## 4. Component Tests (Vitest + Testing Library)

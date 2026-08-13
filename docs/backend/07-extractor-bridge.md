@@ -200,6 +200,27 @@ The extractor includes JS ports of OpenTubeX's response parsers:
 
 All parsers filter members-only content at parse time (return null), keeping the output clean.
 
+### LockupView (feed/search pages)
+
+YouTube's unified shelf renderer wraps videos in `LockupView` nodes with a `content_type` discriminator.
+
+| content_type | Handling |
+|---|---|
+| ALBUM, PLAYLIST, PODCAST | Parsed as playlist (playlistId from `content_id`) |
+| SHORT, VIDEO | Parsed as video with field access matching OpenTubeX's `parseLockupView` |
+
+**VIDEO case field mapping:**
+
+| Field | Source |
+|---|---|
+| duration | `content_image.overlays` → find `ThumbnailBottomOverlayView` → find badge matching `/^[\d:]+$/` → `parseDurationText()` |
+| viewCount | All `metadata.metadata.metadata_rows[].metadata_parts[]` flattened, search with regex `/views?|watching|waiting/i` or `/^\d+(\.\d)?[bkm]?$/i` |
+| published | Same flattened parts, search with `/^(streamed )?\d+ ?\w+? ago/i` |
+| author | 3-tier: (1) part with `WEB_PAGE_TYPE_CHANNEL` endpoint, (2) first part of first row when 2+ rows, (3) image tap browseId fallback |
+| isLive | `ThumbnailBottomOverlayView` badge with `badge_style === 'THUMBNAIL_OVERLAY_BADGE_STYLE_LIVE'` |
+| isUpcoming | `ThumbnailBottomOverlayView` badge with text `'upcoming'` |
+| member-only | Returns `null` (filtered out) — detected via `BADGE_MEMBERS_ONLY` style |
+
 ## 7. Error Handling
 
 - JS-side errors are caught in `window.__slytube_run` and delivered via `deliverError`
