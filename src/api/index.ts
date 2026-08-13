@@ -39,6 +39,20 @@ function getAuthorAvatar(thumbnails: any[] | undefined): string {
   return sorted[0]?.url || ''
 }
 
+function formatPublished(timestamp: number): string {
+  if (!timestamp) return ''
+  const now = Math.floor(Date.now() / 1000)
+  const diff = now - timestamp
+  const days = Math.floor(diff / 86400)
+  if (days < 1) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days < 30) return `${days} days ago`
+  const months = Math.floor(days / 30)
+  if (months < 12) return `${months} month${months > 1 ? 's' : ''} ago`
+  const years = Math.floor(months / 12)
+  return `${years} year${years > 1 ? 's' : ''} ago`
+}
+
 function mapExtractedVideo(v: any): Video {
   if (!v) return { id: '', title: 'Unknown', author: 'Unknown', authorId: '', authorUrl: '', authorAvatar: '', description: '', thumbnail: '', viewCount: 0, likeCount: 0, lengthSeconds: 0, published: '', isLive: false, isUpcoming: false, isShort: false, chapters: [], captions: [], related: [] }
 
@@ -132,10 +146,10 @@ function mapInvidiousVideo(v: any): Video {
     authorAvatar: proxyImageUrl(rawAuthorAvatar, videoId),
     description: v.description || '',
     thumbnail: proxyImageUrl(rawThumbnail, videoId),
-    viewCount: v.viewCount || parseInt(v.viewCountText) || 0,
-    likeCount: v.likeCount || 0,
-    lengthSeconds: v.lengthSeconds || 0,
-    published: v.publishedText || '',
+    viewCount: Number(v.viewCount) || parseInt(String(v.viewCountText || '').replace(/[^0-9]/g, '')) || 0,
+    likeCount: Number(v.likeCount) || 0,
+    lengthSeconds: Number(v.lengthSeconds) || 0,
+    published: v.publishedText || formatPublished(v.published),
     isLive: v.liveNow || false,
     isUpcoming: v.isUpcoming || false,
     isShort: v.isShort || false,
@@ -179,8 +193,8 @@ function mapInvidiousComment(c: any): Comment {
     authorId: c.authorId || '',
     authorAvatar: c.authorThumbnails?.[0]?.url || '',
     content: c.content || '',
-    likeCount: c.likeCount || 0,
-    published: c.publishedText || '',
+    likeCount: Number(c.likeCount) || 0,
+    published: c.publishedText || formatPublished(c.published),
     replies: (c.replies?.comments || []).map(mapInvidiousComment),
     replyCount: c.replyCount || 0,
   }
