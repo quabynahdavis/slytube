@@ -19,22 +19,65 @@
         "minWidth": 800,
         "minHeight": 600,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "webview_automation": true
       }
     ],
     "security": {
       "csp": {
-        "default-src": ["'self'"],
-        "script-src": ["'self'"],
-        "style-src": ["'self'", "'unsafe-inline'"],
-        "font-src": ["'self'", "data:"],
-        "img-src": ["'self'", "asset:", "http://asset.localhost", "blob:", "data:", "https:"],
-        "media-src": ["'self'", "asset:", "http://asset.localhost", "blob:", "data:", "https:"],
-        "connect-src": ["'self'", "ipc:", "http://ipc.localhost", "blob:", "data:", "https:", "wss:"],
-        "frame-src": ["'self'", "https://www.youtube.com", "https://www.youtube-nocookie.com"],
-        "object-src": ["'none'"],
-        "base-uri": ["'self'"],
-        "form-action": ["'self'"]
+        "default-src": [
+          "'self'"
+        ],
+        "script-src": [
+          "'self'"
+        ],
+        "style-src": [
+          "'self'",
+          "'unsafe-inline'"
+        ],
+        "font-src": [
+          "'self'",
+          "data:"
+        ],
+        "img-src": [
+          "'self'",
+          "asset:",
+          "http://asset.localhost",
+          "blob:",
+          "data:",
+          "https:"
+        ],
+        "media-src": [
+          "'self'",
+          "asset:",
+          "http://asset.localhost",
+          "blob:",
+          "data:",
+          "https:"
+        ],
+        "connect-src": [
+          "'self'",
+          "ipc:",
+          "http://ipc.localhost",
+          "blob:",
+          "data:",
+          "https:",
+          "wss:"
+        ],
+        "frame-src": [
+          "'self'",
+          "https://www.youtube.com",
+          "https://www.youtube-nocookie.com"
+        ],
+        "object-src": [
+          "'none'"
+        ],
+        "base-uri": [
+          "'self'"
+        ],
+        "form-action": [
+          "'self'"
+        ]
       }
     },
     "trayIcon": {
