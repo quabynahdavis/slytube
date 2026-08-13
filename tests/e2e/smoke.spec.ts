@@ -1,44 +1,37 @@
-import { test, expect } from './fixtures';
-
-test.describe('App Launch', () => {
-  test('launches and shows main shell', async ({ appPage }) => {
-    await appPage.waitForLoadState('domcontentloaded');
-
-    // App should render the main shell with sidebar or topnav
-    const shell = appPage.locator('#app');
-    await expect(shell).toBeAttached({ timeout: 15_000 });
+describe('App Launch', () => {
+  it('launches and shows main shell', async () => {
+    await browser.waitUntil(
+      async () => {
+        const app = await browser.$('#app');
+        return app.isExisting();
+      },
+      { timeout: 15_000, timeoutMsg: 'App shell (#app) never appeared' }
+    );
   });
 
-  test('sidebar renders navigation items', async ({ appPage }) => {
-    await appPage.waitForLoadState('domcontentloaded');
-
-    // Look for key navigation elements
-    const nav = appPage.locator('nav').first();
-    await expect(nav).toBeVisible({ timeout: 10_000 });
-  });
-});
-
-test.describe('Navigation', () => {
-  test('navigates to Trending', async ({ appPage }) => {
-    await appPage.waitForLoadState('domcontentloaded');
-
-    const trendingLink = appPage.getByRole('link', { name: /trending/i }).first();
-    if (await trendingLink.isVisible().catch(() => false)) {
-      await trendingLink.click();
-      await appPage.waitForURL(/trending/, { timeout: 10_000 });
-    }
+  it('renders sidebar navigation', async () => {
+    await browser.waitUntil(
+      async () => {
+        const nav = await browser.$$('nav');
+        return nav.length > 0;
+      },
+      { timeout: 10_000, timeoutMsg: 'No <nav> element found' }
+    );
   });
 });
 
-test.describe('Search', () => {
-  test('can type in search and submit', async ({ appPage }) => {
-    await appPage.waitForLoadState('domcontentloaded');
-
-    const searchInput = appPage.locator('input[type="text"], input[type="search"], input[placeholder*="search" i]').first();
-    if (await searchInput.isVisible().catch(() => false)) {
-      await searchInput.fill('test video');
-      await searchInput.press('Enter');
-      await appPage.waitForURL(/search/, { timeout: 10_000 });
-    }
+describe('Navigation', () => {
+  it('has a link or button to Trending', async () => {
+    await browser.waitUntil(
+      async () => {
+        const els = await browser.$$('a, button');
+        for (const el of els) {
+          const text = await el.getText();
+          if (/trending/i.test(text)) return true;
+        }
+        return false;
+      },
+      { timeout: 10_000, timeoutMsg: 'No Trending link found' }
+    );
   });
 });

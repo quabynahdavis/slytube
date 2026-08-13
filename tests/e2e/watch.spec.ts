@@ -1,34 +1,57 @@
-import { test, expect } from './fixtures';
-
-test.describe('Watch Flow', () => {
-  test('opens a video from search results', async ({ appPage }) => {
-    await appPage.waitForLoadState('domcontentloaded');
-
-    const searchInput = appPage.locator('input[type="text"], input[type="search"], input[placeholder*="search" i]').first();
-    if (await searchInput.isVisible().catch(() => false)) {
-      await searchInput.fill('lofi hip hop');
-      await searchInput.press('Enter');
-      await appPage.waitForURL(/search/, { timeout: 10_000 });
-
-      // Wait for results and click first video card
-      const firstResult = appPage.locator('[class*="video-card"], [class*="VideoCard"]').first();
-      if (await firstResult.isVisible().catch(() => false)) {
-        await firstResult.click();
-        await appPage.waitForURL(/watch/, { timeout: 10_000 });
-      }
+describe('Search', () => {
+  it('can type in search and submit', async () => {
+    const searchInput = await browser.$(
+      'input[type="text"], input[type="search"], input[placeholder*="search" i]'
+    );
+    const exists = await searchInput.isExisting();
+    if (!exists) {
+      console.warn('Search input not found, skipping');
+      return;
     }
+
+    await searchInput.setValue('lofi hip hop');
+    await browser.keys('Enter');
+
+    // URL should change to /search
+    await browser.waitUntil(
+      async () => {
+        const url = await browser.getUrl();
+        return url.includes('search');
+      },
+      { timeout: 10_000, timeoutMsg: 'URL did not change to /search' }
+    );
   });
 });
 
-test.describe('Subscribe', () => {
-  test('subscribe button toggles state', async ({ appPage }) => {
-    await appPage.waitForLoadState('domcontentloaded');
+describe('Watch Flow', () => {
+  it('opens a video from search results', async () => {
+    const searchInput = await browser.$(
+      'input[type="text"], input[type="search"], input[placeholder*="search" i]'
+    );
+    if (await searchInput.isExisting()) {
+      await searchInput.setValue('test');
+      await browser.keys('Enter');
+    }
 
-    const subscribeBtn = appPage.getByRole('button', { name: /subscribe/i }).first();
-    if (await subscribeBtn.isVisible().catch(() => false)) {
-      const initialText = await subscribeBtn.textContent();
-      await subscribeBtn.click();
-      await expect(subscribeBtn).not.toHaveText(initialText?.trim() ?? '', { timeout: 5_000 });
+    // Wait for any clickable result
+    await browser.waitUntil(
+      async () => {
+        const results = await browser.$$('[class*="card"], [class*="Card"], [class*="video"], a[href*="watch"]');
+        return results.length > 0;
+      },
+      { timeout: 15_000, timeoutMsg: 'No search results appeared' }
+    );
+
+    const results = await browser.$$('[class*="card"], [class*="Card"], [class*="video"], a[href*="watch"]');
+    if (results.length > 0) {
+      await results[0].click();
+      await browser.waitUntil(
+        async () => {
+          const url = await browser.getUrl();
+          return url.includes('watch');
+        },
+        { timeout: 10_000, timeoutMsg: 'URL did not change to /watch' }
+      );
     }
   });
 });

@@ -9,9 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test",
-    "test:e2e:headed": "playwright test --headed",
-    "test:e2e:debug": "playwright test --debug",
+    "test:e2e": "wdio run wdio.conf.ts",
+    "test:e2e:debug": "wdio run wdio.conf.ts --logLevel=debug",
     "tauri": "tauri"
   },
   "dependencies": {
@@ -43,9 +42,14 @@
     "@types/node": "^26.2.0",
     "@vitejs/plugin-vue": "^5.2.1",
     "@vue/test-utils": "^2.4.11",
+    "@wdio/cli": "^9.30.1",
+    "@wdio/mocha-framework": "^9.30.1",
+    "@wdio/spec-reporter": "^9.30.1",
+    "@wdio/tauri-service": "^1.3.0",
     "typescript": "~5.6.2",
     "vite": "^6.0.3",
     "vitest": "^4.1.10",
-    "vue-tsc": "^2.1.10"
+    "vue-tsc": "^2.1.10",
+    "webdriverio": "^9.30.1"
   }
 }

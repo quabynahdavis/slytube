@@ -1,6 +1,6 @@
 # E2E Tests
 
-End-to-end tests using Playwright connected to the Tauri app via Chrome DevTools Protocol (CDP).
+End-to-end tests using WebdriverIO + `@wdio/tauri-service` connected to the Tauri app via `tauri-driver`.
 
 ## Prerequisites
 
@@ -11,10 +11,10 @@ End-to-end tests using Playwright connected to the Tauri app via Chrome DevTools
    bunx tauri build --debug     # faster build, slower runtime
    ```
 
-2. **Install Playwright browsers** (one-time):
+2. **Install tauri-driver** (one-time):
 
    ```bash
-   bunx playwright install chromium
+   cargo install tauri-driver
    ```
 
 3. **Linux only**: ensure a display server is running (or use xvfb):
@@ -27,32 +27,32 @@ End-to-end tests using Playwright connected to the Tauri app via Chrome DevTools
 
 ```bash
 bun run test:e2e              # headless
-bun run test:e2e:headed        # with browser window
-bun run test:e2e:debug         # step-through debugger
+bun run test:e2e:debug         # verbose logging
 ```
 
 ## How It Works
 
-- `playwright.config.ts` — Playwright configuration (test dir, timeouts, reporter).
-- `tests/e2e/fixtures.ts` — Launches the built Tauri binary with `TAURI_WEBVIEW_AUTOMATION=true`,
-  captures the CDP endpoint from stdout, and connects Playwright via `chromium.connectOverCDP`.
-- `tests/e2e/*.spec.ts` — Test scenarios.
+- `wdio.conf.ts` — WebdriverIO configuration with the `tauri` service.
+- The `tauri` service launches `tauri-driver`, which proxies WebDriver commands to the Tauri app.
+- On Linux this uses `WebKitWebDriver` under the hood.
+- `tests/e2e/**/*.spec.ts` — Mocha-style test files driven by the global `browser` instance.
 
 ## Writing Tests
 
 ```ts
-import { test, expect } from './fixtures';
-
-test('my scenario', async ({ appPage }) => {
-  await appPage.waitForLoadState('domcontentloaded');
-  // ... interact with the app
+describe('My Feature', () => {
+  it('does something', async () => {
+    const el = await browser.$('#some-element');
+    await el.click();
+    await expect(el).toHaveText('expected');
+  });
 });
 ```
 
-The `appPage` fixture gives you a Playwright `Page` attached to the running Tauri window.
+The global `browser` is a WebdriverIO instance attached to the running Tauri window.
 
 ## Notes
 
 - Tests run against the **built binary**, not the dev server.
-- Network calls to Invidious/YouTube will hit live servers unless mocked.
-- For CI, use `xvfb-run` on Linux and mock network responses.
+- Network calls to Invidious/YouTube hit live servers — mock them for deterministic CI.
+- The `tauri` service auto-detects the binary (release → debug fallback).
