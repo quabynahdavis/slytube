@@ -13,3 +13,4 @@
 | 2026-08-10 | 1.8.0 | Phase 07 (System integration) marked complete: shortcuts, tray, menus, protocol handler, updater | Migration Team |
 | 2026-08-10 | 1.9.0 | Phase 08 (Testing & Polish) marked in progress: test suite development underway | Migration Team |
 | 2026-08-13 | 2.0.0 | Phase 04 (Backend commands) update: extraction layer pivoted from direct Rust InnerTube HTTP to hidden webview youtubei.js bridge; `extractor/` module added with `extract`/`extraction_result`/`extractor_ready` commands; 3 new commands registered in lib.rs | Migration Team |
+| 2026-08-13 | 2.1.0 | Phase 04 wiring complete: channel sub-tabs, trending, hashtag, community post, comment replies all use youtubei.js methods; Invidious fallback chain verified across all endpoints | Migration Team |

@@ -35,6 +35,7 @@ Vue renderer
 | [04-potoken-generation.md](04-potoken-generation.md) | Hidden `WebviewWindow` approach, `potoken://` protocol, `botGuardScript.js`, `generate_po_token`, session cleanup, proxy support |
 | [05-sync-encryption.md](05-sync-encryption.md) | Crypto stack, key derivation, X25519 pairing, snapshot protocol, the seven collections, legacy decryption, privacy modes |
 | [06-network-proxy.md](06-network-proxy.md) | `reqwest` client registry, per-request proxy, renderer fetch wrapper, image cache strategy, CORS handling |
+| [07-extractor-bridge.md](07-extractor-bridge.md) | Hidden webview youtubei.js bridge, request-ID correlation, method reference, parsers, Invidious fallback |
 
 ## Reading order
 
@@ -50,4 +51,4 @@ Vue renderer
 
 ## Status
 
-All six documents are **design specifications** written ahead of implementation. The `src-tauri/src/` tree currently contains only the Tauri scaffold; module paths referenced throughout (`src-tauri/src/db/`, `src-tauri/src/net/`, …) are implementation targets, not existing files.
+Documents 01-06 are **design specifications**. Document 07 (extractor bridge) is **implemented** (src-tauri/src/extractor/ + src/extractor/).
