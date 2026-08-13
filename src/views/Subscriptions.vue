@@ -138,7 +138,7 @@ onMounted(loadFeed)
       <EmptyState v-else-if="feedVideos.length === 0" title="No videos from your subscriptions">
         Your subscribed channels haven't posted yet. Check back later or explore more channels.
       </EmptyState>
-      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
         <VideoCard
           v-for="video in feedVideos"
           :key="video.id"
