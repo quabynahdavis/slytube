@@ -179,28 +179,12 @@ pub async fn invidious_get_dash_manifest(
     for instance in FALLBACK_INSTANCES {
         let url = format!("{}/api/manifest/dash/id/{}?local=true", instance, video_id);
 
-        let response = http_client
-            .client()
-            .get(&url)
-            .send()
-            .await;
-
-        match response {
-            Ok(resp) if resp.status().is_success() => {
-                match resp.text().await {
-                    Ok(text) => return Ok(text),
-                    Err(e) => {
-                        last_error = format!("Failed to read DASH manifest: {}", e);
-                        continue;
-                    }
-                }
-            }
-            Ok(resp) => {
-                last_error = format!("DASH manifest request failed with status: {}", resp.status());
-                continue;
-            }
+        // Route through the hardened client to apply Invidious auth headers.
+        match http_client.get_text(&url).await {
+            Ok(text) => return Ok(text),
             Err(e) => {
-                last_error = format!("Request failed: {}", e);
+                tracing::warn!("DASH manifest from {} failed: {}", instance, e);
+                last_error = e;
                 continue;
             }
         }

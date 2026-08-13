@@ -6,6 +6,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::http_client::USER_AGENT;
 use crate::sync::crypto;
 use crate::sync::models::*;
 
@@ -38,6 +39,7 @@ impl SyncClient {
 
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
+            .user_agent(USER_AGENT)
             .build()
             .map_err(|e| SyncError::Network(e.to_string()))?;
 

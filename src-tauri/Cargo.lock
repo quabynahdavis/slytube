@@ -4400,6 +4400,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "directories",
+ "flate2",
  "hkdf",
  "pbkdf2",
  "rand 0.8.7",

@@ -225,23 +225,9 @@ pub async fn get_search_suggestions(
         urlencoding::encode(&query)
     );
 
-    let response = http_client
-        .client()
-        .get(&url)
-        .header("Referer", "https://www.youtube.com/")
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        .send()
-        .await
-        .map_err(|e| format!("Search suggestions request failed: {}", e))?;
-
-    let status = response.status();
-    if !status.is_success() {
-        let body = response.text().await.unwrap_or_default();
-        return Err(format!("Search suggestions returned {}: {}", status, body));
-    }
-
-    let text = response.text().await
-        .map_err(|e| format!("Failed to read suggestions response: {}", e))?;
+    // Route through the hardened client — YouTube image/CDN domains get
+    // automatic Referer/Origin headers via request_internal.
+    let text = http_client.get_text(&url).await?;
 
     // Response format is JSON array wrapped in a callback: `window.google.ach(..., [[...]])`
     // Extract the JSON array from the response
