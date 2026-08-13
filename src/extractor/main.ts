@@ -12,10 +12,10 @@ interface VideoInfo {
   authorAvatar: string
   description: string
   thumbnail: string
-  viewCount: number
+  viewCount: number | null
   likeCount: number
   lengthSeconds: number
-  published: string
+  published: string | undefined
   isLive: boolean
   isUpcoming: boolean
   isShort: boolean
@@ -234,6 +234,13 @@ function parseDurationText(text: string | undefined): number {
   if (parts.some(isNaN)) return 0
   return parts.reduce((acc: number, part: number) => acc * 60 + part, 0)
 }
+
+// ─── LockupView regex constants (mirrors OpenTubeX parseLockupView) ───────────
+
+const VIEWS_OR_WATCHING_REGEX = /views?|watching|waiting/i
+const VIEWS_IN_NUMBER_ONLY = /^\d+(\.\d)?[bkm]?$/i
+const PUBLISH_TIME_REGEX = /^(streamed )?\d+ ?\w+? ago/i
+const PREMIERES_TIME_REGEX = /^(premieres|scheduled for) /i
 
 // ─── Video parser ────────────────────────────────────────────────────────────
 
@@ -531,78 +538,125 @@ function parseListItem(item: any): unknown | null {
         }
       }
       if (content_type === 'SHORT' || content_type === 'VIDEO') {
-        // LockupView.metadata contains video metadata in a different shape than Video nodes.
-        // YouTube changed the metadata row structure in 2026. The layout can be:
-        //   - 2 rows: [author] [views, date]
-        //   - 1 row:  [views, date]
-        //   - 1 row:  [date, views] (parts in reverse order)
-        //   - 1 row:  [views] (live streams)
-        // We collect all parts dynamically and search for views/dates by pattern.
-        const metadata = item.metadata || {}
-        const metadataRows = metadata.metadata?.metadata_rows || []
-        const metadataParts = metadataRows.flatMap((row: any) => row.metadata_parts || [])
+        let publishedText: string | undefined
+        let lengthSeconds = 0
+        let liveNow = false
+        let isUpcoming = false
+        let premiereDate: Date | undefined
 
-        // Helper: find first part text matching a predicate
+        const metadata = item.metadata || {}
+
+        // Member-only filter
+        const isMemberOnly = metadata.metadata?.metadata_rows?.some((row: any) =>
+          row.badges?.some((badge: any) => badge.style === 'BADGE_MEMBERS_ONLY')
+        )
+        if (isMemberOnly) return null
+
+        // Duration comes from ThumbnailBottomOverlayView badge
+        const thumbnailBottomOverlayView = metadata.content_image?.overlays
+          ?.find((o: any) => o.type === 'ThumbnailBottomOverlayView')
+
+        // Metadata parts for dynamic search
+        const metadataRows = metadata.metadata?.metadata_rows ?? []
+        const metadataParts = metadataRows.flatMap((row: any) => row.metadata_parts ?? [])
         const findPartText = (predicate: (text: string) => boolean): string | undefined =>
           metadataParts.find((part: any) => part.text?.text && predicate(part.text.text))?.text?.text
 
-        // View count: look for parts containing "views" or "watching" or pure numbers
-        const viewCountText = findPartText((text: string) =>
-          /views?|watching|waiting/i.test(text) || /^\d+(\.\d)?[bkm]?$/i.test(text)
-        )
+        if (thumbnailBottomOverlayView) {
+          const liveBadge = thumbnailBottomOverlayView.badges
+            .find((b: any) => b.badge_style === 'THUMBNAIL_OVERLAY_BADGE_STYLE_LIVE')
 
-        // Published date: relative time like "2 days ago" or "Streamed 3 weeks ago"
-        const publishedText = findPartText((text: string) =>
-          /^(streamed )?\d+ ?\w+? ago/i.test(text)
-        )
+          if (liveBadge) {
+            liveNow = true
+          } else if (thumbnailBottomOverlayView.badges.some((b: any) => b.text?.toLowerCase() === 'upcoming')) {
+            isUpcoming = true
 
-        // Duration: from thumbnail overlay time status badge
-        const thumbnailOverlay = metadata.thumbnail_overlay
-        let durationText: string | undefined
-        let isLive = false
-        let isUpcoming = false
+            // Premiere date: search metadata parts, try with/without prefix
+            for (const part of metadataParts) {
+              const text = part.text?.text
+              if (!text || VIEWS_OR_WATCHING_REGEX.test(text) || text.endsWith('ago')) continue
 
-        if (thumbnailOverlay?.thumbnail_overlay_time_status_text) {
-          durationText = thumbnailOverlay.thumbnail_overlay_time_status_text?.text || undefined
-          if (durationText === 'LIVE') {
-            isLive = true
+              let parsed = new Date(text)
+              if (isNaN(parsed.getTime())) {
+                const stripped = text.replace(/^(premieres?|premiered|scheduled for)\s+/i, '').trim()
+                if (stripped && stripped !== text) {
+                  parsed = new Date(stripped)
+                }
+              }
+
+              if (!isNaN(parsed.getTime())) {
+                premiereDate = parsed
+                break
+              }
+            }
+          } else {
+            const durationBadge = thumbnailBottomOverlayView.badges
+              .find((badge: any) => /^[\d:]+$/.test(badge.text))
+
+            if (durationBadge) {
+              lengthSeconds = parseDurationText(durationBadge.text)
+            }
+
+            publishedText = findPartText((t: string) => PUBLISH_TIME_REGEX.test(t))
           }
         }
 
-        // Check for live/upcoming badges in thumbnailBottomOverlay
-        const thumbnailBottomOverlay = metadata.content_image?.overlays?.find(
-          (o: any) => o.type === 'ThumbnailBottomOverlayView'
+        let viewCount: number | null = null
+
+        const viewsText = findPartText((t: string) =>
+          VIEWS_OR_WATCHING_REGEX.test(t) || VIEWS_IN_NUMBER_ONLY.test(t)
         )
-        if (thumbnailBottomOverlay?.badges) {
-          for (const badge of thumbnailBottomOverlay.badges) {
-            const badgeText = badge.text?.toLowerCase() || ''
-            if (badgeText === 'live') isLive = true
-            if (badgeText === 'upcoming') isUpcoming = true
+
+        if (viewsText) {
+          const views = parseSubscriberCount(viewsText)
+          if (!isNaN(views)) {
+            viewCount = views
           }
         }
 
-        // Author: prefer part with channel endpoint, else first non-views/date part
-        const authorPart = metadataParts.find(
-          (part: any) => part.text?.endpoint?.metadata?.page_type === 'WEB_PAGE_TYPE_CHANNEL'
-        )?.text
-        const authorName = authorPart?.text ?? metadataRows[0]?.metadata_parts?.[0]?.text?.text ?? ''
-        const authorId = authorPart?.endpoint?.payload?.browseId ?? ''
+        // Author/channel detection (3-tier):
+        let authorPart = metadataParts
+          .find((part: any) => part.text?.endpoint?.metadata?.page_type === 'WEB_PAGE_TYPE_CHANNEL')
+          ?.text
 
-        // Construct video data in the shape parseVideo expects
-        const videoData = {
-          video_id: item.content_id || metadata.videoId || '',
-          title: metadata.title?.text || metadata.title?.runs?.[0]?.text || 'Unknown',
-          author: { name: authorName, id: authorId },
-          thumbnail: { thumbnails: metadata.content_image?.primary_thumbnail?.image || metadata.thumbnail },
-          view_count: viewCountText ? { text: viewCountText } : undefined,
-          duration: durationText ? { text: durationText } : undefined,
-          published: publishedText ? { text: publishedText } : undefined,
-          is_live: isLive,
-          is_upcoming: isUpcoming,
+        if (!authorPart && metadataRows.length >= 2) {
+          const firstPart = metadataRows[0]?.metadata_parts?.[0]?.text
+          const firstPartText = firstPart?.text
+
+          if (firstPartText &&
+              !VIEWS_OR_WATCHING_REGEX.test(firstPartText) &&
+              !firstPartText.endsWith('ago') &&
+              !PREMIERES_TIME_REGEX.test(firstPartText)) {
+            authorPart = firstPart
+          }
         }
-        const video = parseVideo(videoData)
-        if (video && content_type === 'SHORT') video.isShort = true
-        return { type: 'video', data: video }
+
+        const imageAuthorId = metadata.image?.renderer_context?.command_context?.on_tap?.payload?.browseId
+        const author = authorPart?.text ?? ''
+        const authorId = authorPart?.endpoint?.payload?.browseId ?? imageAuthorId ?? ''
+
+        const videoInfo: VideoInfo = {
+          id: item.content_id || '',
+          title: metadata.title?.text?.trim() || '',
+          author,
+          authorId,
+          authorUrl: `/channel/${authorId}`,
+          authorAvatar: '',
+          description: '',
+          thumbnail: metadata.content_image?.primary_thumbnail?.image?.[0]?.url || '',
+          viewCount,
+          likeCount: 0,
+          lengthSeconds,
+          published: calculatePublishedDate(publishedText, liveNow, isUpcoming, premiereDate),
+          isLive: liveNow,
+          isUpcoming,
+          isShort: content_type === 'SHORT',
+          chapters: [],
+          captions: [],
+          related: [],
+        }
+
+        return { type: 'video', data: videoInfo }
       }
       console.warn(`[Extractor] Unknown LockupView content_type: ${content_type}`)
       return null
