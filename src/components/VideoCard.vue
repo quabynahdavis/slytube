@@ -105,12 +105,12 @@ function timeAgo(published: string): string {
 
 <template>
   <div
-    class="group relative rounded-lg transition-colors duration-200 hover:bg-[var(--card-hover)] p-4"
+    class="group relative rounded-xl transition-colors duration-200"
     :style="{ '--card-hover': getColor(video.thumbnail) }"
   >
     <!-- Video Thumbnail -->
     <router-link :to="`/watch?v=${video.id}`" class="block relative">
-      <div class="relative aspect-video rounded-xl overflow-hidden bg-muted mb-2">
+      <div class="relative aspect-video rounded-xl overflow-hidden bg-muted mb-3">
         <img
           v-if="video.thumbnail"
           :src="video.thumbnail"
@@ -142,7 +142,7 @@ function timeAgo(published: string): string {
     </router-link>
 
     <!-- Metadata Row -->
-    <div class="flex gap-3 mt-1 relative">
+    <div class="flex gap-3 mt-2 p-3 relative">
       <!-- Creator Avatar - Links to Channel -->
       <router-link
         :to="`/channel/${video.authorId}`"
@@ -162,7 +162,7 @@ function timeAgo(published: string): string {
 
       <!-- Title and Metadata - Links to Video -->
       <router-link :to="`/watch?v=${video.id}`" class="flex-1 min-w-0">
-        <h3 class="text-sm font-medium text-foreground line-clamp-2 leading-snug">
+        <h3 class="text-base font-medium text-foreground line-clamp-2 leading-snug">
           {{ video.title }}
         </h3>
         <p class="text-xs text-muted-foreground mt-1 hover:text-foreground">{{ video.author }}</p>
