@@ -168,8 +168,16 @@ pub fn run() {
             potoken::generate_po_token,
             // Sync commands
             sync::commands::sync_test_connection,
+            sync::commands::sync_register,
+            sync::commands::sync_login,
+            sync::commands::sync_delete_account,
+            sync::commands::sync_prepare_key,
+            sync::commands::sync_encrypt,
+            sync::commands::sync_decrypt,
+            sync::commands::sync_get_manifest,
+            sync::commands::sync_get_collection,
+            sync::commands::sync_upload_collection,
             sync::commands::sync_get_state,
-            sync::commands::sync_save_state,
             sync::commands::sync_start,
             sync::commands::sync_cancel,
             // System commands

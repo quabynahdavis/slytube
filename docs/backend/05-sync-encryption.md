@@ -1,8 +1,27 @@
 # 05 - Sync & Encryption
 
 > **Domain:** `backend`
-> **Status:** Design specification (implementation target for `src-tauri/src/sync`)
+> **Status:** Partially implemented (src-tauri/src/sync/ — crypto, client, merge, models, commands)
 > **Related:** [01-database-schema.md](01-database-schema.md), [02-tauri-commands.md](02-tauri-commands.md#10-module-sync)
+
+---
+
+## 0. Implementation Status
+
+This document remains the authoritative protocol reference. The following modules implement it:
+
+| Module | File | Status |
+|--------|------|--------|
+| Crypto | `src-tauri/src/sync/crypto.rs` | **Implemented** — PBKDF2-SHA256 (600k iter), AES-256-GCM with AAD `OpenTubeX encrypted sync v1`, gzip + 4-byte length prefix, 64 KiB padding |
+| Client | `src-tauri/src/sync/client.rs` | **Implemented** — /health, /account/{register,login,delete}, /v1/encrypted_sync endpoints with revision-based optimistic concurrency (409 retry ×3) |
+| Merge | `src-tauri/src/sync/merge.rs` | **Implemented** — deletion-aware set merge (`mergeIds`), per-collection merge (subscriptions, history, playlists, profiles, settings), data-loss guard |
+| Commands | `src-tauri/src/sync/commands.rs` | **Implemented** — sync_test_connection, sync_register, sync_login, sync_delete_account, sync_prepare_key, sync_encrypt, sync_decrypt, sync_get_manifest, sync_get_collection, sync_upload_collection, sync_start, sync_cancel |
+
+### 0.1 Deviations from spec
+
+- The envelope's `kdf.salt` field contains the KDF salt (same as the account's stored salt), not a per-envelope random value.
+- No X25519 device pairing (not needed for single-device sync; all devices use the same account key).
+- The `sync_start` command currently performs a simplified sync (connection test + manifest fetch); full per-collect/upload/merge/download cycle requires DB integration (Phase 3).
 
 ---
 

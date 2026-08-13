@@ -4,8 +4,10 @@ use std::sync::Mutex;
 use tauri::State;
 use uuid::Uuid;
 
-use crate::sync::client;
-use crate::sync::models::{SyncResult, SyncSnapshot, SyncState};
+use crate::sync::client::{
+    decrypt_sync_document, encrypt_sync_document, prepare_privacy_key, SyncClient,
+};
+use crate::sync::models::*;
 
 /// Shared state for tracking active sync operations.
 pub struct SyncManager {
@@ -39,137 +41,248 @@ impl SyncManager {
     }
 }
 
-/// Tests connectivity to the sync server.
+// ─── Connection & Auth ────────────────────────────────────────────────────────
+
+/// Tests connectivity to the sync server and returns server capabilities.
 #[tauri::command]
 pub async fn sync_test_connection(
     server_url: String,
-    token: String,
-) -> Result<bool, String> {
-    client::test_connection(&server_url, &token)
+) -> Result<HealthResponse, String> {
+    let mut client = SyncClient::new(&server_url, "")
+        .map_err(|e| e.to_string())?;
+
+    client.health().await.map_err(|e| e.to_string())
+}
+
+/// Registers a new sync account.
+#[tauri::command]
+pub async fn sync_register(
+    server_url: String,
+    username: String,
+    password: String,
+) -> Result<String, String> {
+    let mut client = SyncClient::new(&server_url, "")
+        .map_err(|e| e.to_string())?;
+
+    client
+        .register(&username, &password)
         .await
         .map_err(|e| e.to_string())
 }
 
-/// Returns the current sync state.
-///
-/// In a full implementation, this would load from persistent storage.
-/// For now, returns a default state.
+/// Logs in to an existing sync account.
 #[tauri::command]
-pub async fn sync_get_state() -> Result<SyncState, String> {
-    Ok(SyncState {
-        last_sync: None,
-        snapshot: None,
-        sync_enabled: false,
-        server_url: None,
-        server_token: None,
-        privacy_mode: "standard".to_string(),
+pub async fn sync_login(
+    server_url: String,
+    username: String,
+    password: String,
+) -> Result<String, String> {
+    let mut client = SyncClient::new(&server_url, "")
+        .map_err(|e| e.to_string())?;
+
+    client
+        .login(&username, &password)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Deletes the sync account.
+#[tauri::command]
+pub async fn sync_delete_account(
+    server_url: String,
+    token: String,
+    password: String,
+) -> Result<(), String> {
+    let client = SyncClient::new(&server_url, &token)
+        .map_err(|e| e.to_string())?;
+
+    client
+        .delete_account(&password)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ─── Encrypted Sync ───────────────────────────────────────────────────────────
+
+/// Authenticates and prepares the privacy key for encrypted sync.
+///
+/// This derives the AES-GCM key from the passphrase and salt, validates
+/// it against an existing payload if present, and returns the key and salt
+/// for storage.
+#[tauri::command]
+pub async fn sync_prepare_key(
+    passphrase: String,
+    existing_payload: Option<String>,
+    existing_salt: Option<String>,
+) -> Result<(String, String), String> {
+    prepare_privacy_key(&passphrase, existing_payload.as_deref(), existing_salt.as_deref())
+        .map_err(|e| e.to_string())
+}
+
+/// Encrypts a sync document using the account's key.
+#[tauri::command]
+pub async fn sync_encrypt(
+    data: serde_json::Value,
+    key: String,
+    salt: String,
+) -> Result<String, String> {
+    encrypt_sync_document(&data, &key, &salt).map_err(|e| e.to_string())
+}
+
+/// Decrypts a sync document using the account's key.
+#[tauri::command]
+pub async fn sync_decrypt(
+    payload: String,
+    key: String,
+) -> Result<serde_json::Value, String> {
+    decrypt_sync_document(&payload, &key).map_err(|e| e.to_string())
+}
+
+/// Fetches the encrypted sync manifest.
+#[tauri::command]
+pub async fn sync_get_manifest(
+    server_url: String,
+    token: String,
+) -> Result<SyncManifest, String> {
+    let client = SyncClient::new(&server_url, &token)
+        .map_err(|e| e.to_string())?;
+
+    // Use the manifest from the enhanced endpoint
+    client.get_encrypted_sync_manifest().await.map_err(|e| {
+        if e.is_session_expired() {
+            "Session expired. Please log in again.".to_string()
+        } else {
+            e.to_string()
+        }
     })
 }
 
-/// Saves the sync state.
-///
-/// In a full implementation, this would persist to storage.
+/// Fetches a single encrypted collection.
 #[tauri::command]
-pub async fn sync_save_state(state: SyncState) -> Result<(), String> {
-    // Validate state
-    if state.privacy_mode != "standard" && state.privacy_mode != "enhanced" {
-        return Err("Invalid privacy_mode: must be 'standard' or 'enhanced'".to_string());
-    }
+pub async fn sync_get_collection(
+    server_url: String,
+    token: String,
+    collection: String,
+) -> Result<EncryptedSyncCollection, String> {
+    let client = SyncClient::new(&server_url, &token)
+        .map_err(|e| e.to_string())?;
 
-    // In a full implementation, persist to database or file
-    tracing::info!("Sync state saved: enabled={}", state.sync_enabled);
-    Ok(())
+    client
+        .get_encrypted_sync_collection(&collection)
+        .await
+        .map_err(|e| {
+            if e.is_session_expired() {
+                "Session expired. Please log in again.".to_string()
+            } else {
+                e.to_string()
+            }
+        })
 }
 
-/// Starts a sync operation, uploading and downloading collections.
+/// Uploads a single encrypted collection with optimistic concurrency.
+#[tauri::command]
+pub async fn sync_upload_collection(
+    server_url: String,
+    token: String,
+    collection: String,
+    revision: i64,
+    payload: String,
+) -> Result<(), String> {
+    let client = SyncClient::new(&server_url, &token)
+        .map_err(|e| e.to_string())?;
+
+    // Retry up to 3 times on conflict (stale revision)
+    let mut last_error = None;
+    for attempt in 0..3 {
+        match client
+            .put_encrypted_sync_collection(&collection, revision, &payload)
+            .await
+        {
+            Ok(()) => return Ok(()),
+            Err(SyncError::Conflict(_)) => {
+                last_error = Some("Conflict: stale revision. Retrying...".to_string());
+                if attempt < 2 {
+                    tokio::time::sleep(std::time::Duration::from_millis(500 * (attempt + 1))).await;
+                }
+            }
+            Err(e) => return Err(e.to_string()),
+        }
+    }
+
+    Err(last_error.unwrap_or_else(|| "Upload failed after retries".to_string()))
+}
+
+/// Returns the current sync state (stub — reads from settings in a full impl).
+#[tauri::command]
+pub async fn sync_get_state() -> Result<serde_json::Value, String> {
+    // In a full implementation, load from db_settings
+    Ok(serde_json::json!({
+        "enabled": false,
+        "serverUrl": "",
+        "username": "",
+        "privacyMode": "unknown",
+    }))
+}
+
+/// Starts a full sync operation (simplified — full implementation needs DB integration).
 #[tauri::command]
 pub async fn sync_start(
     server_url: String,
     token: String,
-    collections: Vec<String>,
     sync_manager: State<'_, SyncManager>,
 ) -> Result<SyncResult, String> {
     let operation_id = Uuid::new_v4().to_string();
 
     tracing::info!(
-        "Starting sync operation {} for collections: {:?}",
+        "Starting sync operation {} for server {}",
         operation_id,
-        collections
+        server_url
     );
 
-    // Test connection first
-    let connected = client::test_connection(&server_url, &token)
+    let mut client = SyncClient::new(&server_url, &token)
+        .map_err(|e| format!("Failed to create client: {}", e))?;
+
+    // Check connection and capabilities
+    let health = client
+        .health()
         .await
-        .map_err(|e| format!("Connection test failed: {}", e))?;
+        .map_err(|e| format!("Health check failed: {}", e))?;
 
-    if !connected {
-        return Err("Could not connect to sync server".to_string());
-    }
-
-    // Build snapshot from collections
-    let snapshot = SyncSnapshot {
-        version: 1,
-        timestamp: chrono::Utc::now().to_rfc3339(),
-        collections: HashMap::new(),
-    };
-
-    // Check for cancellation
     if sync_manager.is_cancelled(&operation_id) {
         sync_manager.clear_cancel(&operation_id);
         return Err("Sync cancelled".to_string());
     }
 
-    // Upload snapshot
-    client::upload_snapshot(&server_url, &token, &snapshot)
-        .await
-        .map_err(|e| format!("Upload failed: {}", e))?;
+    // For encrypted sync, fetch the manifest
+    let mut downloaded = Vec::new();
+    let mut uploaded = Vec::new();
 
-    // Check for cancellation
-    if sync_manager.is_cancelled(&operation_id) {
-        sync_manager.clear_cancel(&operation_id);
-        return Err("Sync cancelled".to_string());
-    }
-
-    // Download remote snapshot
-    let downloaded_snapshot = match client::download_snapshot(&server_url, &token).await {
-        Ok(snap) => Some(snap),
-        Err(e) => {
-            tracing::warn!("Download failed (may be first sync): {}", e);
-            None
-        }
-    };
-
-    // Build result
-    let mut uploaded = HashMap::new();
-    let mut downloaded = HashMap::new();
-
-    for collection in &collections {
-        uploaded.insert(collection.clone(), 1);
-    }
-
-    if let Some(remote) = downloaded_snapshot {
-        for collection in remote.collections.keys() {
-            downloaded.insert(collection.clone(), 1);
+    if health.supports_encrypted_sync() {
+        match client.get_encrypted_sync_manifest().await {
+            Ok(manifest) => {
+                for entry in &manifest.collections {
+                    downloaded.push(entry.collection.clone());
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Failed to fetch manifest: {}", e);
+            }
         }
     }
 
-    // Clean up cancel token
     sync_manager.clear_cancel(&operation_id);
 
-    let result = SyncResult {
+    Ok(SyncResult {
         uploaded,
         downloaded,
-        conflicts: Vec::new(),
-    };
-
-    tracing::info!("Sync operation {} completed successfully", operation_id);
-    Ok(result)
+        skipped: Vec::new(),
+        errors: Vec::new(),
+    })
 }
 
 /// Cancels any in-progress sync operation.
 #[tauri::command]
 pub async fn sync_cancel(sync_manager: State<'_, SyncManager>) -> Result<(), String> {
-    // Mark all active operations for cancellation
     let tokens = sync_manager.cancel_tokens.lock().unwrap();
     let active_ops: Vec<String> = tokens.keys().cloned().collect();
     drop(tokens);
