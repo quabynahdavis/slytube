@@ -1,4 +1,5 @@
 use std::process::Stdio;
+use std::str::FromStr;
 
 use chrono::Utc;
 use sqlx::SqlitePool;
@@ -8,7 +9,8 @@ use tokio::process::Command;
 
 use crate::db::{models::DownloadRecord, DbPool};
 use crate::yt_dlp::{
-    get_binary_path, parse_destination, parse_progress_line, validate_custom_args, DownloadStatus, YtDlpState,
+    get_binary_path, get_ffmpeg_path, parse_destination, parse_progress_line, validate_custom_args,
+    BinaryManager, BinaryType, BinaryVersionInfo, DownloadStatus, YtDlpState,
 };
 
 /// Get video info from yt-dlp.
@@ -425,4 +427,69 @@ async fn monitor_download(
             .await;
         }
     }
+}
+
+/// Check yt-dlp and FFmpeg binary availability and versions.
+///
+/// Returns whether each binary is available and its version string.
+#[tauri::command]
+pub async fn yt_dlp_check_binary(
+    app_handle: AppHandle,
+) -> Result<BinaryVersionInfo, String> {
+    let manager = BinaryManager::new(&app_handle).map_err(|e| e.to_string())?;
+
+    let yt_dlp_path = manager.install_path(BinaryType::YtDlp);
+    let ffmpeg_path = manager.install_path(BinaryType::FFmpeg);
+
+    let yt_dlp_available = manager.is_installed(BinaryType::YtDlp);
+    let ffmpeg_available = manager.is_installed(BinaryType::FFmpeg);
+
+    let yt_dlp_version = if yt_dlp_available {
+        BinaryManager::get_version(&yt_dlp_path)
+            .await
+            .unwrap_or_default()
+    } else {
+        String::new()
+    };
+
+    let ffmpeg_version = if ffmpeg_available {
+        BinaryManager::get_version(&ffmpeg_path)
+            .await
+            .unwrap_or_default()
+    } else {
+        String::new()
+    };
+
+    Ok(BinaryVersionInfo {
+        yt_dlp_available,
+        ffmpeg_available,
+        yt_dlp_version,
+        ffmpeg_version,
+    })
+}
+
+/// Download or update a yt-dlp/FFmpeg binary.
+///
+/// Emits `yt-dlp-binary-progress`, `yt-dlp-binary-complete`, and
+/// `yt-dlp-binary-error` events during the download.
+///
+/// Returns immediately after spawning the download task.
+#[tauri::command]
+pub async fn yt_dlp_download_binary(
+    app_handle: AppHandle,
+    binary_type: String,
+) -> Result<(), String> {
+    let binary_type = BinaryType::from_str(&binary_type)?;
+
+    let manager = BinaryManager::new(&app_handle).map_err(|e| e.to_string())?;
+
+    // Spawn the download in the background so the command returns immediately
+    // and progress events stream to the frontend.
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = manager.download_binary(binary_type, &app_handle).await {
+            tracing::error!("Failed to download binary {:?}: {}", binary_type, e);
+        }
+    });
+
+    Ok(())
 }

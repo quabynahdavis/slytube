@@ -8,9 +8,11 @@ use tauri::{AppHandle, Manager};
 use tokio::process::Child;
 use tokio::sync::Mutex;
 
+mod binary_manager;
 mod commands;
 mod models;
 
+pub use binary_manager::*;
 pub use commands::*;
 pub use models::*;
 
@@ -66,6 +68,29 @@ pub fn get_binary_path(app_handle: &AppHandle) -> Result<PathBuf, String> {
 
     // Fallback: try system yt-dlp
     Ok(PathBuf::from("yt-dlp"))
+}
+
+/// Get the FFmpeg binary path, checking the downloaded location first.
+///
+/// Resolution order:
+/// 1. Downloaded FFmpeg in the app data `binaries/` directory.
+/// 2. System `ffmpeg` on PATH.
+pub fn get_ffmpeg_path(app_handle: &AppHandle) -> Result<PathBuf, String> {
+    // Check the downloaded location first.
+    if let Ok(app_data) = app_handle.path().app_data_dir() {
+        let downloaded = app_data.join("binaries").join("ffmpeg");
+        if downloaded.exists() {
+            return Ok(downloaded);
+        }
+        // Windows variant.
+        let downloaded_exe = app_data.join("binaries").join("ffmpeg.exe");
+        if downloaded_exe.exists() {
+            return Ok(downloaded_exe);
+        }
+    }
+
+    // Fallback to system ffmpeg.
+    Ok(PathBuf::from("ffmpeg"))
 }
 
 /// Validate custom arguments against the denied list.

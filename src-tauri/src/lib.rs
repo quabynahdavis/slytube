@@ -7,6 +7,7 @@ mod db;
 #[allow(dead_code)]
 mod http_client;
 mod extractor;
+mod image_cache;
 mod potoken;
 mod sync;
 mod system;
@@ -14,7 +15,7 @@ mod yt_dlp;
 
 use std::sync::Arc;
 
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, State};
 
 use crate::http_client::HttpClient;
 
@@ -22,6 +23,20 @@ use crate::http_client::HttpClient;
 #[tauri::command]
 fn system_deep_link(url: String, app: AppHandle) {
     system::handle_deep_link(&app, url);
+}
+
+/// Fetch a YouTube image through the Rust-side cache and return it as a
+/// base64 data URL. Avoids direct webview connections to YouTube CDNs.
+#[tauri::command]
+async fn image_cache_get(
+    url: String,
+    cache: State<'_, image_cache::ImageCache>,
+    http: State<'_, crate::http_client::SharedHttpClient>,
+) -> Result<String, String> {
+    cache
+        .get_image(&url, &http)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -39,12 +54,22 @@ pub fn run() {
     let builder = builder.plugin(tauri_plugin_global_shortcut::Builder::new().build());
 
     builder
+        .register_uri_scheme_protocol("imgcache", move |ctx, request| {
+            image_cache::handle_protocol_request(ctx.app_handle(), &request)
+        })
         .setup(|app| {
             // Initialize HTTP client for YouTube/Invidious API calls
             let http_client = Arc::new(HttpClient::new()
                 .map_err(|e| format!("Failed to create HTTP client: {}", e))?);
             app.manage(http_client);
             tracing::info!("HTTP client initialized");
+
+            // Initialize image cache for YouTube thumbnails (avoids direct
+            // webview connections to YouTube CDNs for privacy / CORS reasons).
+            let image_cache = image_cache::ImageCache::new();
+            image_cache.clone().start_cleanup_task();
+            app.manage(image_cache);
+            tracing::info!("Image cache initialized");
 
             // Initialize yt-dlp state for managing active downloads
             app.manage(yt_dlp::YtDlpState::new());
@@ -112,6 +137,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             system_deep_link,
+            image_cache_get,
             // Extractor (hidden webview youtubei.js bridge)
             extractor::extract,
             extractor::extraction_result,
@@ -167,6 +193,8 @@ pub fn run() {
             yt_dlp::yt_dlp_download,
             yt_dlp::yt_dlp_cancel,
             yt_dlp::yt_dlp_list,
+            yt_dlp::yt_dlp_check_binary,
+            yt_dlp::yt_dlp_download_binary,
             potoken::generate_po_token,
             // Sync commands
             sync::commands::sync_test_connection,
