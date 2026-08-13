@@ -15,6 +15,19 @@ export default defineConfig(async () => ({
   clearScreen: false,
   build: {
     target: 'es2022',
+    rollupOptions: {
+      input: {
+        // Main app entry
+        main: path.resolve(__dirname, 'index.html'),
+        // Hidden webview entry for youtubei.js extraction engine
+        // Built to dist/extractor.html (loaded by Rust via WebviewUrl::App("extractor.html"))
+        extractor: path.resolve(__dirname, 'extractor.html'),
+      },
+      output: {
+        // Place extractor entry at dist root so the HTML loads cleanly
+        entryFileNames: 'assets/[name]-[hash].js',
+      },
+    },
   },
   server: {
     port: 1420,

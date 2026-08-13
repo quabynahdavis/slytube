@@ -1,4 +1,7 @@
+import { invoke } from '@tauri-apps/api/core'
 import { Innertube, UniversalCache } from 'youtubei.js'
+
+// ─── Direct youtubei.js (kept for non-extractor use cases) ────────────────────
 
 let searchSession: Awaited<ReturnType<typeof Innertube.create>> | null = null
 
@@ -16,11 +19,21 @@ export async function createInnertube(withPlayer = false) {
 }
 
 export async function getSearchSuggestions(query: string): Promise<string[]> {
-  if (!searchSession) searchSession = await createInnertube()
+  // Use extractor (hidden webview) for suggestions
   try {
-    return await searchSession.getSearchSuggestions(query)
+    const result = await invoke('extract', {
+      method: 'getSearchSuggestions',
+      params: { query },
+    })
+    return (result as string[]) || []
   } catch {
-    return []
+    // Fallback: local Innertube session
+    if (!searchSession) searchSession = await createInnertube()
+    try {
+      return await searchSession.getSearchSuggestions(query)
+    } catch {
+      return []
+    }
   }
 }
 
@@ -29,10 +42,29 @@ export function clearSearchSession() {
 }
 
 export async function getComments(videoId: string) {
-  const yt = await createInnertube()
-  return await yt.getComments(videoId)
+  // Use extractor (hidden webview) for comments
+  try {
+    const result = await invoke('extract', {
+      method: 'getComments',
+      params: { videoId },
+    })
+    return { comments: (result as any[]) || [] }
+  } catch {
+    // Fallback: local Innertube session
+    const yt = await createInnertube()
+    return await yt.getComments(videoId)
+  }
 }
 
 export async function getTrending() {
-  return { videos: [], contents: [] } as any
+  // Use extractor (hidden webview) for trending
+  try {
+    const result = await invoke('extract', {
+      method: 'getTrending',
+      params: {},
+    })
+    return { videos: (result as any[]) || [], contents: [] }
+  } catch {
+    return { videos: [], contents: [] }
+  }
 }

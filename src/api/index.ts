@@ -15,6 +15,18 @@ import {
   getThumbnailUrl,
 } from './invidious'
 
+// ─── Extraction via hidden webview (youtubei.js) ────────────────────────────
+
+/**
+ * Extract YouTube data via the hidden webview running youtubei.js.
+ * This is the PRIMARY extraction path. Falls back to Invidious on failure.
+ */
+async function extract(method: string, params: Record<string, unknown>): Promise<unknown> {
+  return await invoke('extract', { method, params })
+}
+
+// ─── Mapping helpers ─────────────────────────────────────────────────────────
+
 function getBestThumbnail(thumbnails: any[] | undefined): string {
   if (!thumbnails || thumbnails.length === 0) return ''
   const sorted = [...thumbnails].sort((a, b) => (b.width || 0) - (a.width || 0))
@@ -26,6 +38,83 @@ function getAuthorAvatar(thumbnails: any[] | undefined): string {
   const sorted = [...thumbnails].sort((a, b) => (b.width || 0) - (a.width || 0))
   return sorted[0]?.url || ''
 }
+
+function mapExtractedVideo(v: any): Video {
+  if (!v) return { id: '', title: 'Unknown', author: 'Unknown', authorId: '', authorUrl: '', authorAvatar: '', description: '', thumbnail: '', viewCount: 0, likeCount: 0, lengthSeconds: 0, published: '', isLive: false, isUpcoming: false, isShort: false, chapters: [], captions: [], related: [] }
+
+  const videoId = v.id || ''
+  return {
+    id: videoId,
+    title: v.title || 'Unknown',
+    author: v.author || 'Unknown',
+    authorId: v.authorId || '',
+    authorUrl: `/channel/${v.authorId || ''}`,
+    authorAvatar: proxyImageUrl(v.authorAvatar || ''),
+    description: v.description || '',
+    thumbnail: proxyImageUrl(v.thumbnail) || getThumbnailUrl(videoId, 'hqdefault'),
+    viewCount: v.viewCount || 0,
+    likeCount: v.likeCount || 0,
+    lengthSeconds: v.lengthSeconds || 0,
+    published: v.published || '',
+    isLive: v.isLive || false,
+    isUpcoming: v.isUpcoming || false,
+    isShort: v.isShort || false,
+    chapters: v.chapters || [],
+    captions: v.captions || [],
+    related: (v.related || []).map(mapExtractedVideo),
+  }
+}
+
+function mapExtractedChannel(c: any): Channel {
+  if (!c) return { id: '', name: 'Unknown', description: '', avatar: '', banner: '', subscriberCount: 0, videoCount: 0, tabs: [], videos: [], relatedChannels: [] }
+
+  return {
+    id: c.id || '',
+    name: c.name || 'Unknown',
+    description: c.description || '',
+    avatar: c.avatar || '',
+    banner: c.banner || '',
+    subscriberCount: c.subscriberCount || 0,
+    videoCount: c.videoCount || 0,
+    tabs: c.tabs || ['home', 'videos', 'playlists', 'community'],
+    videos: (c.videos || []).map(mapExtractedVideo),
+    relatedChannels: (c.relatedChannels || []).map(mapExtractedChannel),
+    playlists: c.playlists || [],
+    relatedPlaylists: c.relatedPlaylists || [],
+  }
+}
+
+function mapExtractedPlaylist(p: any): Playlist {
+  if (!p) return { id: '', title: 'Unknown', description: '', author: '', authorId: '', videoCount: 0, videos: [] }
+
+  return {
+    id: p.id || '',
+    title: p.title || 'Unknown',
+    description: p.description || '',
+    author: p.author || '',
+    authorId: p.authorId || '',
+    videoCount: p.videoCount || 0,
+    videos: (p.videos || []).map(mapExtractedVideo),
+  }
+}
+
+function mapExtractedComment(c: any): Comment {
+  if (!c) return { id: '', author: 'Unknown', authorId: '', authorAvatar: '', content: '', likeCount: 0, published: '', replies: [], replyCount: 0 }
+
+  return {
+    id: c.id || '',
+    author: c.author || 'Unknown',
+    authorId: c.authorId || '',
+    authorAvatar: c.authorAvatar || '',
+    content: c.content || '',
+    likeCount: c.likeCount || 0,
+    published: c.published || '',
+    replies: (c.replies || []).map(mapExtractedComment),
+    replyCount: c.replyCount || 0,
+  }
+}
+
+// ─── Invidious fallback mappers ──────────────────────────────────────────────
 
 function mapInvidiousVideo(v: any): Video {
   const videoId = v.videoId || ''
@@ -97,105 +186,24 @@ function mapInvidiousComment(c: any): Comment {
   }
 }
 
-function mapYouTubeResponse(result: any): Video {
-  const details = result.videoDetails || {}
-  const author = details.author || {}
-  const thumbnail = details.thumbnail?.thumbnails
-
-  const videoId = details.videoId || ''
-  const authorId = details.channelId || ''
-
-  const rawThumbnail = getBestThumbnail(thumbnail)
-  const rawAuthorAvatar = result.microformat?.playerMicroformatRenderer?.thumbnail?.thumbnails?.[0]?.url || ''
-
-  return {
-    id: videoId,
-    title: details.title || 'Unknown',
-    author: typeof author === 'string' ? author : (author.name || 'Unknown'),
-    authorId,
-    authorUrl: `/channel/${authorId}`,
-    authorAvatar: proxyImageUrl(rawAuthorAvatar),
-    description: details.shortDescription || '',
-    thumbnail: proxyImageUrl(rawThumbnail) || getThumbnailUrl(videoId, 'hqdefault'),
-    viewCount: parseInt(details.viewCount || '0'),
-    likeCount: parseInt(result.likes || '0'),
-    lengthSeconds: parseInt(details.lengthSeconds || '0'),
-    published: '',
-    isLive: details.isLive || false,
-    isUpcoming: false,
-    isShort: false,
-    chapters: [],
-    captions: [],
-    related: [],
-  }
-}
-
-function mapYouTubeSearchResults(result: any): Video[] {
-  const contents = result.contents?.twoColumnSearchResultsRenderer?.primaryContents
-    ?.sectionListRenderer?.contents || []
-
-  const videos: Video[] = []
-  for (const section of contents) {
-    const items = section.itemSectionRenderer?.contents || []
-    for (const item of items) {
-      if (item.videoRenderer) {
-        const vr = item.videoRenderer
-        const searchAuthorId = vr.ownerText?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId || ''
-        const searchAuthorAvatar = vr.channelThumbnailSupportedRenderers?.channelThumbnailWithLinkRenderer?.thumbnail?.thumbnails?.[0]?.url || ''
-
-        const searchThumbnail = getBestThumbnail(vr.thumbnail?.thumbnails)
-
-        videos.push({
-          id: vr.videoId || '',
-          title: vr.title?.runs?.[0]?.text || vr.title?.simpleText || 'Unknown',
-          author: vr.ownerText?.runs?.[0]?.text || 'Unknown',
-          authorId: searchAuthorId,
-          authorUrl: '',
-          authorAvatar: proxyImageUrl(searchAuthorAvatar),
-          description: vr.descriptionSnippet?.runs?.[0]?.text || '',
-          thumbnail: proxyImageUrl(searchThumbnail) || getThumbnailUrl(vr.videoId, 'hqdefault'),
-          viewCount: parseInt(vr.viewCountText?.simpleText?.replace(/[^0-9]/g, '') || '0'),
-          likeCount: 0,
-          lengthSeconds: 0,
-          published: vr.publishedTimeText?.simpleText || '',
-          isLive: false,
-          isUpcoming: false,
-          isShort: false,
-          chapters: [],
-          captions: [],
-          related: [],
-        })
-      }
-    }
-  }
-  return videos
-}
-
-function mapYouTubeChannel(result: any): Channel {
-  const metadata = result.metadata?.channelMetadataRenderer
-  const headerData = result.header?.c4TabbedHeaderRenderer
-
-  return {
-    id: metadata?.externalId || '',
-    name: metadata?.title || 'Unknown',
-    description: metadata?.description || '',
-    avatar: getBestThumbnail(metadata?.avatar?.thumbnails),
-    banner: getBestThumbnail(headerData?.banner?.thumbnails),
-    subscriberCount: parseInt(headerData?.subscriberCountText?.simpleText?.replace(/[^0-9]/g, '') || '0'),
-    videoCount: 0,
-    tabs: ['home', 'videos', 'playlists', 'community'],
-    videos: [],
-    relatedChannels: [],
-  }
-}
+// ─── Public API ──────────────────────────────────────────────────────────────
 
 export async function getVideo(videoId: string): Promise<Video> {
+  // Primary: extractor (youtubei.js via hidden webview)
   try {
-    const result = await invoke('get_video_info', { videoId })
-    return mapYouTubeResponse(result as any)
-  } catch {
+    const result = await extract('getVideoInfo', { videoId })
+    return mapExtractedVideo(result)
+  } catch (e) {
+    console.warn('[API] Extractor failed for getVideo, falling back to Invidious:', e)
+  }
+
+  // Fallback: Invidious
+  try {
     const result = await invidiousGetVideo(videoId)
     return mapInvidiousVideo(result)
+  } catch (e) {
+    console.error('[API] All extraction methods failed for getVideo:', e)
+    throw new Error(`Failed to load video: ${videoId}`)
   }
 }
 
@@ -248,16 +256,43 @@ export async function search(
     date?: string
   }
 ): Promise<Video[]> {
+  // Primary: extractor (youtubei.js via hidden webview)
   try {
-    const result = await invoke('search_videos', { query })
-    return mapYouTubeSearchResults(result as any)
-  } catch {
+    const result = await extract('search', { query, ...filters })
+    const items = (result as any[]) || []
+    const videos: Video[] = []
+
+    for (const item of items) {
+      if (item?.type === 'video' && item.data) {
+        videos.push(mapExtractedVideo(item.data))
+      }
+    }
+    return videos
+  } catch (e) {
+    console.warn('[API] Extractor failed for search, falling back to Invidious:', e)
+  }
+
+  // Fallback: Invidious
+  try {
     const result = await invidiousSearch(query, 1, filters)
     return (result || []).filter((i: any) => i.type === 'video').map(mapInvidiousVideo)
+  } catch (e) {
+    console.error('[API] All extraction methods failed for search:', e)
+    return []
   }
 }
 
 export async function getTrendingVideos(): Promise<Video[]> {
+  // Primary: extractor (youtubei.js via hidden webview)
+  try {
+    const result = await extract('getTrending', {})
+    const videos = (result as any[]) || []
+    return videos.map(mapExtractedVideo)
+  } catch (e) {
+    console.warn('[API] Extractor failed for trending, falling back to Invidious:', e)
+  }
+
+  // Fallback: Invidious popular
   try {
     const result = await invidiousGetPopular()
     const data = Array.isArray(result) ? result : []
@@ -265,7 +300,7 @@ export async function getTrendingVideos(): Promise<Video[]> {
       .filter((i: any) => i.type === 'video' || i.type === 'shortVideo')
       .map(mapInvidiousVideo)
   } catch (e) {
-    console.error('Failed to load trending/popular:', e)
+    console.error('[API] All extraction methods failed for trending:', e)
     return []
   }
 }
@@ -281,16 +316,34 @@ export async function getPopularVideos(): Promise<Video[]> {
 }
 
 export async function getChannelInfo(channelId: string): Promise<Channel> {
+  // Primary: extractor (youtubei.js via hidden webview)
   try {
-    const result = await invoke('get_channel_info', { channelId })
-    return mapYouTubeChannel(result as any)
-  } catch {
+    const result = await extract('getChannel', { channelId, includeHomeShelves: true })
+    return mapExtractedChannel(result)
+  } catch (e) {
+    console.warn('[API] Extractor failed for getChannel, falling back to Invidious:', e)
+  }
+
+  // Fallback: Invidious
+  try {
     const result = await invidiousGetChannel(channelId)
     return mapInvidiousChannel(result)
+  } catch (e) {
+    console.error('[API] All extraction methods failed for getChannel:', e)
+    return { id: channelId, name: 'Unknown', description: '', avatar: '', banner: '', subscriberCount: 0, videoCount: 0, tabs: [], videos: [], relatedChannels: [] }
   }
 }
 
 export async function getPlaylistInfo(playlistId: string): Promise<Playlist> {
+  // Primary: extractor (youtubei.js via hidden webview)
+  try {
+    const result = await extract('getPlaylist', { playlistId })
+    return mapExtractedPlaylist(result)
+  } catch (e) {
+    console.warn('[API] Extractor failed for getPlaylist, falling back to Invidious:', e)
+  }
+
+  // Fallback: Invidious
   try {
     const result = await invidiousGetPlaylist(playlistId)
     return mapInvidiousPlaylist(result)
@@ -300,6 +353,16 @@ export async function getPlaylistInfo(playlistId: string): Promise<Playlist> {
 }
 
 export async function getCommentsInfo(videoId: string): Promise<Comment[]> {
+  // Primary: extractor (youtubei.js via hidden webview)
+  try {
+    const result = await extract('getComments', { videoId })
+    const comments = (result as any[]) || []
+    return comments.map(mapExtractedComment)
+  } catch (e) {
+    console.warn('[API] Extractor failed for getComments, falling back to Invidious:', e)
+  }
+
+  // Fallback: Invidious
   try {
     const result = await invidiousGetComments(videoId)
     return (result.comments || []).map(mapInvidiousComment)

@@ -4,6 +4,7 @@ mod commands;
 mod db;
 #[allow(dead_code)]
 mod http_client;
+mod extractor;
 mod potoken;
 mod sync;
 mod system;
@@ -55,6 +56,10 @@ pub fn run() {
             app.manage(sync::commands::SyncManager::new());
             tracing::info!("SyncManager initialized");
 
+            // Initialize extractor pending-request correlation state
+            app.manage(extractor::PendingExtractions::new());
+            tracing::info!("PendingExtractions initialized");
+
             // Initialize the database pool and manage it as state
             let app_handle = app.handle().clone();
             tauri::async_runtime::block_on(async move {
@@ -71,6 +76,28 @@ pub fn run() {
                 Ok(())
             })?;
 
+            // Create the hidden extractor webview that runs youtubei.js.
+            // This webview is never shown to the user — it exists solely to
+            // execute youtubei.js (Innertube) for extraction and BotGuard VM
+            // for PoToken generation. It loads dist/extractor.html which is
+            // built from src/extractor/index.html as a separate Rollup entry.
+            #[cfg(desktop)]
+            {
+                use tauri::{WebviewUrl, WebviewWindowBuilder};
+
+                let extractor_url = WebviewUrl::App("extractor.html".into());
+                match WebviewWindowBuilder::new(app, "extractor", extractor_url)
+                    .title("Slytube Extractor")
+                    .visible(false)
+                    .inner_size(1920.0, 1080.0)
+                    .decorations(false)
+                    .build()
+                {
+                    Ok(_) => tracing::info!("Extractor hidden webview created"),
+                    Err(e) => tracing::warn!("Failed to create extractor webview: {} (may be created lazily on first use)", e),
+                }
+            }
+
             // Initialize system module (tray, shortcuts)
             if let Err(e) = system::init(app.handle()) {
                 tracing::error!("Failed to initialize system module: {}", e);
@@ -83,6 +110,10 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             system_deep_link,
+            // Extractor (hidden webview youtubei.js bridge)
+            extractor::extract,
+            extractor::extraction_result,
+            extractor::extractor_ready,
             // YouTube InnerTube API
             commands::youtube::get_video_info,
             commands::youtube::search_videos,
