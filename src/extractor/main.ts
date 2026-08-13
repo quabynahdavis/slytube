@@ -108,49 +108,231 @@ function parseViewCount(text: string | undefined): number {
   return parseInt(cleaned, 10) || 0
 }
 
-// ─── Video parser ────────────────────────────────────────────────────────────
+/**
+ * Extracts a number from a string like "1,234,567 views" or "1.2M".
+ * Strips all non-digit characters and parses the result.
+ */
+function extractNumberFromString(str: string | undefined): number {
+  if (typeof str !== 'string') return 0
+  const cleaned = str.replace(/\D+/g, '')
+  return parseInt(cleaned, 10) || 0
+}
 
-function parseVideo(video: any): VideoInfo | null {
-  if (!video) return null
+/**
+ * Parses subscriber/view count strings with K/M/B suffixes.
+ * e.g. "1.2M" → 1200000, "3.5K" → 3500, "1.2 thousand" → 1200
+ */
+function parseSubscriberCount(text: string | undefined): number {
+  if (!text) return 0
+  const match = text.match(/(\d+)(?:[,.](\d+))?\s?([BKMbkm]|thousand|[bm]illion)\b/)
+  if (match) {
+    let multiplier = 0
+    switch (match[3]) {
+      case 'K':
+      case 'k':
+      case 'thousand':
+        multiplier = 3
+        break
+      case 'M':
+      case 'm':
+      case 'million':
+        multiplier = 6
+        break
+      case 'B':
+      case 'b':
+      case 'billion':
+        multiplier = 9
+        break
+    }
+    let parsedDecimals: string
+    if (typeof match[2] === 'undefined') {
+      parsedDecimals = '0'.repeat(multiplier)
+    } else {
+      parsedDecimals = match[2].padEnd(multiplier, '0')
+    }
+    return parseInt(match[1] + parsedDecimals, 10) || 0
+  }
+  return extractNumberFromString(text)
+}
 
-  const videoId = video.videoId || video.id || ''
-  if (!videoId) return null
+/**
+ * Converts a relative date string like "2 days ago" to a timestamp.
+ * Handles: "X seconds/minutes/hours/days/weeks/months/years ago"
+ * Also handles "Premieres Jan 1, 2025" and "Streamed X days ago".
+ * Returns undefined for live/upcoming content without a known premiere date.
+ */
+function calculatePublishedDate(
+  publishedText: string | undefined,
+  isLive = false,
+  isUpcoming = false,
+  premiereDate?: Date
+): string | undefined {
+  const now = Date.now()
 
-  const author = video.author
-  const authorName = typeof author === 'string' ? author : (author?.name || author?.title?.text || 'Unknown')
-  const authorId = author?.id || author?.channelId || video.channelId || ''
+  if (isLive) {
+    return new Date(now).toISOString()
+  } else if (isUpcoming) {
+    if (premiereDate && !isNaN(premiereDate.getTime())) {
+      return premiereDate.toISOString()
+    }
+    return undefined
+  }
 
-  const thumbnails = video.thumbnail?.thumbnails || video.videoThumbnails
-  const thumbnail = getBestThumbnail(thumbnails) || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+  if (!publishedText) return undefined
 
-  const viewCountText = video.viewCount?.text || video.viewCountText || video.shortViewCount?.text
-  const lengthText = video.duration?.text || video.lengthText?.simpleText || video.lengthText?.accessibility?.accessibility_data?.label
-
-  let lengthSeconds = 0
-  if (video.duration?.seconds) {
-    lengthSeconds = video.duration.seconds
-  } else if (lengthText) {
-    const parts = lengthText.split(':').map(Number)
-    if (!parts.some(isNaN)) {
-      lengthSeconds = parts.reduce((acc: number, part: number) => acc * 60 + part, 0)
+  // Try to parse "Premieres Jan 1, 2025" or "Scheduled for ..."
+  const premieresMatch = publishedText.match(/^(?:premieres?|scheduled for)\s+/i)
+  if (premieresMatch) {
+    const dateStr = publishedText.replace(/^(?:premieres?|scheduled for)\s+/i, '').trim()
+    const parsed = new Date(dateStr)
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toISOString()
     }
   }
 
+  // Try relative date: "2 days ago", "1 year ago", "Streamed 3 weeks ago"
+  const relativeMatch = publishedText.match(/^(?:streamed\s+)?(\d+)\s?([a-z]+)\s+ago/i)
+  if (relativeMatch) {
+    const timeAmount = parseInt(relativeMatch[1], 10)
+    const timeFrame = relativeMatch[2].toLowerCase()
+    let timeSpan = 0
+
+    if (timeFrame.startsWith('second') || timeFrame === 's') {
+      timeSpan = timeAmount * 1000
+    } else if (timeFrame.startsWith('minute') || timeFrame === 'm') {
+      timeSpan = timeAmount * 60000
+    } else if (timeFrame.startsWith('hour') || timeFrame === 'h') {
+      timeSpan = timeAmount * 3600000
+    } else if (timeFrame.startsWith('day') || timeFrame === 'd') {
+      timeSpan = timeAmount * 86400000
+    } else if (timeFrame.startsWith('week') || timeFrame === 'w') {
+      timeSpan = timeAmount * 604800000
+    } else if (timeFrame.startsWith('month') || timeFrame === 'mo') {
+      timeSpan = timeAmount * 2592000000
+    } else if (timeFrame.startsWith('year') || timeFrame === 'y') {
+      timeSpan = timeAmount * 31556952000
+    }
+
+    return new Date(now - timeSpan).toISOString()
+  }
+
+  // Try direct date parse
+  const directParse = new Date(publishedText)
+  if (!isNaN(directParse.getTime())) {
+    return directParse.toISOString()
+  }
+
+  return undefined
+}
+
+/**
+ * Converts a duration string "HH:MM:SS" or "MM:SS" to seconds.
+ */
+function parseDurationText(text: string | undefined): number {
+  if (!text) return 0
+  const parts = text.split(':').map(Number)
+  if (parts.some(isNaN)) return 0
+  return parts.reduce((acc: number, part: number) => acc * 60 + part, 0)
+}
+
+// ─── Video parser ────────────────────────────────────────────────────────────
+
+/**
+ * Parses a youtubei.js video node into a VideoInfo.
+ * Handles Video, GridVideo, and Movie node shapes defensively.
+ */
+function parseVideo(video: any): VideoInfo | null {
+  if (!video) return null
+
+  // ── Determine node type and extract videoId ──
+  const isMovie = video.type === 'Movie' || video.type === 'GridMovie'
+  const isGridVideo = video.type === 'GridVideo'
+  const isVideoNode = video.type === 'Video' || (!isMovie && !isGridVideo)
+
+  const videoId = video.video_id || video.videoId || video.id || ''
+  if (!videoId) return null
+
+  // ── Extract title ──
+  const title = video.title?.text || video.title?.runs?.[0]?.text || 'Unknown'
+
+  // ── Extract author info ──
+  const author = video.author
+  const authorName = typeof author === 'string'
+    ? author
+    : (author?.name || author?.title?.text || 'Unknown')
+  const authorId = author?.id || author?.channelId || video.channel_id || video.channelId || ''
+
+  // ── Extract author thumbnails ──
+  const authorThumbnails = author?.thumbnails
+  const authorAvatar = getBestThumbnail(authorThumbnails) || ''
+
+  // ── Extract thumbnails ──
+  const thumbnails = video.thumbnail?.thumbnails || video.videoThumbnails
+  const thumbnail = getBestThumbnail(thumbnails) || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+
+  // ── Extract view count ──
+  let viewCount = 0
+  if (isVideoNode) {
+    // Video node: primary is view_count.text, fallback is short_view_count.text
+    if (video.view_count?.text) {
+      const text = video.view_count.text.toLowerCase()
+      viewCount = text === 'no views' ? 0 : extractNumberFromString(video.view_count.text)
+    } else if (video.short_view_count?.text) {
+      const text = video.short_view_count.text.toLowerCase()
+      viewCount = text === 'no views' ? 0 : parseSubscriberCount(video.short_view_count.text)
+    }
+  } else if (isGridVideo) {
+    // GridVideo node: views.text
+    if (video.views?.text) {
+      viewCount = extractNumberFromString(video.views.text)
+    }
+  }
+  // Movie nodes typically don't have view counts in list context
+
+  // ── Extract duration ──
+  let lengthSeconds = 0
+  if (video.duration?.seconds && !isNaN(video.duration.seconds)) {
+    lengthSeconds = video.duration.seconds
+  } else if (video.duration?.text && video.duration.text !== 'LIVE') {
+    lengthSeconds = parseDurationText(video.duration.text)
+  }
+
+  // ── Extract published date ──
+  const isLive = !!video.is_live || video.duration?.text === 'LIVE'
+  const isUpcoming = !!video.is_upcoming || !!video.is_premiere
+  const premiereDate = video.upcoming ? new Date(video.upcoming) : undefined
+
+  let publishedText: string | undefined
+  if (video.published?.text) {
+    publishedText = video.published.text
+  } else if (video.publishedTimeText?.simpleText) {
+    publishedText = video.publishedTimeText.simpleText
+  }
+
+  const published = calculatePublishedDate(publishedText, isLive, isUpcoming, premiereDate)
+
+  // ── Extract description ──
+  const description = video.description?.text
+    || video.description_snippet?.text
+    || video.descriptionSnippet?.runs?.[0]?.text
+    || video.description
+    || ''
+
   return {
     id: videoId,
-    title: video.title?.text || video.title?.runs?.[0]?.text || 'Unknown',
+    title,
     author: authorName,
     authorId,
     authorUrl: `/channel/${authorId}`,
-    authorAvatar: '',
-    description: video.descriptionSnippet?.runs?.[0]?.text || video.description || '',
+    authorAvatar,
+    description,
     thumbnail,
-    viewCount: parseViewCount(viewCountText),
+    viewCount,
     likeCount: parseViewCount(video.likeCount),
     lengthSeconds,
-    published: video.publishedTimeText?.simpleText || video.published?.text || '',
-    isLive: video.isLive || (video.duration?.seconds === 0 && !!video.isLive) || false,
-    isUpcoming: !!video.isUpcoming,
+    published: published || '',
+    isLive,
+    isUpcoming,
     isShort: false,
     chapters: [],
     captions: [],
@@ -336,18 +518,42 @@ async function handleVideoInfo(params: any): Promise<VideoInfo> {
   const basicInfo = info.basic_info
   const details = info.videoDetails
 
+  // Extract view count — handle both numeric and text formats
+  let viewCount = 0
+  if (basicInfo?.view_count && typeof basicInfo.view_count === 'string') {
+    viewCount = extractNumberFromString(basicInfo.view_count) || parseSubscriberCount(basicInfo.view_count)
+  } else if (basicInfo?.view_count) {
+    viewCount = basicInfo.view_count
+  } else if (basicInfo?.views) {
+    viewCount = typeof basicInfo.views === 'string'
+      ? (extractNumberFromString(basicInfo.views) || parseSubscriberCount(basicInfo.views))
+      : basicInfo.views
+  } else if (details?.viewCount) {
+    viewCount = parseInt(details.viewCount, 10) || 0
+  }
+
+  // Extract author thumbnail — check multiple possible locations
+  let authorAvatar = ''
+  if (basicInfo?.author_thumbnail) {
+    authorAvatar = getBestThumbnail(basicInfo.author_thumbnail?.thumbnails || basicInfo.author_thumbnail)
+  } else if (details?.author?.avatar) {
+    authorAvatar = details.author.avatar
+  } else if (basicInfo?.channel?.metadata?.thumbnail) {
+    authorAvatar = getBestThumbnail(basicInfo.channel.metadata.thumbnail)
+  }
+
   return {
     id: videoId,
     title: basicInfo?.title || details?.title || 'Unknown',
     author: basicInfo?.author || details?.author || 'Unknown',
     authorId: basicInfo?.channel_id || details?.channelId || '',
     authorUrl: `/channel/${basicInfo?.channel_id || details?.channelId || ''}`,
-    authorAvatar: '',
+    authorAvatar,
     description: basicInfo?.short_description || details?.shortDescription || '',
     thumbnail:
       getBestThumbnail(basicInfo?.thumbnail || details?.thumbnail?.thumbnails) ||
       `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-    viewCount: basicInfo?.view_count || parseInt(details?.viewCount || '0') || 0,
+    viewCount,
     likeCount: basicInfo?.like_count || parseInt(details?.likeCount || '0') || 0,
     lengthSeconds: basicInfo?.duration || parseInt(details?.lengthSeconds || '0') || 0,
     published: basicInfo?.publish_date || '',
