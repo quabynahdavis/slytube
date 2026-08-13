@@ -47,3 +47,4 @@
 | 2026-08-13 | 10.1.0 | Wired channel sub-tabs (videos/shorts/live/community/playlists), trending (FEtrending browseId), hashtag, community post, comment replies; added 07-extractor-bridge.md doc | Migration Team |
 | 2026-08-13 | 11.0.0 | **Phase 2 complete**: Sync encryption + client fully ported from OpenTubeX. Crypto envelope (PBKDF2 600k, AES-GCM, gzip, 64KiB padding). Sync client with health/auth/manifest/collection endpoints. Deletion-aware merge with data-loss guard. 50 total tests passing. | Migration Team |
 | 2026-08-13 | 12.0.0 | **Phase 3 complete**: Network hardening — domain-based header injection for YouTube/Invidious/sync requests. 91 total tests passing. | Migration Team |
+| 2026-08-13 | 13.0.0 | **Phase 4 complete**: SponsorBlock, DeArrow, Return YouTube Dislike Rust clients. 131 total tests passing. | Migration Team |
