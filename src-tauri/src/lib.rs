@@ -1,6 +1,8 @@
 #[allow(dead_code)]
 mod commands;
 #[allow(dead_code)]
+mod community;
+#[allow(dead_code)]
 mod db;
 #[allow(dead_code)]
 mod http_client;
@@ -235,6 +237,14 @@ pub fn run() {
             db::commands::db_tab_sessions_save,
             db::commands::db_tab_sessions_get_latest,
             db::commands::db_tab_sessions_clear,
+            // Community integrations (SponsorBlock / DeArrow / RYD)
+            community::sponsorblock_get_segments,
+            community::sponsorblock_get_labels,
+            community::sponsorblock_submit_segments,
+            community::sponsorblock_vote,
+            community::dearrow_get_data,
+            community::dearrow_get_thumbnail,
+            community::ryd_get_dislikes,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
