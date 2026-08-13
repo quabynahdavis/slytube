@@ -64,7 +64,7 @@ onMounted(loadTrending)
       Trending videos aren't available right now. Check back later or explore Popular videos.
     </EmptyState>
 
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">
       <VideoCard
         v-for="video in filteredVideos"
         :key="video.id"
