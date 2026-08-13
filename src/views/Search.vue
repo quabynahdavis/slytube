@@ -8,6 +8,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import ErrorState from '@/components/ui/ErrorState.vue'
 import { useSearchHistoryStore } from '@/stores/search-history'
 import { getSearchSuggestions } from '@/composables/useInnertube'
+import { useThumbnailColor } from '@/composables/useThumbnailColor'
 import { PhPlayCircle, PhUser, PhMagnifyingGlass } from '@phosphor-icons/vue'
 import {
   Select,
@@ -20,6 +21,7 @@ import {
 const route = useRoute()
 const router = useRouter()
 const searchHistoryStore = useSearchHistoryStore()
+const { getColor } = useThumbnailColor()
 
 const query = ref((route.query.q as string) || '')
 const results = ref<Video[]>([])
@@ -309,7 +311,8 @@ function timeAgo(published: string): string {
           <div
             v-for="video in regularResults.slice(0, 3)"
             :key="video.id"
-            class="flex items-center gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors"
+            class="flex items-center gap-4 p-3 rounded-lg hover:bg-[var(--card-hover)] transition-colors"
+            :style="{ '--card-hover': getColor(video.thumbnail) }"
           >
             <router-link
               :to="`/channel/${video.authorId}`"
@@ -349,7 +352,8 @@ function timeAgo(published: string): string {
             v-for="video in regularResults"
             :key="video.id"
             :to="`/watch?v=${video.id}`"
-            class="flex gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors group"
+            class="flex gap-4 p-3 rounded-lg hover:bg-[var(--card-hover)] transition-colors group"
+            :style="{ '--card-hover': getColor(video.thumbnail) }"
           >
             <div class="relative w-64 shrink-0 aspect-video rounded-xl overflow-hidden bg-muted">
               <img

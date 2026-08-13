@@ -2,6 +2,9 @@
 import { ref } from 'vue'
 import { cn } from '@/lib/utils'
 import { PhPlayCircle, PhList, PhHeart, PhShare, PhLink, PhSparkle } from '@phosphor-icons/vue'
+import { useThumbnailColor } from '@/composables/useThumbnailColor'
+
+const { getColor } = useThumbnailColor()
 
 const activeTab = ref('home')
 
@@ -189,7 +192,8 @@ function formatDuration(seconds: number): string {
           </div>
           <router-link
             :to="`/watch?v=${pinnedVideo.id}`"
-            class="flex flex-col md:flex-row gap-4 group p-3 rounded-xl hover:bg-muted/50 transition-colors"
+            class="flex flex-col md:flex-row gap-4 group p-3 rounded-xl hover:bg-[var(--card-hover)] transition-colors"
+            :style="{ '--card-hover': getColor(pinnedVideo.thumbnail) }"
           >
             <div class="relative w-full md:w-80 shrink-0 aspect-video rounded-xl overflow-hidden bg-muted">
               <div class="absolute inset-0 flex items-center justify-center text-4xl opacity-30">📌</div>
@@ -213,10 +217,11 @@ function formatDuration(seconds: number): string {
           </div>
           <div class="space-y-3">
             <router-link
-              v-for="video in dummyVideos.slice(0, 4)"
+              v-for="video in dummyVideos"
               :key="video.id"
               :to="`/watch?v=${video.id}`"
-              class="flex gap-4 p-3 rounded-xl hover:bg-muted/50 transition-colors group"
+              class="flex gap-4 p-3 rounded-xl hover:bg-[var(--card-hover)] transition-colors group"
+              :style="{ '--card-hover': getColor(video.thumbnail) }"
             >
               <div class="relative w-40 shrink-0 aspect-video rounded-xl overflow-hidden bg-muted">
                 <div class="absolute inset-0 flex items-center justify-center text-3xl opacity-30">🎬</div>
@@ -309,7 +314,8 @@ function formatDuration(seconds: number): string {
                   v-for="video in dummyVideos.slice(0, 2)"
                   :key="`${hashtag.tag}-${video.id}`"
                   :to="`/watch?v=${video.id}`"
-                  class="flex gap-4 p-3 rounded-xl hover:bg-muted/50 transition-colors group"
+                  class="flex gap-4 p-3 rounded-xl hover:bg-[var(--card-hover)] transition-colors group"
+                  :style="{ '--card-hover': getColor(video.thumbnail) }"
                 >
                   <div class="relative w-40 shrink-0 aspect-video rounded-xl overflow-hidden bg-muted">
                     <div class="absolute inset-0 flex items-center justify-center text-3xl opacity-30">🎬</div>
@@ -337,7 +343,8 @@ function formatDuration(seconds: number): string {
               v-for="collab in dummyCollaborations"
               :key="collab.id"
               :to="`/channel/${collab.id}`"
-              class="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-muted/50 transition-colors group"
+              class="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-[var(--card-hover)] transition-colors group"
+              :style="{ '--card-hover': 'rgba(142, 142, 142, 0.05)' }"
             >
               <div class="size-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-sm text-white font-bold shrink-0">
                 {{ collab.name[0] }}

@@ -2,6 +2,7 @@
 import type { Video } from '../api/types'
 import { useWatchQueueStore } from '../stores/watch-queue'
 import { useToast } from '../composables/useToast'
+import { useThumbnailColor } from '../composables/useThumbnailColor'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +17,7 @@ const props = defineProps<{
 
 const watchQueueStore = useWatchQueueStore()
 const toast = useToast()
+const { getColor } = useThumbnailColor()
 
 function addToWatchLater() {
   watchQueueStore.addVideoToWatchQueue({
@@ -102,7 +104,10 @@ function timeAgo(published: string): string {
 </script>
 
 <template>
-  <div class="group relative rounded-lg transition-colors duration-200 hover:bg-primary/5 p-4">
+  <div
+    class="group relative rounded-lg transition-colors duration-200 hover:bg-[var(--card-hover)] p-4"
+    :style="{ '--card-hover': getColor(video.thumbnail) }"
+  >
     <!-- Video Thumbnail -->
     <router-link :to="`/watch?v=${video.id}`" class="block relative">
       <div class="relative aspect-video rounded-xl overflow-hidden bg-muted mb-2">
@@ -118,7 +123,11 @@ function timeAgo(published: string): string {
           </svg>
         </div>
         <!-- Duration Badge -->
-        <div v-if="video.lengthSeconds > 0" class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded">
+        <div  class="absolute bottom-2 right-2 flex items-center gap-1 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-medium">
+          <svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
           {{ formatDuration(video.lengthSeconds) }}
         </div>
         <!-- Live Badge -->
