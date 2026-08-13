@@ -66,13 +66,13 @@ function openInYoutube() {
   window.open(`https://www.youtube.com/watch?v=${props.video.id}`, '_blank')
 }
 
-function formatViews(count: number): string {
+const formatViews = (count: number): string => {
   if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M views`
   if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K views`
   return `${count} views`
 }
 
-function formatDuration(seconds: number): string {
+const formatDuration = (seconds: number): string => {
   const h = Math.floor(seconds / 3600)
   const m = Math.floor((seconds % 3600) / 60)
   const s = seconds % 60
@@ -80,7 +80,7 @@ function formatDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-function timeAgo(published: string): string {
+const timeAgo = (published: string): string => {
   if (!published) return ''
   if (published.includes('ago') || published.includes('yesterday')) {
     return published
