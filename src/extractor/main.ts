@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
-import { Innertube } from 'youtubei.js'
+import { Innertube, Mixins } from 'youtubei.js'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -984,41 +984,20 @@ async function handleGetTrending(params: any): Promise<VideoInfo[]> {
   const protoParams = protobufParams[tab]
 
   // Fetch the trending browse response
+  // Wrap raw response in Mixins.Feed to get properly parsed nodes
+  // (matches OpenTubeX's getLocalTrending approach)
   const response = await yt.actions.execute('/browse', {
     browseId,
     ...(protoParams ? { params: protoParams } : {}),
   })
 
+  const feed = new Mixins.Feed(yt.actions, response)
   const videos: VideoInfo[] = []
-  const contents = (response as any)?.data?.contents?.tabbedBrowseResultsRenderer?.tabs || []
 
-  for (const tabData of contents) {
-    const tabRenderer = tabData.tabRenderer
-    if (!tabRenderer?.content) continue
-
-    const sections = tabRenderer.content.sectionListRenderer?.contents || []
-    for (const section of sections) {
-      // Each section has itemSectionRenderer with video items
-      const items = section?.itemSectionRenderer?.contents || []
-      for (const item of items) {
-        // Use parseFeedItem to handle wrapper types (RichItem, etc.)
-        const parsed = parseFeedItem(item)
-        if (parsed && (parsed as any).type === 'video' && (parsed as any).data) {
-          videos.push((parsed as any).data)
-        }
-      }
-
-      // Handle shelf renderers (e.g. "Trending" shelf within a tab)
-      const shelf = section?.shelfRenderer
-      if (shelf?.content) {
-        const shelfItems = shelf.content.horizontalListRenderer?.items || shelf.content.expandedShelfContentsRenderer?.items || []
-        for (const item of shelfItems) {
-          const parsed = parseFeedItem(item)
-          if (parsed && (parsed as any).type === 'video' && (parsed as any).data) {
-            videos.push((parsed as any).data)
-          }
-        }
-      }
+  for (const video of feed.videos) {
+    const parsed = parseListItem(video)
+    if (parsed && (parsed as any).type === 'video' && (parsed as any).data) {
+      videos.push((parsed as any).data)
     }
   }
 
