@@ -8,7 +8,6 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import ErrorState from '@/components/ui/ErrorState.vue'
 import { useSearchHistoryStore } from '@/stores/search-history'
 import { getSearchSuggestions } from '@/composables/useInnertube'
-import { useThumbnailColor } from '@/composables/useThumbnailColor'
 import { PhPlayCircle, PhUser, PhMagnifyingGlass } from '@phosphor-icons/vue'
 import {
   Select,
@@ -21,7 +20,6 @@ import {
 const route = useRoute()
 const router = useRouter()
 const searchHistoryStore = useSearchHistoryStore()
-const { getColor } = useThumbnailColor()
 
 const query = ref((route.query.q as string) || '')
 const results = ref<Video[]>([])

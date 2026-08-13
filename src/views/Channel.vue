@@ -3,14 +3,12 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { cn } from '@/lib/utils'
 import { PhPlayCircle, PhList, PhHeart, PhShare, PhSparkle, PhMagnifyingGlass } from '@phosphor-icons/vue'
-import { useThumbnailColor } from '@/composables/useThumbnailColor'
 import { useSubscriptionsStore } from '@/stores/subscriptions'
 import { getChannelInfo, getChannelShorts, getChannelCommunityPosts } from '@/api'
 import type { Channel as ChannelType, Video } from '@/api/types'
 import EmptyState from '@/components/ui/EmptyState.vue'
 
 const route = useRoute()
-const { getColor } = useThumbnailColor()
 const subscriptionsStore = useSubscriptionsStore()
 
 const channelId = computed(() => route.params.id as string || '')

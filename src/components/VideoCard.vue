@@ -2,7 +2,6 @@
 import type { Video } from '../api/types'
 import { useWatchQueueStore } from '../stores/watch-queue'
 import { useToast } from '../composables/useToast'
-import { useThumbnailColor } from '../composables/useThumbnailColor'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,7 +16,6 @@ const props = defineProps<{
 
 const watchQueueStore = useWatchQueueStore()
 const toast = useToast()
-const { getColor } = useThumbnailColor()
 
 function addToWatchLater() {
   watchQueueStore.addVideoToWatchQueue({
