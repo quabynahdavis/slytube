@@ -15,6 +15,7 @@ Each ADR follows a consistent structure:
 - [04-database-choice.md](04-database-choice.md) - SQLite access layer via `sqlx`
 - [05-migration-approach.md](05-migration-approach.md) - Big Bang Electron → Tauri migration
 - [06-theme-strategy.md](06-theme-strategy.md) - Adopt the shadcn-vue default (New York) theme
+- [07-extraction-strategy.md](07-extraction-strategy.md) - Hidden webview youtubei.js for InnerTube extraction
 
 ## Decision Register
 
@@ -26,6 +27,7 @@ Each ADR follows a consistent structure:
 | 004 | Database Choice | `sqlx` (Option A) | Accepted |
 | 005 | Migration Approach | Big Bang (Option B) | Accepted |
 | 006 | Theme Strategy | shadcn-vue default / New York (Option A) | Accepted |
+| 007 | Extraction Strategy | Hidden webview + youtubei.js (Option A) | Accepted |
 
 ## Cross-Cutting Notes
 - ADR 005 (Big Bang) is the umbrella decision; ADRs 001, 003, 004, and 006 all depend on the

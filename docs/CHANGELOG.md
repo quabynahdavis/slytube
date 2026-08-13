@@ -43,3 +43,4 @@
 | 2026-08-12 | 9.2.0 | Theme unification — localStorage is single source of truth for applied theme; settings store syncs `baseTheme` from localStorage on load; theme shortcut updates both `useTheme` and settings store | SlyTube Team |
 | 2026-08-12 | 9.3.0 | Cleanup — removed orphaned `TabBar.vue` component; removed template `greet` command from `lib.rs`; `Channel` type now has optional `playlists` and `relatedPlaylists` fields | SlyTube Team |
 | 2026-08-12 | 9.4.0 | Docs: updated `06-theme-strategy.md`, `04-api-integration.md`, `02-component-mapping.md`; updated CHANGELOGs across decisions, frontend, architecture, and root domains | Docs Update |
+| 2026-08-13 | 10.0.0 | Extraction pivot — hidden webview youtubei.js replaces direct Rust InnerTube HTTP; new `extractor/` Rust module with request-ID correlation; ported parsers from OpenTubeX; frontend api/index.ts reordered to extractor → Invidious fallback; ADR 007 accepted | Migration Team |

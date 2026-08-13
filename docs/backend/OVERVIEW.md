@@ -16,6 +16,7 @@ Vue renderer
 ├───────────────────────────────────────────────────────────┤
 │ db/       sqlx + SQLite        → 01, 02                   │
 │ ytdlp/    sidecar process      → 03                       │
+│ extractor/ hidden webview       → 04 (shares webview with PoToken) │
 │ potoken/  hidden webview       → 04                       │
 │ sync/     aes-gcm + x25519     → 05                       │
 │ net/      reqwest + protocols  → 06                       │

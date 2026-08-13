@@ -18,6 +18,8 @@ Generating one requires:
 
 A headless HTTP client cannot do this. Node-based projects use `jsdom` plus a shim; SlyTube instead uses what it already has — **a real Chromium/WebKit webview** — by opening a hidden `WebviewWindow`.
 
+> **Shared infrastructure:** The hidden-webview pattern used here is also shared with the **extraction layer** (`src-tauri/src/extractor/`), which runs youtubei.js (Innertube) in a persistent hidden window for all InnerTube data extraction (search, channels, videos, comments). See ADR 007 for the extraction strategy decision.
+
 ### 1.1 Token types
 
 | Type | Binding (`context`) | Used for | Lifetime |
