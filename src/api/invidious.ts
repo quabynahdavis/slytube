@@ -60,6 +60,16 @@ export function proxyImageUrl(url: string, videoId?: string): string {
   return url
 }
 
+/**
+ * Returns an author avatar URL as-is without video thumbnail transformation.
+ * Use this for channel/author avatars to prevent them from being turned
+ * into video thumbnail URLs.
+ */
+export function proxyAvatarUrl(url: string): string {
+  if (!url) return ''
+  return url
+}
+
 // Invidious API calls
 export async function invidiousGetVideo(videoId: string): Promise<any> {
   return await invoke('invidious_get_video', { videoId })
