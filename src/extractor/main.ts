@@ -239,16 +239,15 @@ function parseDurationText(text: string | undefined): number {
 
 /**
  * Parses a youtubei.js video node into a VideoInfo.
- * Handles Video, GridVideo, and Movie node shapes defensively.
+ * Handles Video, GridVideo, LockupView, and Movie node shapes defensively.
+ *
+ * Field access is defensive because youtubei.js nodes may have data in different
+ * locations depending on context (watch page vs feed vs search).
  */
 function parseVideo(video: any): VideoInfo | null {
   if (!video) return null
 
-  // ── Determine node type and extract videoId ──
-  const isMovie = video.type === 'Movie' || video.type === 'GridMovie'
-  const isGridVideo = video.type === 'GridVideo'
-  const isVideoNode = video.type === 'Video' || (!isMovie && !isGridVideo)
-
+  // ── Extract videoId (defensive: different node types use different id fields) ──
   const videoId = video.video_id || video.videoId || video.id || ''
   if (!videoId) return null
 
@@ -270,31 +269,41 @@ function parseVideo(video: any): VideoInfo | null {
   const thumbnails = video.thumbnail?.thumbnails || video.videoThumbnails
   const thumbnail = getBestThumbnail(thumbnails) || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
 
-  // ── Extract view count ──
-  let viewCount = 0
-  if (isVideoNode) {
-    // Video node: primary is view_count.text, fallback is short_view_count.text
-    if (video.view_count?.text) {
-      const text = video.view_count.text.toLowerCase()
-      viewCount = text === 'no views' ? 0 : extractNumberFromString(video.view_count.text)
-    } else if (video.short_view_count?.text) {
-      const text = video.short_view_count.text.toLowerCase()
-      viewCount = text === 'no views' ? 0 : parseSubscriberCount(video.short_view_count.text)
-    }
-  } else if (isGridVideo) {
-    // GridVideo node: views.text
-    if (video.views?.text) {
-      viewCount = extractNumberFromString(video.views.text)
-    }
-  }
-  // Movie nodes typically don't have view counts in list context
+  // ── Extract view count (fallback chain) ──
+  // youtubei.js nodes may expose view count in different fields:
+  //   - Video: view_count.text, short_view_count.text
+  //   - GridVideo: views.text
+  //   - Some contexts: view_count as a plain number/string
+  let viewCount: number | null = null
 
-  // ── Extract duration ──
+  if (video.view_count?.text) {
+    const text = video.view_count.text.toLowerCase()
+    viewCount = text === 'no views' ? 0 : extractNumberFromString(video.view_count.text)
+  } else if (video.short_view_count?.text) {
+    const text = video.short_view_count.text.toLowerCase()
+    viewCount = text === 'no views' ? 0 : parseSubscriberCount(video.short_view_count.text)
+  } else if (video.views?.text) {
+    viewCount = extractNumberFromString(video.views.text)
+  } else if (video.view_count != null && typeof video.view_count !== 'object') {
+    // Plain number or string (not the typical { text } object)
+    viewCount = typeof video.view_count === 'number'
+      ? video.view_count
+      : extractNumberFromString(String(video.view_count))
+  }
+
+  // ── Extract duration (fallback chain) ──
+  // Duration may be in:
+  //   - duration.seconds (number)
+  //   - duration.text ("MM:SS" or "HH:MM:SS" or "LIVE")
+  //   - length_seconds (number, some node types)
   let lengthSeconds = 0
-  if (video.duration?.seconds && !isNaN(video.duration.seconds)) {
-    lengthSeconds = video.duration.seconds
+
+  if (video.duration?.seconds && !isNaN(Number(video.duration.seconds))) {
+    lengthSeconds = Number(video.duration.seconds)
   } else if (video.duration?.text && video.duration.text !== 'LIVE') {
     lengthSeconds = parseDurationText(video.duration.text)
+  } else if (video.length_seconds && !isNaN(Number(video.length_seconds))) {
+    lengthSeconds = Number(video.length_seconds)
   }
 
   // ── Extract published date ──
@@ -307,6 +316,8 @@ function parseVideo(video: any): VideoInfo | null {
     publishedText = video.published.text
   } else if (video.publishedTimeText?.simpleText) {
     publishedText = video.publishedTimeText.simpleText
+  } else if (video.date?.text) {
+    publishedText = video.date.text
   }
 
   const published = calculatePublishedDate(publishedText, isLive, isUpcoming, premiereDate)
@@ -318,6 +329,24 @@ function parseVideo(video: any): VideoInfo | null {
     || video.description
     || ''
 
+  // ── Debug logging for missing data ──
+  if (viewCount === null) {
+    console.warn(
+      `[Extractor] parseVideo: viewCount is null for video ${videoId}.`,
+      'Available keys:', Object.keys(video),
+      'view_count:', video.view_count,
+      'short_view_count:', video.short_view_count,
+      'views:', video.views,
+    )
+  }
+  if (lengthSeconds === 0 && !isLive) {
+    console.warn(
+      `[Extractor] parseVideo: lengthSeconds is 0 for video ${videoId}.`,
+      'duration:', video.duration,
+      'length_seconds:', video.length_seconds,
+    )
+  }
+
   return {
     id: videoId,
     title,
@@ -327,7 +356,7 @@ function parseVideo(video: any): VideoInfo | null {
     authorAvatar,
     description,
     thumbnail,
-    viewCount,
+    viewCount: viewCount ?? 0,
     likeCount: parseViewCount(video.likeCount),
     lengthSeconds,
     published: published || '',
@@ -338,6 +367,88 @@ function parseVideo(video: any): VideoInfo | null {
     captions: [],
     related: [],
   }
+}
+
+// ─── Feed item wrapper detection ──────────────────────────────────────────────
+
+/**
+ * Detects and unwraps feed/search wrapper node types to extract the inner content.
+ *
+ * youtubei.js wraps videos in different container types depending on context:
+ * - RichItem: wraps a single video node in .content (common on home feed)
+ * - RichShelf: a shelf of items in .contents (common for "For You" sections)
+ * - ItemSection: section wrapper with .contents array
+ * - RichSection: section with .content being a RichShelf
+ *
+ * Returns the unwrapped inner item, or the original item if no wrapper detected.
+ */
+function unwrapFeedItem(item: any): any {
+  if (!item) return item
+
+  // RichItem wraps a single video/playlist/etc in .content
+  if (item.type === 'RichItem' && item.content) {
+    return item.content
+  }
+
+  // RichGrid: contains .contents array of RichItems
+  if (item.type === 'RichGrid' && item.contents) {
+    // Return as-is; callers iterate over contents
+    return item
+  }
+
+  // ItemSection: contains .contents array of items
+  if (item.type === 'ItemSection' && item.contents) {
+    return item
+  }
+
+  // RichSection: wraps a single shelf in .content
+  if (item.type === 'RichSection' && item.content) {
+    return item.content
+  }
+
+  return item
+}
+
+/**
+ * Master dispatcher for feed/search page items.
+ * First unwraps any wrapper type (RichItem, RichShelf, etc.), then delegates
+ * to parseListItem for the actual content parsing.
+ *
+ * This is the recommended entry point for feed/search parsing to ensure
+ * wrapper types are handled correctly.
+ */
+function parseFeedItem(item: any): unknown | null {
+  if (!item) return null
+
+  const unwrapped = unwrapFeedItem(item)
+
+  // After unwrapping RichGrid/ItemSection/RichSection, we may have a container
+  // that holds multiple items. Return as-is for callers to iterate.
+  if (unwrapped.type === 'RichGrid' || unwrapped.type === 'ItemSection') {
+    return {
+      type: 'feed_group',
+      data: (unwrapped.contents || []).map((inner: any) => {
+        // RichGrid contents may themselves be RichItems
+        const innerItem = inner.type === 'RichItem' ? inner.content : inner
+        return innerItem ? parseListItem(innerItem) : null
+      }).filter(Boolean),
+    }
+  }
+
+  // RichShelf: contains .contents array of items (often LockupViews)
+  if (unwrapped.type === 'RichShelf') {
+    return {
+      type: 'shelf',
+      title: unwrapped.title?.text || '',
+      data: (unwrapped.contents || []).map((inner: any) => {
+        const innerItem = inner.type === 'RichItem' ? inner.content : inner
+        return innerItem ? parseListItem(innerItem) : null
+      }).filter(Boolean),
+    }
+  }
+
+  // Single item — delegate to parseListItem
+  return parseListItem(unwrapped)
 }
 
 // ─── Master item dispatcher (equivalent to OpenTubeX parseListItem) ───────────
@@ -421,17 +532,73 @@ function parseListItem(item: any): unknown | null {
       }
       if (content_type === 'SHORT' || content_type === 'VIDEO') {
         // LockupView.metadata contains video metadata in a different shape than Video nodes.
-        // Map it to the structure parseVideo expects.
+        // YouTube changed the metadata row structure in 2026. The layout can be:
+        //   - 2 rows: [author] [views, date]
+        //   - 1 row:  [views, date]
+        //   - 1 row:  [date, views] (parts in reverse order)
+        //   - 1 row:  [views] (live streams)
+        // We collect all parts dynamically and search for views/dates by pattern.
         const metadata = item.metadata || {}
+        const metadataRows = metadata.metadata?.metadata_rows || []
+        const metadataParts = metadataRows.flatMap((row: any) => row.metadata_parts || [])
+
+        // Helper: find first part text matching a predicate
+        const findPartText = (predicate: (text: string) => boolean): string | undefined =>
+          metadataParts.find((part: any) => part.text?.text && predicate(part.text.text))?.text?.text
+
+        // View count: look for parts containing "views" or "watching" or pure numbers
+        const viewCountText = findPartText((text: string) =>
+          /views?|watching|waiting/i.test(text) || /^\d+(\.\d)?[bkm]?$/i.test(text)
+        )
+
+        // Published date: relative time like "2 days ago" or "Streamed 3 weeks ago"
+        const publishedText = findPartText((text: string) =>
+          /^(streamed )?\d+ ?\w+? ago/i.test(text)
+        )
+
+        // Duration: from thumbnail overlay time status badge
+        const thumbnailOverlay = metadata.thumbnail_overlay
+        let durationText: string | undefined
+        let isLive = false
+        let isUpcoming = false
+
+        if (thumbnailOverlay?.thumbnail_overlay_time_status_text) {
+          durationText = thumbnailOverlay.thumbnail_overlay_time_status_text?.text || undefined
+          if (durationText === 'LIVE') {
+            isLive = true
+          }
+        }
+
+        // Check for live/upcoming badges in thumbnailBottomOverlay
+        const thumbnailBottomOverlay = metadata.content_image?.overlays?.find(
+          (o: any) => o.type === 'ThumbnailBottomOverlayView'
+        )
+        if (thumbnailBottomOverlay?.badges) {
+          for (const badge of thumbnailBottomOverlay.badges) {
+            const badgeText = badge.text?.toLowerCase() || ''
+            if (badgeText === 'live') isLive = true
+            if (badgeText === 'upcoming') isUpcoming = true
+          }
+        }
+
+        // Author: prefer part with channel endpoint, else first non-views/date part
+        const authorPart = metadataParts.find(
+          (part: any) => part.text?.endpoint?.metadata?.page_type === 'WEB_PAGE_TYPE_CHANNEL'
+        )?.text
+        const authorName = authorPart?.text ?? metadataRows[0]?.metadata_parts?.[0]?.text?.text ?? ''
+        const authorId = authorPart?.endpoint?.payload?.browseId ?? ''
+
+        // Construct video data in the shape parseVideo expects
         const videoData = {
-          videoId: item.content_id || metadata.videoId || '',
+          video_id: item.content_id || metadata.videoId || '',
           title: metadata.title?.text || metadata.title?.runs?.[0]?.text || 'Unknown',
-          author: {
-            name: metadata.metadata?.metadata?.metadata_rows?.[0]?.metadata_parts?.[0]?.text || '',
-          },
-          thumbnail: metadata.content_image?.primary_thumbnail?.image || metadata.thumbnail,
-          viewCount: metadata.metadata?.metadata?.metadata_rows?.flatMap((r: any) => r.metadata_parts || []).find((p: any) => /views?/i.test(p.text)),
-          duration: metadata.thumbnail_overlay?.thumbnail_overlay_time_status_text,
+          author: { name: authorName, id: authorId },
+          thumbnail: { thumbnails: metadata.content_image?.primary_thumbnail?.image || metadata.thumbnail },
+          view_count: viewCountText ? { text: viewCountText } : undefined,
+          duration: durationText ? { text: durationText } : undefined,
+          published: publishedText ? { text: publishedText } : undefined,
+          is_live: isLive,
+          is_upcoming: isUpcoming,
         }
         const video = parseVideo(videoData)
         if (video && content_type === 'SHORT') video.isShort = true
@@ -593,7 +760,9 @@ async function handleSearch(params: any): Promise<unknown[]> {
 
   const results: unknown[] = []
   for (const item of (search as any).results || []) {
-    const parsed = parseListItem(item)
+    // Use parseFeedItem to handle wrapper types (RichItem, etc.) that may appear
+    // in search results
+    const parsed = parseFeedItem(item)
     if (parsed && (parsed as any).data) {
       results.push(parsed)
     }
@@ -778,7 +947,8 @@ async function handleGetTrending(params: any): Promise<VideoInfo[]> {
       // Each section has itemSectionRenderer with video items
       const items = section?.itemSectionRenderer?.contents || []
       for (const item of items) {
-        const parsed = parseListItem(item)
+        // Use parseFeedItem to handle wrapper types (RichItem, etc.)
+        const parsed = parseFeedItem(item)
         if (parsed && (parsed as any).type === 'video' && (parsed as any).data) {
           videos.push((parsed as any).data)
         }
@@ -789,7 +959,7 @@ async function handleGetTrending(params: any): Promise<VideoInfo[]> {
       if (shelf?.content) {
         const shelfItems = shelf.content.horizontalListRenderer?.items || shelf.content.expandedShelfContentsRenderer?.items || []
         for (const item of shelfItems) {
-          const parsed = parseListItem(item)
+          const parsed = parseFeedItem(item)
           if (parsed && (parsed as any).type === 'video' && (parsed as any).data) {
             videos.push((parsed as any).data)
           }
@@ -858,7 +1028,8 @@ async function handleGetHashtag(params: any): Promise<VideoInfo[]> {
   for (const section of sections) {
     const items = section?.itemSectionRenderer?.contents || section?.contents || []
     for (const item of items) {
-      const parsed = parseListItem(item)
+      // Use parseFeedItem to handle wrapper types (RichItem, etc.)
+      const parsed = parseFeedItem(item)
       if (parsed && (parsed as any).type === 'video' && (parsed as any).data) {
         videos.push((parsed as any).data)
       }
