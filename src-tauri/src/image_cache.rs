@@ -187,8 +187,8 @@ impl ImageCache {
     /// Spawns a background task that periodically removes expired entries.
     ///
     /// The task runs until the process exits.
-    pub fn start_cleanup_task(self) -> tokio::task::JoinHandle<()> {
-        tokio::spawn(async move {
+    pub fn start_cleanup_task(self) -> tauri::async_runtime::JoinHandle<()> {
+        tauri::async_runtime::spawn(async move {
             loop {
                 tokio::time::sleep(CLEANUP_INTERVAL).await;
                 if let Err(e) = self.cleanup() {
