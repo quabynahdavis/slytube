@@ -13,6 +13,7 @@ pub mod profiles;
 pub mod search_history;
 pub mod settings;
 pub mod subscription_cache;
+pub mod sync_state;
 pub mod tab_sessions;
 pub mod watch_stats;
 
@@ -23,6 +24,7 @@ pub use profiles::ProfilesRepository;
 pub use search_history::SearchHistoryRepository;
 pub use settings::SettingsRepository;
 pub use subscription_cache::SubscriptionCacheRepository;
+pub use sync_state::SyncStateRepository;
 pub use tab_sessions::TabSessionsRepository;
 pub use watch_stats::WatchStatsRepository;
 

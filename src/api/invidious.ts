@@ -69,6 +69,20 @@ export function proxyImageUrl(url: string, videoId?: string): string {
     .replace('https://yt3.googleusercontent.com', `${instance}/ggpht`)
 }
 
+/**
+ * Wraps a YouTube image URL in the custom `imgcache://` scheme so it is
+ * fetched and cached by the Rust backend instead of directly by the webview.
+ *
+ * The original URL is URI-encoded and appended to the scheme:
+ *   imgcache://<encodeURIComponent(originalUrl)>
+ *
+ * Returns an empty string when the input is empty.
+ */
+export function cacheImageUrl(url: string): string {
+  if (!url) return ''
+  return `imgcache://${encodeURIComponent(url)}`
+}
+
 export function getThumbnailUrl(videoId: string, quality = 'maxresdefault'): string {
   return `${currentInstance.url}/vi/${videoId}/${quality}.jpg`
 }

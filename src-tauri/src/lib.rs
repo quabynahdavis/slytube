@@ -244,14 +244,23 @@ pub fn run() {
             db::commands::db_playlists_get_videos,
             db::commands::db_playlists_add_video,
             db::commands::db_playlists_remove_video,
+            // Playlist bulk operations
+            db::commands::db_playlists_add_videos_bulk,
+            db::commands::db_playlists_remove_videos_bulk,
             // History
             db::commands::db_history_find_all,
             db::commands::db_history_find_one,
             db::commands::db_history_upsert,
             db::commands::db_history_delete,
             db::commands::db_history_clear,
+            // History sync operations
+            db::commands::db_history_apply_sync_changes,
+            db::commands::db_history_get_newer_than,
+            db::commands::db_history_update_progress,
+            db::commands::db_history_delete_older_than,
             // Watch stats
             db::commands::db_watch_stats_add,
+            db::commands::db_watch_stats_add_date,
             db::commands::db_watch_stats_get_total,
             // Search history
             db::commands::db_search_history_find_all,
@@ -261,10 +270,14 @@ pub fn run() {
             db::commands::db_subscription_cache_find_one,
             db::commands::db_subscription_cache_upsert,
             db::commands::db_subscription_cache_get_all,
+            db::commands::db_subscription_cache_update,
             // Tab sessions
             db::commands::db_tab_sessions_save,
             db::commands::db_tab_sessions_get_latest,
             db::commands::db_tab_sessions_clear,
+            // Sync state
+            db::commands::db_sync_state_get,
+            db::commands::db_sync_state_set,
             // Community integrations (SponsorBlock / DeArrow / RYD)
             community::sponsorblock_get_segments,
             community::sponsorblock_get_labels,

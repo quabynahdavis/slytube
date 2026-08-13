@@ -7,7 +7,7 @@ use crate::db::models::{
 use crate::db::{
     DbPool, HistoryRepository, PlaylistsRepository, ProfilesRepository,
     SearchHistoryRepository, SettingsRepository, SubscriptionCacheRepository,
-    TabSessionsRepository, WatchStatsRepository,
+    SyncStateRepository, TabSessionsRepository, WatchStatsRepository,
 };
 
 // =============================================================================
@@ -268,7 +268,19 @@ pub async fn db_watch_stats_add(
     seconds: f64,
 ) -> Result<(), String> {
     let repo = WatchStatsRepository::new(pool.inner().cloned());
-    repo.add_watch_time(&video_id, seconds)
+    repo.add_video_watch_time(&video_id, seconds)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn db_watch_stats_add_date(
+    pool: State<'_, DbPool>,
+    date: String,
+    seconds: i64,
+) -> Result<(), String> {
+    let repo = WatchStatsRepository::new(pool.inner().cloned());
+    repo.add_watch_time(&date, seconds)
         .await
         .map_err(|e| e.to_string())
 }
@@ -371,4 +383,131 @@ pub async fn db_tab_sessions_clear(
 ) -> Result<(), String> {
     let repo = TabSessionsRepository::new(pool.inner().cloned());
     repo.clear_all().await.map_err(|e| e.to_string())
+}
+
+// =============================================================================
+// History sync commands
+// =============================================================================
+
+#[tauri::command]
+pub async fn db_history_apply_sync_changes(
+    pool: State<'_, DbPool>,
+    entries: Vec<HistoryEntry>,
+) -> Result<(), String> {
+    let repo = HistoryRepository::new(pool.inner().cloned());
+    repo.apply_sync_changes(&entries)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn db_history_get_newer_than(
+    pool: State<'_, DbPool>,
+    timestamp: i64,
+) -> Result<Vec<HistoryEntry>, String> {
+    let repo = HistoryRepository::new(pool.inner().cloned());
+    repo.get_newer_than(timestamp)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn db_history_update_progress(
+    pool: State<'_, DbPool>,
+    video_id: String,
+    progress: i64,
+    length: i64,
+) -> Result<(), String> {
+    let repo = HistoryRepository::new(pool.inner().cloned());
+    repo.update_watch_progress(&video_id, progress, length)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn db_history_delete_older_than(
+    pool: State<'_, DbPool>,
+    timestamp: i64,
+) -> Result<u64, String> {
+    let repo = HistoryRepository::new(pool.inner().cloned());
+    repo.delete_older_than(timestamp)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// =============================================================================
+// Playlist bulk commands
+// =============================================================================
+
+#[tauri::command]
+pub async fn db_playlists_add_videos_bulk(
+    pool: State<'_, DbPool>,
+    playlist_id: String,
+    videos: Vec<PlaylistVideo>,
+) -> Result<(), String> {
+    let repo = PlaylistsRepository::new(pool.inner().cloned());
+    repo.add_videos_bulk(&playlist_id, &videos)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn db_playlists_remove_videos_bulk(
+    pool: State<'_, DbPool>,
+    playlist_id: String,
+    video_ids: Vec<String>,
+) -> Result<(), String> {
+    let repo = PlaylistsRepository::new(pool.inner().cloned());
+    repo.remove_videos_bulk(&playlist_id, &video_ids)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// =============================================================================
+// Subscription cache commands
+// =============================================================================
+
+#[tauri::command]
+pub async fn db_subscription_cache_update(
+    pool: State<'_, DbPool>,
+    channel_id: String,
+    data: serde_json::Value,
+    content_type: String,
+) -> Result<(), String> {
+    let repo = SubscriptionCacheRepository::new(pool.inner().cloned());
+    match content_type.as_str() {
+        "videos" => repo.update_videos(&channel_id, &data).await,
+        "live_streams" => repo.update_live_streams(&channel_id, &data).await,
+        "shorts" => repo.update_shorts(&channel_id, &data).await,
+        "community_posts" => repo.update_community_posts(&channel_id, &data).await,
+        _ => {
+            return Err(format!("Unknown content type: {}", content_type));
+        }
+    }
+    .map_err(|e| e.to_string())
+}
+
+// =============================================================================
+// Sync state commands
+// =============================================================================
+
+#[tauri::command]
+pub async fn db_sync_state_get(
+    pool: State<'_, DbPool>,
+    key: String,
+) -> Result<Option<String>, String> {
+    let repo = SyncStateRepository::new(pool.inner().cloned());
+    repo.get_state(&key).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn db_sync_state_set(
+    pool: State<'_, DbPool>,
+    key: String,
+    value: String,
+) -> Result<(), String> {
+    let repo = SyncStateRepository::new(pool.inner().cloned());
+    repo.set_state(&key, &value)
+        .await
+        .map_err(|e| e.to_string())
 }
