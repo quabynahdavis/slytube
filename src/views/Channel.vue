@@ -161,9 +161,19 @@ function timeAgo(published: string): string {
 
     <!-- Error -->
     <div v-else-if="error" class="flex items-center justify-center h-64">
-      <div class="text-center">
-        <p class="text-destructive font-medium">{{ error }}</p>
-        <button class="mt-2 text-sm text-primary hover:underline" @click="loadChannelData">Retry</button>
+      <div class="text-center max-w-md">
+        <div class="size-16 mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center">
+          <svg class="size-8 text-destructive" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <p class="text-destructive font-medium">Failed to load channel</p>
+        <p class="text-sm text-muted-foreground mt-1">{{ error }}</p>
+        <button class="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors" @click="loadChannelData">
+          Retry
+        </button>
       </div>
     </div>
 
@@ -186,11 +196,16 @@ function timeAgo(published: string): string {
                 <span v-else>{{ channel.name[0] }}</span>
               </div>
               <div>
-                <h1 class="text-xl font-bold text-foreground">{{ channel.name }}</h1>
-                <p class="text-sm text-muted-foreground">
+                <h1 class="text-xl font-bold text-foreground">
+                  {{ channel.name === 'Unknown' ? 'Channel unavailable' : channel.name }}
+                </h1>
+                <p v-if="channel.name !== 'Unknown'" class="text-sm text-muted-foreground">
                   {{ formatSubscribers(channel.subscriberCount) }} subscribers • {{ channel.videoCount.toLocaleString() }} videos
                 </p>
-                <p class="text-xs text-muted-foreground mt-1 line-clamp-1 max-w-md">{{ channel.description }}</p>
+                <p v-else class="text-sm text-muted-foreground">
+                  Channel data could not be loaded
+                </p>
+                <p v-if="channel.name !== 'Unknown'" class="text-xs text-muted-foreground mt-1 line-clamp-1 max-w-md">{{ channel.description }}</p>
               </div>
             </div>
             <div class="flex items-center gap-2">
