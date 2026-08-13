@@ -41,6 +41,7 @@ pub async fn extract(
         "getChannelShorts",
         "getChannelLive",
         "getChannelCommunity",
+        "getChannelPlaylists",
         "getComments",
         "getCommentReplies",
         "getTrending",

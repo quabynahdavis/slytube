@@ -238,7 +238,22 @@ function parseListItem(item: any): unknown | null {
         }
       }
       if (content_type === 'SHORT' || content_type === 'VIDEO') {
-        return { type: 'video', data: parseVideo(item.metadata || {}) }
+        // LockupView.metadata contains video metadata in a different shape than Video nodes.
+        // Map it to the structure parseVideo expects.
+        const metadata = item.metadata || {}
+        const videoData = {
+          videoId: item.content_id || metadata.videoId || '',
+          title: metadata.title?.text || metadata.title?.runs?.[0]?.text || 'Unknown',
+          author: {
+            name: metadata.metadata?.metadata?.metadata_rows?.[0]?.metadata_parts?.[0]?.text || '',
+          },
+          thumbnail: metadata.content_image?.primary_thumbnail?.image || metadata.thumbnail,
+          viewCount: metadata.metadata?.metadata?.metadata_rows?.flatMap((r: any) => r.metadata_parts || []).find((p: any) => /views?/i.test(p.text)),
+          duration: metadata.thumbnail_overlay?.thumbnail_overlay_time_status_text,
+        }
+        const video = parseVideo(videoData)
+        if (video && content_type === 'SHORT') video.isShort = true
+        return { type: 'video', data: video }
       }
       console.warn(`[Extractor] Unknown LockupView content_type: ${content_type}`)
       return null
@@ -393,51 +408,56 @@ async function handleGetChannel(params: any): Promise<ChannelInfo> {
 
   const ch = channel as any
 
-  // Determine available tabs
+  // Determine available tabs using youtubei.js boolean getters
   const tabs: string[] = []
-  if (ch.has_home || ch.home) tabs.push('home')
-  if (ch.has_videos || ch.videos) tabs.push('videos')
-  if (ch.has_shorts || ch.shorts || ch.has_short_videos || ch.shortVideos) tabs.push('shorts')
-  if (ch.has_streams || ch.streams || ch.has_live_streams || ch.liveStreams) tabs.push('live')
-  if (ch.has_playlists || ch.playlists) tabs.push('playlists')
-  if (ch.has_community || ch.community) tabs.push('community')
+  if (ch.has_home) tabs.push('home')
+  if (ch.has_videos) tabs.push('videos')
+  if (ch.has_shorts) tabs.push('shorts')
+  if (ch.has_live_streams) tabs.push('live')
+  if (ch.has_playlists) tabs.push('playlists')
+  if (ch.has_community) tabs.push('community')
+  if (ch.has_releases) tabs.push('releases')
 
-  // Parse home tab shelves if requested
+  // Parse home tab shelves if requested.
+  // The initial getChannel() response includes the home tab content in current_tab.
   const shelves: Array<{ title: string; content: unknown[] }> = []
-  if (params.includeHomeShelves && ch.home) {
-    const homeContent = ch.home.current_tab?.content
-    if (homeContent?.contents) {
-      for (const section of homeContent.contents) {
-        const firstChild = section.content?.contents?.[0] || section.content
-        if (firstChild?.type === 'Shelf') {
-          shelves.push({
-            title: firstChild.title?.text || 'Videos',
-            content: (firstChild.content?.items || [])
-              .map((item: unknown) => parseListItem(item))
-              .filter(Boolean),
-          })
-        } else if (firstChild?.type === 'ReelShelf') {
-          shelves.push({
-            title: firstChild.title?.text || 'Shorts',
-            content: (firstChild.items || [])
-              .map((item: unknown) => parseListItem(item))
-              .filter(Boolean),
-          })
-        } else if (firstChild?.type === 'HorizontalCardList') {
-          shelves.push({
-            title: firstChild.header?.title?.text || 'Channels',
-            content: (firstChild.cards || [])
-              .map((item: unknown) => parseListItem(item))
-              .filter(Boolean),
-          })
-        } else if (firstChild?.type === 'RichShelf') {
-          shelves.push({
-            title: firstChild.title?.text || 'Playlists',
-            content: (firstChild.contents || [])
-              .map((item: any) => parseListItem(item?.content || item))
-              .filter(Boolean),
-          })
-        }
+  if (params.includeHomeShelves) {
+    const homeContent = ch.current_tab?.content as any
+    const sections = homeContent?.contents || []
+    for (const section of sections) {
+      // Each section may be an ItemSection (first child is Shelf/ReelShelf/HorizontalCardList)
+      // or a RichSection (content is RichShelf)
+      const sectionContent = section.content || section
+      const firstChild = sectionContent.contents?.[0] || sectionContent.content || sectionContent
+
+      if (firstChild?.type === 'Shelf') {
+        shelves.push({
+          title: firstChild.title?.text || 'Videos',
+          content: (firstChild.content?.items || firstChild.contents || [])
+            .map((item: unknown) => parseListItem(item))
+            .filter(Boolean),
+        })
+      } else if (firstChild?.type === 'ReelShelf') {
+        shelves.push({
+          title: firstChild.title?.text || 'Shorts',
+          content: (firstChild.items || [])
+            .map((item: unknown) => parseListItem(item))
+            .filter(Boolean),
+        })
+      } else if (firstChild?.type === 'HorizontalCardList') {
+        shelves.push({
+          title: firstChild.header?.title?.text || 'Channels',
+          content: (firstChild.cards || [])
+            .map((item: unknown) => parseListItem(item))
+            .filter(Boolean),
+        })
+      } else if (sectionContent.content?.type === 'RichShelf') {
+        shelves.push({
+          title: sectionContent.content.title?.text || 'Playlists',
+          content: (sectionContent.content.contents || [])
+            .map((item: any) => parseListItem(item?.content || item))
+            .filter(Boolean),
+        })
       }
     }
   }
@@ -511,18 +531,63 @@ function parseComment(comment: any): CommentInfo | null {
   }
 }
 
-async function handleGetTrending(_params: any): Promise<VideoInfo[]> {
+async function handleGetTrending(params: any): Promise<VideoInfo[]> {
   const yt = await getInnertube()
+  const tab = params?.tab || 'default'
 
-  // Use getHomeFeed which returns trending-like content
-  const feed = await yt.getHomeFeed()
+  // Map tab names to YouTube browseIds
+  const browseIds: Record<string, string> = {
+    default: 'FEtrending',
+    music: 'FEtrending',       // Music tab uses protobuf param
+    gaming: 'FEtrending',     // Gaming tab uses protobuf param
+    movies: 'FEtrending',     // Movies tab uses protobuf param
+    sports: 'FEtrending',
+  }
+  const protobufParams: Record<string, string | undefined> = {
+    default: undefined,
+    music: '4gINGgtpbiAQBBoIdHJlbmRpbmcYmgMiBQgBGAQ%3D',
+    gaming: '4gINGgtpbiAYBBoIdHJlbmRpbmcYmgMiBQgBGAQ%3D',
+    movies: '4gIKGghmaWxtZGG4AQCSAwDyBgQKAjIA',
+    sports: '4gIKGghzcG9ydHN0YWK4AQCSAwDyBgQKAjIA',
+  }
+
+  const browseId = browseIds[tab] || 'FEtrending'
+  const protoParams = protobufParams[tab]
+
+  // Fetch the trending browse response
+  const response = await yt.actions.execute('/browse', {
+    browseId,
+    ...(protoParams ? { params: protoParams } : {}),
+  })
 
   const videos: VideoInfo[] = []
-  for (const section of (feed as any).contents || []) {
-    for (const item of section.contents || []) {
-      const parsed = parseListItem(item)
-      if (parsed && (parsed as any).type === 'video' && (parsed as any).data) {
-        videos.push((parsed as any).data)
+  const contents = (response as any)?.data?.contents?.tabbedBrowseResultsRenderer?.tabs || []
+
+  for (const tabData of contents) {
+    const tabRenderer = tabData.tabRenderer
+    if (!tabRenderer?.content) continue
+
+    const sections = tabRenderer.content.sectionListRenderer?.contents || []
+    for (const section of sections) {
+      // Each section has itemSectionRenderer with video items
+      const items = section?.itemSectionRenderer?.contents || []
+      for (const item of items) {
+        const parsed = parseListItem(item)
+        if (parsed && (parsed as any).type === 'video' && (parsed as any).data) {
+          videos.push((parsed as any).data)
+        }
+      }
+
+      // Handle shelf renderers (e.g. "Trending" shelf within a tab)
+      const shelf = section?.shelfRenderer
+      if (shelf?.content) {
+        const shelfItems = shelf.content.horizontalListRenderer?.items || shelf.content.expandedShelfContentsRenderer?.items || []
+        for (const item of shelfItems) {
+          const parsed = parseListItem(item)
+          if (parsed && (parsed as any).type === 'video' && (parsed as any).data) {
+            videos.push((parsed as any).data)
+          }
+        }
       }
     }
   }
@@ -560,6 +625,70 @@ async function handleGetSearchSuggestions(params: any): Promise<string[]> {
   return await yt.getSearchSuggestions(query)
 }
 
+async function handleGetCommentReplies(params: any): Promise<CommentInfo[]> {
+  const yt = await getInnertube()
+  const videoId = params.videoId
+  const commentId = params.commentId
+
+  if (!videoId || !commentId) throw new Error('Missing videoId or commentId')
+
+  const comments = await yt.getComments(videoId, params.sort_by, commentId)
+
+  return ((comments as any).contents || [])
+    .map((thread: any) => parseComment(thread.comment))
+    .filter(Boolean) as CommentInfo[]
+}
+
+async function handleGetHashtag(params: any): Promise<VideoInfo[]> {
+  const yt = await getInnertube()
+  const hashtag = params.hashtag
+
+  if (!hashtag) throw new Error('Missing hashtag')
+
+  const hashtagFeed = await yt.getHashtag(hashtag)
+
+  const videos: VideoInfo[] = []
+  const sections = (hashtagFeed as any)?.contents?.contents || (hashtagFeed as any)?.contents || []
+  for (const section of sections) {
+    const items = section?.itemSectionRenderer?.contents || section?.contents || []
+    for (const item of items) {
+      const parsed = parseListItem(item)
+      if (parsed && (parsed as any).type === 'video' && (parsed as any).data) {
+        videos.push((parsed as any).data)
+      }
+    }
+  }
+
+  return videos
+}
+
+async function handleGetCommunityPost(params: any): Promise<unknown> {
+  const yt = await getInnertube()
+  const postId = params.postId
+  const channelId = params.channelId
+
+  if (!postId || !channelId) throw new Error('Missing postId or channelId')
+
+  const post = await yt.getPost(postId, channelId)
+
+  // Extract post data and comments from the feed
+  const posts = (post as any)?.contents || []
+  const result = []
+  for (const section of posts) {
+    const items = section?.itemSectionRenderer?.contents || []
+    for (const item of items) {
+      if (item?.backstagePostThreadRenderer) {
+        const postData = item.backstagePostThreadRenderer.post
+        if (postData) {
+          result.push(parseCommunityPost(postData))
+        }
+      }
+    }
+  }
+
+  return result[0] || null
+}
+
 // ─── Main bridge ─────────────────────────────────────────────────────────────
 
 ;(window as any).__slytube_run = async (reqId: string, method: string, params: any) => {
@@ -578,15 +707,79 @@ async function handleGetSearchSuggestions(params: any): Promise<string[]> {
         break
       case 'getChannelVideos': {
         const yt = await getInnertube()
-        await yt.actions.execute('/browse', {
-          browseId: params.channelId,
-          params: 'EgZ2aWRlb3PyBgQKAjoA',
-        })
-        result = { videos: [] }
+        const videosChannel = await (await yt.getChannel(params.channelId)).getVideos()
+        const videosTab = videosChannel as any
+        result = {
+          videos: (videosTab.videos || [])
+            .map((v: unknown) => parseVideo(v))
+            .filter(Boolean),
+          continuation: videosTab.has_continuation || false,
+        }
+        break
+      }
+      case 'getChannelShorts': {
+        const yt = await getInnertube()
+        const shortsChannel = await (await yt.getChannel(params.channelId)).getShorts()
+        const shortsTab = shortsChannel as any
+        result = {
+          videos: (shortsTab.videos || [])
+            .map((v: unknown) => { const video = parseVideo(v); if (video) video.isShort = true; return video })
+            .filter(Boolean),
+          continuation: shortsTab.has_continuation || false,
+        }
+        break
+      }
+      case 'getChannelLive': {
+        const yt = await getInnertube()
+        const liveChannel = await (await yt.getChannel(params.channelId)).getLiveStreams()
+        const liveTab = liveChannel as any
+        result = {
+          videos: (liveTab.videos || [])
+            .map((v: unknown) => parseVideo(v))
+            .filter(Boolean),
+          continuation: liveTab.has_continuation || false,
+        }
+        break
+      }
+      case 'getChannelCommunity': {
+        const yt = await getInnertube()
+        const communityChannel = await (await yt.getChannel(params.channelId)).getCommunity()
+        const communityTab = communityChannel as any
+        result = {
+          posts: (communityTab.posts || [])
+            .map((p: unknown) => parseCommunityPost(p)),
+        }
+        break
+      }
+      case 'getChannelPlaylists': {
+        const yt = await getInnertube()
+        const playlistsChannel = await (await yt.getChannel(params.channelId)).getPlaylists()
+        const playlistsTab = playlistsChannel as any
+        result = {
+          playlists: (playlistsTab.playlists || [])
+            .map((p: any) => ({
+              id: p.playlistId || p.id || '',
+              title: p.title?.text || p.title?.runs?.[0]?.text || 'Unknown',
+              description: p.description || '',
+              author: p.author?.name || p.subtitle?.runs?.[0]?.text || '',
+              authorId: p.author?.id || '',
+              videoCount: parseViewCount(p.videoCountText?.text),
+              videos: [],
+            })),
+        }
         break
       }
       case 'getComments':
         result = await handleGetComments(params)
+        break
+      case 'getCommentReplies':
+        result = await handleGetCommentReplies(params)
+        break
+      case 'getHashtag':
+        result = await handleGetHashtag(params)
+        break
+      case 'getCommunityPost':
+        result = await handleGetCommunityPost(params)
         break
       case 'getTrending':
         result = await handleGetTrending(params)

@@ -258,7 +258,14 @@ export async function search(
 ): Promise<Video[]> {
   // Primary: extractor (youtubei.js via hidden webview)
   try {
-    const result = await extract('search', { query, ...filters })
+    // Map frontend filter names to youtubei.js SearchFilters
+    const ytFilters: Record<string, unknown> = {}
+    if (filters?.type) ytFilters.type = filters.type
+    if (filters?.duration) ytFilters.duration = filters.duration
+    if (filters?.date) ytFilters.upload_date = filters.date
+    if (filters?.sort) ytFilters.prioritize = filters.sort
+
+    const result = await extract('search', { query, ...ytFilters })
     const items = (result as any[]) || []
     const videos: Video[] = []
 
@@ -372,6 +379,16 @@ export async function getCommentsInfo(videoId: string): Promise<Comment[]> {
 }
 
 export async function getChannelShorts(channelId: string): Promise<Video[]> {
+  // Primary: extractor (youtubei.js via hidden webview)
+  try {
+    const result = await extract('getChannelShorts', { channelId })
+    const shorts = (result as any)?.videos || []
+    return shorts.map(mapExtractedVideo)
+  } catch (e) {
+    console.warn('[API] Extractor failed for getChannelShorts, falling back to Invidious:', e)
+  }
+
+  // Fallback: Invidious
   try {
     const result = await invidiousGetChannelShorts(channelId)
     const shorts = result.videos || result.shorts || []
@@ -381,13 +398,71 @@ export async function getChannelShorts(channelId: string): Promise<Video[]> {
   }
 }
 
+export async function getChannelLiveVideos(channelId: string): Promise<Video[]> {
+  // Primary: extractor (youtubei.js via hidden webview)
+  try {
+    const result = await extract('getChannelLive', { channelId })
+    const live = (result as any)?.videos || []
+    return live.map(mapExtractedVideo)
+  } catch (e) {
+    console.warn('[API] Extractor failed for getChannelLive:', e)
+  }
+  return []
+}
+
 export async function getChannelCommunityPosts(channelId: string): Promise<any[]> {
+  // Primary: extractor (youtubei.js via hidden webview)
+  try {
+    const result = await extract('getChannelCommunity', { channelId })
+    const posts = (result as any)?.posts || []
+    return posts
+  } catch (e) {
+    console.warn('[API] Extractor failed for getChannelCommunity, falling back to Invidious:', e)
+  }
+
+  // Fallback: Invidious
   try {
     const result = await invidiousGetChannelCommunityPosts(channelId)
     return result.comments || result.posts || []
   } catch {
     return []
   }
+}
+
+export async function getChannelPlaylists(channelId: string): Promise<Playlist[]> {
+  // Primary: extractor (youtubei.js via hidden webview)
+  try {
+    const result = await extract('getChannelPlaylists', { channelId })
+    const playlists = (result as any)?.playlists || []
+    return playlists.map((p: any) => mapExtractedPlaylist(p))
+  } catch (e) {
+    console.warn('[API] Extractor failed for getChannelPlaylists:', e)
+  }
+  return []
+}
+
+export async function getCommentReplies(videoId: string, commentId: string): Promise<Comment[]> {
+  // Primary: extractor (youtubei.js via hidden webview)
+  try {
+    const result = await extract('getCommentReplies', { videoId, commentId })
+    const replies = (result as any[]) || []
+    return replies.map(mapExtractedComment)
+  } catch (e) {
+    console.warn('[API] Extractor failed for getCommentReplies:', e)
+  }
+  return []
+}
+
+export async function getHashtagVideos(hashtag: string): Promise<Video[]> {
+  // Primary: extractor (youtubei.js via hidden webview)
+  try {
+    const result = await extract('getHashtag', { hashtag })
+    const videos = (result as any[]) || []
+    return videos.map(mapExtractedVideo)
+  } catch (e) {
+    console.warn('[API] Extractor failed for getHashtag:', e)
+  }
+  return []
 }
 
 export async function getSubscribedChannelsShorts(channelIds: string[]): Promise<Video[]> {
