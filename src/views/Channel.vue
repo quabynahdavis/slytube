@@ -279,8 +279,7 @@ function timeAgo(published: string): string {
             </div>
             <router-link
               :to="`/watch?v=${filteredVideos[0].id}`"
-              class="flex flex-col md:flex-row gap-4 group p-3 rounded-xl hover:bg-[var(--card-hover)] transition-colors"
-              :style="{ '--card-hover': getColor(filteredVideos[0].thumbnail) }"
+              class="flex flex-col md:flex-row gap-4 group p-3 rounded-xl hover:bg-muted/50 transition-colors"
             >
               <div class="relative w-full md:w-80 shrink-0 aspect-video rounded-xl overflow-hidden bg-muted">
                 <img v-if="filteredVideos[0].thumbnail" :src="filteredVideos[0].thumbnail" :alt="filteredVideos[0].title" class="w-full h-full object-cover" />
@@ -308,8 +307,7 @@ function timeAgo(published: string): string {
                 v-for="video in filteredVideos.slice(1, 5)"
                 :key="video.id"
                 :to="`/watch?v=${video.id}`"
-                class="flex gap-4 p-3 rounded-xl hover:bg-[var(--card-hover)] transition-colors group"
-                :style="{ '--card-hover': getColor(video.thumbnail) }"
+                class="flex gap-4 p-3 rounded-xl hover:bg-muted/50 transition-colors group"
               >
                 <div class="relative w-40 shrink-0 aspect-video rounded-xl overflow-hidden bg-muted">
                   <img v-if="video.thumbnail" :src="video.thumbnail" :alt="video.title" class="w-full h-full object-cover" />
