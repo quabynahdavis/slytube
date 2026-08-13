@@ -105,7 +105,7 @@ function timeAgo(published: string): string {
 
 <template>
   <div
-    class="group relative rounded-xl transition-colors duration-200"
+    class="group relative rounded-xl transition-colors duration-200 hover:bg-[var(--card-hover)] p-3"
     :style="{ '--card-hover': getColor(video.thumbnail) }"
   >
     <!-- Video Thumbnail -->
