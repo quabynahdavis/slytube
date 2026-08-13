@@ -3,7 +3,7 @@ import { ref } from 'vue'
 const colorCache = ref<Map<string, string>>(new Map())
 
 function getFallbackColor(): string {
-  return 'rgba(142, 142, 142, 0.08)'
+  return 'rgba(142, 142, 142, 0.15)'
 }
 
 function extractColorFromImage(img: HTMLImageElement): string {
@@ -31,7 +31,7 @@ function extractColorFromImage(img: HTMLImageElement): string {
   g = Math.floor(g / pixelCount)
   b = Math.floor(b / pixelCount)
 
-  return `rgba(${r}, ${g}, ${b}, 0.08)`
+  return `rgba(${r}, ${g}, ${b}, 0.15)`
 }
 
 async function processImage(url: string): Promise<string> {
