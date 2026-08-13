@@ -57,6 +57,10 @@ function formatPublished(timestamp: number): string {
 function mapExtractedVideo(v: any): Video {
   if (!v) return { id: '', title: 'Unknown', author: 'Unknown', authorId: '', authorUrl: '', authorAvatar: '', description: '', thumbnail: '', viewCount: 0, likeCount: 0, lengthSeconds: 0, published: '', isLive: false, isUpcoming: false, isShort: false, chapters: [], captions: [], related: [] }
 
+
+  const {viewCount, viewCountText} = v
+  console.log({viewCount, viewCountText})
+
   const videoId = v.id || ''
   return {
     id: videoId,
@@ -137,6 +141,9 @@ function mapInvidiousVideo(v: any): Video {
 
   const rawThumbnail = getBestThumbnail(v.videoThumbnails)
   const rawAuthorAvatar = getAuthorAvatar(v.authorThumbnails)
+
+  const {viewCount, viewCountText, lengthSeconds} = v
+  console.log({viewCount, viewCountText, lengthSeconds})
 
   return {
     id: videoId,

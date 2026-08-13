@@ -54,9 +54,6 @@ pub fn run() {
     let builder = builder.plugin(tauri_plugin_global_shortcut::Builder::new().build());
 
     builder
-        .register_uri_scheme_protocol("imgcache", move |ctx, request| {
-            image_cache::handle_protocol_request(ctx.app_handle(), &request)
-        })
         .setup(|app| {
             // Initialize HTTP client for YouTube/Invidious API calls
             let http_client = Arc::new(HttpClient::new()
